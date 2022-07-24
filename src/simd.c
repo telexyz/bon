@@ -2,6 +2,10 @@
 #include <emmintrin.h>
 #include <stdint.h>
 
+__m128i w_mm_set1_epi8(signed char v) {
+    return _mm_set1_epi8(v);
+}
+
 __m128i w_mm_setr_epi8(
     signed char v15,
     signed char v14,
