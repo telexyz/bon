@@ -62,14 +62,14 @@ https://www.eidos.ic.i.u-tokyo.ac.jp/~tau/lecture/parallel_distributed/slides/pd
 
 - - -
 
-
-https://sites.cs.ucsb.edu/~tyang/class/240a17/slides/SIMD.pdf
-
-Intel SSE / SSE2
-SSE = streaming SIMD extensions
+SSE = Streaming SIMD Extensions
+AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
 
 • SSE2/3/4, new 8 128-bit registers [1999]
 
-• AVX, new 256-bit registers [2011]
+• AVX-2, new 256-bit registers [2011]
 
-SSE2 data types: anything that fits into 16 bytes, e.g.,
+• AVX-512, 512-bit
+
+
+SSE2 data types: anything that fits into 16 bytes,

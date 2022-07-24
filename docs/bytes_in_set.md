@@ -1,6 +1,6 @@
 # Kiểm tra chuỗi bytes có trong tập hợp cho trước không bằng SIMD
 
-Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#introduction
+Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#alternative-implementation-new
 
 
 ## Bài toán
@@ -170,3 +170,8 @@ const __m128i result = _mm_cmpeq_epi8(t0, bitmask);
 - 1 x bit-xor,  `_mm_xor_si128`
 - 3 x shuffle   `_mm_shuffle_epi8`
 - 1 x compare   `_mm_cmpeq_epi8`
+
+Chữa bước 5/
+https://twitter.com/pshufb/status/1052998624483917825
+
+You have to OR together the first 2 PSHUFB results and AND them against the 3rd one (for which you need a shift-AND to get the 1 << bits_456 result). This is 1 more logic op than yours but 1 fewer comparison and no blend.
