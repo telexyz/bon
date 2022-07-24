@@ -148,8 +148,8 @@ const __m128i row_0_7  = _mm_shuffle_epi8(bitmap_0_7, indices_0_7);
 const __m128i row_8_15 = _mm_shuffle_epi8(bitmap_8_15, indices_8_15);
 
 // 5/ Calculate a bitmask, i.e. (1 << hi_nibble % 8).
-// bitmasks       = [08|02|02|02|02|40|40|02|08|08|08|04|02|02|40|02]
-const __m128i bitmasks = _mm_shuffle_epi8(bitmask_lookup, higher_nibbles);
+// bitmask        = [08|02|02|02|02|40|40|02|08|08|08|04|02|02|40|02]
+const __m128i bitmask = _mm_shuffle_epi8(bitmask_lookup, higher_nibbles);
 
 // 6/ Choose rows halves depending on higher nibbles.
 // bitsets        = [ff|ff|00|ff|ff|00|00|ff|ff|00|ff|ff|00|00|00|ff]
@@ -165,8 +165,8 @@ const __m128i result = _mm_cmpeq_epi8(t0, bitmask);
 ```
 
 9 of instructions:
-- 3 x bit-and,
-- 1 x bit-or,
-- 1 x bit-xor,
-- 3 x shuffle,
-- 1 x compare.
+- 3 x bit-and   `_mm_and_si128`
+- 1 x bit-or    `_mm_or_si128`
+- 1 x bit-xor,  `_mm_xor_si128`
+- 3 x shuffle   `_mm_shuffle_epi8`
+- 1 x compare   `_mm_cmpeq_epi8`
