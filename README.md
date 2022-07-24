@@ -37,14 +37,18 @@ b2/ ...
 
 https://github.com/travisstaloch/simdjzon | nhiều code mẫu SIMD = Zig
 
+https://www.youtube.com/watch?v=AT5nuQQO96o
+
+http://www.fit.vutbr.cz/~iklubal/IPA/AVX-512_Cornea.pdf
+
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
 
-• SSE2/3/4, new 8 128-bit registers [1999]
+• SSE2/3/4: 8 128-bit XMM registers [1999]
 
-• AVX-2, new 256-bit registers [2011]
+• AVX-2: 16 256-bit YMM registers [2011]
 
-• AVX-512, 512-bit
+• AVX-512, 32 512-bit ZMM registers [2017 Xeon, Ice Lake	]
 
 
 SSE2 data types: anything that fits into 16 bytes,

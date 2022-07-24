@@ -51,7 +51,8 @@ pub fn main() void {
     std.debug.print("\nbitmap_0_7 {b}\n", .{@as([16]u8, bitmap_0_7)});
     std.debug.print("bitmap_8_15 {b}\n", .{@as([16]u8, bitmap_8_15)});
 
-    const bitmask_lookup: v.u8x16 = simd.mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, -128, 1, 2, 4, 8, 16, 32, 64, -128);
+    // const bitmask_lookup: v.u8x16 = simd.mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, -128, 1, 2, 4, 8, 16, 32, 64, -128);
+    const bitmask_lookup: v.u8x16 = simd.bitmask_lookup();
     std.debug.print("\nbitmask_lookup {b}\n", .{@as([16]u8, bitmask_lookup)});
 
     //

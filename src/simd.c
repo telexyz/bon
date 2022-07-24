@@ -27,6 +27,12 @@ __m128i w_mm_setr_epi8(
                           v7, v6, v5, v4, v3, v2,v1,v0);
 }
 
+__m128i w_bitmask_lookup() {
+return _mm_setr_epi8(
+        1, 2, 4, 8, 16, 32, 64, -128,
+        1, 2, 4, 8, 16, 32, 64, -128);
+}
+
 __m128i w_mm_srli_epi16(__m128i a, signed int b) {
     return _mm_srli_epi16(a, b);
 }
