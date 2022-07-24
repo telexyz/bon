@@ -27,6 +27,10 @@ __m128i w_mm_setr_epi8(
                           v7, v6, v5, v4, v3, v2,v1,v0);
 }
 
+__m128i w_mm_srli_epi16(__m128i a, signed int b) {
+    return _mm_srli_epi16(a, b);
+}
+
 __m128i w_mm_and_si128(__m128i a, __m128i b) {
     return _mm_and_si128(a, b);
 }

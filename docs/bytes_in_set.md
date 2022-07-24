@@ -1,6 +1,6 @@
 # Kiểm tra chuỗi bytes có trong tập hợp cho trước không bằng SIMD
 
-Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#alternative-implementation-new
+Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#implementation
 
 
 ## Bài toán
@@ -134,44 +134,41 @@ static const __m128i bitmask_lookup = _mm_setr_epi8(
 // 1/ load 16 byte input
 const __m128i input = _mm_loadu_si128(ptr);
 
-// 2/ Extract indices for row_0_7
-const __m128i indices_0_7          = _mm_and_si128(input, _mm_set1_epi8(0x8f)); // 0b1000_1111
+// 2/ Extract lower nibbles and higher nibbles
+// lower_nibbles  = [06|00|01|01|00|0d|0d|01|06|0d|06|01|01|01|0d|00]
+// higher_nibbles = [03|01|09|02|01|0e|0e|02|03|0b|03|02|09|09|0e|01]
+const __m128i lower_nibbles  = _mm_and_si128(input, _mm_set1_epi8(0x0f));
+const __m128i higher_nibbles = _mm_and_si128(_mm_srli_epi16(input, 4), _mm_set1_epi8(0x0f));
 
-// 3/ Extract indices for row_8_15
-const __m128i most_significant_bit = _mm_and_si128(input, _mm_set1_epi8(0x80)); // 0b1000_0000
-const __m128i indices_8_15         = _mm_xor_si128(indices_0_7, most_significant_bit);
-
-// 4/ Fetch row_0_7 and row_8_15:
+// 3/ Fetch row_0_7 and row_8_15:
 // row_0_7        = [a1|43|6f|6f|43|b8|b8|6f|a1|b8|a1|6f|6f|6f|b8|43]
 // row_8_15       = [14|24|b0|b0|24|0c|0c|b0|14|0c|14|b0|b0|b0|0c|24]
-const __m128i row_0_7  = _mm_shuffle_epi8(bitmap_0_7, indices_0_7);
-const __m128i row_8_15 = _mm_shuffle_epi8(bitmap_8_15, indices_8_15);
+const __m128i row_0_7  = _mm_shuffle_epi8(bitmap_0_7, lower_nibbles);
+const __m128i row_8_15 = _mm_shuffle_epi8(bitmap_8_15, higher_nibbles);
 
-// 5/ Calculate a bitmask, i.e. (1 << hi_nibble % 8).
+// 4/ Calculate a bitmask, i.e. (1 << hi_nibble % 8).
 // bitmask        = [08|02|02|02|02|40|40|02|08|08|08|04|02|02|40|02]
 const __m128i bitmask = _mm_shuffle_epi8(bitmask_lookup, higher_nibbles);
 
-// 6/ Choose rows halves depending on higher nibbles.
+// 5/ Choose rows halves depending on higher nibbles.
 // bitsets        = [ff|ff|00|ff|ff|00|00|ff|ff|00|ff|ff|00|00|00|ff]
 //                ? [a1|43|..|6f|43|..|..|6f|a1|..|a1|6f|..|..|..|43]
 //                : [..|..|b0|..|..|0c|0c|..|..|0c|..|..|b0|b0|0c|..]
 //
 //                = [a1|43|b0|6f|43|0c|0c|6f|a1|0c|a1|6f|b0|b0|0c|43]
-const __m128i bitsets = _mm_or_si128(row_0_7, row_8_15);
 
-// 7/ Finally check which bytes belong to the set.
+// mask           = [ff|ff|00|ff|ff|00|00|ff|ff|00|ff|ff|00|00|00|ff]
+const __m128i mask    = _mm_cmplt_epi8(higher_nibbles, _mm_set1_epi8(8));
+const __m128i bitsets = _mm_blendv_epi8(row_0_7, row_8_15, mask);
+
+// 6/ Finally check which bytes belong to the set.
 const __m128i tmp    = _mm_and_si128(bitsets, bitmask);
-const __m128i result = _mm_cmpeq_epi8(t0, bitmask);
+const __m128i result = _mm_cmpeq_epi8(tmp, bitmask);
 ```
 
-9 of instructions:
+10 of instructions:
 - 3 x bit-and   `_mm_and_si128`
-- 1 x bit-or    `_mm_or_si128`
-- 1 x bit-xor,  `_mm_xor_si128`
 - 3 x shuffle   `_mm_shuffle_epi8`
-- 1 x compare   `_mm_cmpeq_epi8`
-
-Chữa bước 5/
-https://twitter.com/pshufb/status/1052998624483917825
-
-You have to OR together the first 2 PSHUFB results and AND them against the 3rd one (for which you need a shift-AND to get the 1 << bits_456 result). This is 1 more logic op than yours but 1 fewer comparison and no blend.
+- 2 x compare   `_mm_cmpeq_epi8`, `_mm_cmplt_epi8`
+- 1 x shift     `_mm_srli_epi16`
+- 1 x blend     `_mm_blendv_epi8`
