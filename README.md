@@ -31,13 +31,17 @@ b1/ các ký tự có dấu `ơ, ô, ổ ...` được cấu thành từ nhiều
 
 b2/ ...
 
+
 - - -
+
 
 ## Tham khảo
 
 https://github.com/travisstaloch/simdjzon | nhiều code mẫu SIMD = Zig
 
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
+
+vectorized lookup algo https://arxiv.org/pdf/2010.03090.pdf
 
 https://www.youtube.com/watch?v=AT5nuQQO96o
 
@@ -48,7 +52,4 @@ AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
 
 • AVX-2: 16 256-bit YMM registers [2011]
 
-• AVX-512, 32 512-bit ZMM registers [2017 Xeon, Ice Lake	]
-
-
-SSE2 data types: anything that fits into 16 bytes,
+• AVX-512, 32 512-bit ZMM registers [2017 Xeon, Ice Lake]
