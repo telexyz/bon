@@ -37,9 +37,9 @@ b2/ ...
 
 https://github.com/travisstaloch/simdjzon | nhiều code mẫu SIMD = Zig
 
-https://www.youtube.com/watch?v=AT5nuQQO96o
+https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
 
-http://www.fit.vutbr.cz/~iklubal/IPA/AVX-512_Cornea.pdf
+https://www.youtube.com/watch?v=AT5nuQQO96o
 
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
