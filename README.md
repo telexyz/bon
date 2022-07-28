@@ -25,7 +25,7 @@ b2/ ...
 
 ## Bài toán nâng cao: phân tích âm tiết ở dạng utf-8
 
-`tuổi` => => `t` + `uoz` + `i` + `r`
+`tuổi` => `t` + `uoz` + `i` + `r`
 
 b1/ các ký tự có dấu `ơ, ô, ổ ...` được cấu thành từ nhiều byte nên ta bắt đầu bằng việc xác định các ký tự đơn byte như `t, u, i ...` và nên phân tách thành nguyên âm đơn byte `u, i ...` và phụ âm đơn byte như `t ...`
 
@@ -41,8 +41,7 @@ https://github.com/travisstaloch/simdjzon | nhiều code mẫu SIMD = Zig
 
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
 
-vectorized lookup algo https://arxiv.org/pdf/2010.03090.pdf
-
+SIMD and vectorization using AVX intrinsic functions (Tutorial)
 https://www.youtube.com/watch?v=AT5nuQQO96o
 
 SSE = Streaming SIMD Extensions

@@ -2,6 +2,15 @@
 #include <emmintrin.h>
 #include <stdint.h>
 
+__m128i w_mm_cmpeq_epi8(__m128i a, __m128i b) {
+    return _mm_cmpeq_epi8(a, b);
+}
+__m128i w_mm_cmplt_epi8(__m128i a, __m128i b) {
+    return _mm_cmplt_epi8(a, b);
+}
+__m128i w_mm_blendv_epi8(__m128i a, __m128i b, __m128i c) {
+    return _mm_blendv_epi8(a, b, c);
+}
 __m128i w_mm_set1_epi8(signed char v) {
     return _mm_set1_epi8(v);
 }
@@ -27,12 +36,6 @@ __m128i w_mm_setr_epi8(
                           v7, v6, v5, v4, v3, v2,v1,v0);
 }
 
-__m128i w_bitmask_lookup() {
-return _mm_setr_epi8(
-        1, 2, 4, 8, 16, 32, 64, -128,
-        1, 2, 4, 8, 16, 32, 64, -128);
-}
-
 __m128i w_mm_srli_epi16(__m128i a, signed int b) {
     return _mm_srli_epi16(a, b);
 }
@@ -52,10 +55,6 @@ __m128i w_mm_xor_si128(__m128i a, __m128i b) {
 
 __m128i w_mm_shuffle_epi8(__m128i a, __m128i b) {
     return _mm_shuffle_epi8(a, b);
-}
-
-__m128i w_mm_cmpeq_epi8(__m128i a, __m128i b) {
-    return _mm_cmpeq_epi8(a, b);
 }
 
 // 
