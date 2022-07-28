@@ -67,7 +67,7 @@ pub fn main() void {
     std.debug.print("row_8_15 1424b0b0240c0cb0140c14b0b0b00c24\n", .{});
 
     const bitmask_lookup: v.u8x16 = simd.mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
-    std.debug.print("\nbitmask_lookup {b}\n", .{@as([16]u8, bitmask_lookup)});
+    std.debug.print("\nbitmask_lookup {d}\n", .{@as([16]u8, bitmask_lookup)});
 
     // bitmask_lookup { 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000, 1, 10, 100, 1000, 10000, 100000, 1000000, 10000000 }
     // hi_nibbles = [03|01|09|02|01|0e|0e|02|03|0b|03|02|09|09|0e|01]
