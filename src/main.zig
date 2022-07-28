@@ -69,14 +69,14 @@ pub fn main() void {
     const lookup: v.u8x16 = simd.mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
     std.debug.print("\nlookup  {x}\n", .{std.fmt.fmtSliceHexLower(&@as([16]u8, lookup))});
 
+    //                  0  1  2  3  4  5  6  7  8  9  a  b  c  d  e  f
     // lookup       = [01|02|04|08|10|20|40|80|01|02|04|08|10|20|40|80]
     // hi_nibbles   = [03|01|09|02|01|0e|0e|02|03|0b|03|02|09|09|0e|01]
-    // bitmask      = [08|02|02|02|02|40|40|02|08|08|08|04|02|02|40|02]
-    //                          ^^
-    // TODO: bitmask đang bị lệch ở byte thứ 4
+    // bitmask      = [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
+    //
     const bitmask: v.u8x16 = simd.mm_shuffle_epi8(lookup, hi_nibbles);
     std.debug.print("bitmask {s}\n", .{std.fmt.fmtSliceHexLower(&@as([16]u8, bitmask))});
-    std.debug.print("        08020202024040020808080402024002\n", .{});
+    std.debug.print("        08020204024040040808080402024002\n", .{});
 
     const mask: v.u8x16 = simd.mm_cmplt_epi8(hi_nibbles, simd.mm_set1_epi8(8));
     std.debug.print("\nmask {s}\n", .{std.fmt.fmtSliceHexLower(&@as([16]u8, mask))});
@@ -89,7 +89,14 @@ pub fn main() void {
     std.debug.print("\nbitset {s}\n", .{std.fmt.fmtSliceHexLower(&@as([16]u8, bitset))});
     std.debug.print("       a143b06f430c0c6fa10ca16fb0b00c43\n", .{});
 
+    // tmp            = [a1|43|b0|6f|43|0c|0c|6f|a1|0c|a1|6f|b0|b0|0c|43]
+    //                & [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
+    //                = [00|02|00|04|02|00|00|04|00|08|00|04|00|00|00|02]
+    //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^
     const tmp: v.u8x16 = simd.mm_and_si128(bitset, bitmask);
+    std.debug.print("\ntmp {s}\n", .{std.fmt.fmtSliceHexLower(&@as([16]u8, tmp))});
+    std.debug.print("    00020004020000040008000400000002\n", .{});
+
     const result: v.u8x16 = simd.mm_cmpeq_epi8(tmp, bitmask);
     // input          = [36|10|91|21|10|ed|ed|21|36|bd|36|21|91|91|ed|10]
     //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^

@@ -137,7 +137,7 @@ const __m128i row_0_07 = _mm_shuffle_epi8(bitmap_0_07, lo_nibbles);
 const __m128i row_8_15 = _mm_shuffle_epi8(bitmap_8_15, hi_nibbles);
 
 // 4/ Calculate a bitmask, i.e. (1 << hi_nibble % 8).
-// bitmask        = [08|02|02|02|02|40|40|02|08|08|08|04|02|02|40|02]
+// bitmask        = [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
 const __m128i bitmask = _mm_shuffle_epi8(bitmask_lookup, higher_nibbles);
 
 // 5/ Choose rows halves depending on higher nibbles.
