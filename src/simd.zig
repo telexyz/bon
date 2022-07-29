@@ -82,3 +82,8 @@ pub extern fn mm_xor_si128(a: v.u8x16, b: v.u8x16) v.u8x16;
 pub inline fn xor_m128(a: v.u8x16, b: v.u8x16) v.u8x16 {
     return mm_xor_si128(a, b);
 }
+
+pub extern fn mm_or_si128(a: v.u8x16, b: v.u8x16) v.u8x16;
+pub inline fn or_m128(a: v.u8x16, b: v.u8x16) v.u8x16 {
+    return mm_or_si128(a, b);
+}

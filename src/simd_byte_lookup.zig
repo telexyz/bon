@@ -145,15 +145,14 @@ pub fn main() void {
     // hi_nibbles   = [03|01|09|02|01|0e|0e|02|03|0b|03|02|09|09|0e|01]
     // bitmasks     = [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
     //
-    // bitmasks[i] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
+    // bitmasks[0..3] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
+    // bitmasks[4..7] có bit tại vị trí hi_nibbles[i]-4 là 1, còn lại là 0
     const bitmasks: v.u8x16 = simd.pshufb_m128(lookups, hi_nibbles);
     std.debug.print("bitmasks {s}\n", .{fmtHex(&@as([16]u8, bitmasks))});
     std.debug.print("        08020204024040040808080402024002\n", .{});
 
-    //
-    // Cách tính bitsets[i] như sau:
-    // Nếu hi_nibbles[i] mà <  8 thì chọn giá trị row_0_07[i]
-    // Nếu hi_nibbles[i] mà >= 8 thì chọn giá trị row_8_15[i]
+    // Nếu hi_nibbles[i] mà <  8 thì bitsets[i] = row_0_07[i]
+    // Nếu hi_nibbles[i] mà >= 8 thì bitsets[i] = row_8_15[i]
     const mask: v.u8x16 = simd.cmplt8_m128(hi_nibbles, simd.setall8_m128(8));
     std.debug.print("\nmask {s}\n", .{fmtHex(&@as([16]u8, mask))});
     std.debug.print("     ffff00ffff0000ffff00ffff000000ff\n", .{});
