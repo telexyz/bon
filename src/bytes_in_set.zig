@@ -121,7 +121,8 @@ pub fn main() void {
         simd.setall8_m128(0b0000_1111),
     );
     const hi_nibbles: v.u8x16 = simd.and_m128(
-        simd.rshift16_m128(input_bytes, 4), // shift right 4 pos
+        simd.rshift16_m128(input_bytes, 4), // right shift 4 pos for 16-bits
+        // tức là right shift cùng lúc 2 input_bytes
         simd.setall8_m128(0b0000_1111),
     );
     std.debug.print("\nlo_nibbles {x}\n", .{fmtHex(&@as([16]u8, lo_nibbles))});
