@@ -72,11 +72,11 @@ pub fn main() void {
     // input_bytes    = [36|10|91|21|10|ed|ed|21|36|bd|36|21|91|91|ed|10]
     //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^
     //
-    const lookups: v.u8x16 = simd.mm_setr_epi8(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
+    const lookups: v.u8x16 = simd.set8_rev_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
 
-    const input_bytes: v.u8x16 = simd.mm_setr_epi8(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
+    const input_bytes: v.u8x16 = simd.set8_rev_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
 
-    const bitmap_0_07: v.u8x16 = simd.mm_setr_epi8(
+    const bitmap_0_07: v.u8x16 = simd.set8_rev_m128(
         0b0100_0011,
         0b0110_1111,
         0b0101_0010,
@@ -95,7 +95,7 @@ pub fn main() void {
         0b0100_0011,
     );
 
-    const bitmap_8_15: v.u8x16 = simd.mm_setr_epi8(
+    const bitmap_8_15: v.u8x16 = simd.set8_rev_m128(
         0b0010_0100,
         0b1011_0000,
         0b0010_0100,
@@ -116,13 +116,13 @@ pub fn main() void {
 
     // lo_nibbles = [06|00|01|01|00|0d|0d|01|06|0d|06|01|01|01|0d|00]
     // hi_nibbles = [03|01|09|02|01|0e|0e|02|03|0b|03|02|09|09|0e|01]
-    const lo_nibbles: v.u8x16 = simd.mm_and_si128(
+    const lo_nibbles: v.u8x16 = simd.and_m128(
         input_bytes,
-        simd.mm_set1_epi8(0b0000_1111),
+        simd.setall8_m128(0b0000_1111),
     );
-    const hi_nibbles: v.u8x16 = simd.mm_and_si128(
-        simd.mm_srli_epi16(input_bytes, 4), // shift right 4 pos
-        simd.mm_set1_epi8(0b0000_1111),
+    const hi_nibbles: v.u8x16 = simd.and_m128(
+        simd.rshift16_m128(input_bytes, 4), // shift right 4 pos
+        simd.setall8_m128(0b0000_1111),
     );
     std.debug.print("\nlo_nibbles {x}\n", .{fmtHex(&@as([16]u8, lo_nibbles))});
     std.debug.print("           06000101000d0d01060d060101010d00\n", .{});
@@ -131,8 +131,8 @@ pub fn main() void {
 
     // row_0_07       = [a1|43|6f|6f|43|b8|b8|6f|a1|b8|a1|6f|6f|6f|b8|43]
     // row_8_15       = [14|24|b0|b0|24|0c|0c|b0|14|0c|14|b0|b0|b0|0c|24]
-    const row_0_07: v.u8x16 = simd.mm_shuffle_epi8(bitmap_0_07, lo_nibbles);
-    const row_8_15: v.u8x16 = simd.mm_shuffle_epi8(bitmap_8_15, lo_nibbles);
+    const row_0_07: v.u8x16 = simd.pshufb_m128(bitmap_0_07, lo_nibbles);
+    const row_8_15: v.u8x16 = simd.pshufb_m128(bitmap_8_15, lo_nibbles);
     //
     std.debug.print("\nrow_0_07 {s}\n", .{fmtHex(&@as([16]u8, row_0_07))});
     std.debug.print("         a1436f6f43b8b86fa1b8a16f6f6fb843\n", .{});
@@ -145,7 +145,7 @@ pub fn main() void {
     // bitmasks     = [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
     //
     // bitmasks[i] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
-    const bitmasks: v.u8x16 = simd.mm_shuffle_epi8(lookups, hi_nibbles);
+    const bitmasks: v.u8x16 = simd.pshufb_m128(lookups, hi_nibbles);
     std.debug.print("bitmasks {s}\n", .{fmtHex(&@as([16]u8, bitmasks))});
     std.debug.print("        08020204024040040808080402024002\n", .{});
 
@@ -153,11 +153,11 @@ pub fn main() void {
     // Cách tính bitsets[i] như sau:
     // Nếu hi_nibbles[i] mà <  8 thì chọn giá trị row_0_07[i]
     // Nếu hi_nibbles[i] mà >= 8 thì chọn giá trị row_8_15[i]
-    const mask: v.u8x16 = simd.mm_cmplt_epi8(hi_nibbles, simd.mm_set1_epi8(8));
+    const mask: v.u8x16 = simd.cmplt8_m128(hi_nibbles, simd.setall8_m128(8));
     std.debug.print("\nmask {s}\n", .{fmtHex(&@as([16]u8, mask))});
     std.debug.print("     ffff00ffff0000ffff00ffff000000ff\n", .{});
 
-    const bitsets: v.u8x16 = simd.mm_blendv_epi8(row_8_15, row_0_07, mask);
+    const bitsets: v.u8x16 = simd.blend8_m128(row_8_15, row_0_07, mask);
     //          = [ff|ff|00|ff|ff|00|00|ff|ff|00|ff|ff|00|00|00|ff]
     // row_0_07 ? [a1|43|..|6f|43|..|..|6f|a1|..|a1|6f|..|..|..|43]
     // row_8_15 : [..|..|b0|..|..|0c|0c|..|..|0c|..|..|b0|b0|0c|..]
@@ -169,12 +169,12 @@ pub fn main() void {
     //                & [08|02|02|04|02|40|40|04|08|08|08|04|02|02|40|02]
     //                = [00|02|00|04|02|00|00|04|00|08|00|04|00|00|00|02]
     //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^
-    const results: v.u8x16 = simd.mm_and_si128(bitsets, bitmasks);
+    const results: v.u8x16 = simd.and_m128(bitsets, bitmasks);
     std.debug.print("\nresults {s}\n", .{fmtHex(&@as([16]u8, results))});
     std.debug.print("        00020004020000040008000400000002\n", .{});
 
-    const normalized_results: v.u8x16 = simd.mm_cmpeq_epi8(results, bitmasks);
+    const normalized_results: v.u8x16 = simd.cmpeq8_m128(results, bitmasks);
     // input          = [36|10|91|21|10|ed|ed|21|36|bd|36|21|91|91|ed|10]
     //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^
-    std.debug.print("\normalized_results {d}\n", .{@as([16]u8, normalized_results)});
+    std.debug.print("\nnormalized_results {d}\n", .{@as([16]u8, normalized_results)});
 }
