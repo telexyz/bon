@@ -42,7 +42,13 @@ https://github.com/google/highway | CPUs provide SIMD/vector instructions that a
 
 https://github.com/intel/hyperscan | SIMD regular expression matching library
 
+https://github.com/simdutf/simdutf | Unicode validation and transcoding
+
+https://github.com/lemire/fastbase64
+
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
+
+Sneller's query performance derives from pervasive use of SIMD, specifically AVX-512 [assembly](https://github.com/SnellerInc/sneller/blob/master/vm/evalbc_amd64.s) in its 250+ core primitives. The main engine is capable of processing many lanes in parallel per core for very high processing throughput. This eliminates the need to pre-process JSON data into an alternate representation - such as search indices (Elasticsearch and variants) or columnar formats like parquet (as commonly done with SQL-based tools). Combined with the fact that Sneller's main 'API' is SQL (with JSON as the primary output format), this greatly simplifies processing pipelines built around JSON data.
 
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
