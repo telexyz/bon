@@ -34,7 +34,7 @@ pub fn inSetBlend(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u8x
     return simd.cmpeq8_m128(results, bitmasks);
 }
 
-pub fn inSetNoBend(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u8x16) v.u8x16 {
+pub fn inSetNoBlend(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u8x16) v.u8x16 {
     // http://0x80.pl/articles/simd-byte-lookup.html#alternative-implementation-new
     // https://github.com/intel/hyperscan/blob/master/src/nfa/truffle.c
     //
@@ -120,13 +120,13 @@ pub fn main() void {
     );
     const input_bytes: v.u8x16 = simd.set8_rev_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
 
-    std.debug.print("\ninSetBlend  {d}\n", .{@as([16]u8, inSetBlend(
+    std.debug.print("\ninSetBlend   {d}\n", .{@as([16]u8, inSetBlend(
         input_bytes,
         bitmap_0_07,
         bitmap_8_15,
     ))});
 
-    std.debug.print("\ninSetNoBend {d}\n", .{@as([16]u8, inSetNoBend(
+    std.debug.print("\ninSetNoBlend {d}\n", .{@as([16]u8, inSetNoBlend(
         input_bytes,
         bitmap_0_07,
         bitmap_8_15,
