@@ -40,7 +40,7 @@ https://github.com/travisstaloch/simdjzon | code mẫu SIMD = Zig
 
 https://github.com/google/highway | CPUs provide SIMD/vector instructions that apply the same operation to multiple data items. This can reduce energy usage e.g. fivefold because fewer instructions are executed. We also often see 5-10x speedups.
 
-https://github.com/google/XNNPACK | 
+https://github.com/intel/hyperscan | SIMD regular expression matching library
 
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
 
