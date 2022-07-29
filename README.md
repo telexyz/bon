@@ -36,6 +36,8 @@ c2/ dùng lookup table để tìm trực tiếp các âm cần tìm ở dạng 3
 
 ## Tham khảo
 
+https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.htm
+
 https://github.com/travisstaloch/simdjzon | code mẫu SIMD = Zig
 
 https://github.com/google/highway | CPUs provide SIMD/vector instructions that apply the same operation to multiple data items. This can reduce energy usage e.g. fivefold because fewer instructions are executed. We also often see 5-10x speedups.
