@@ -13,7 +13,7 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
     const target = b.standardTargetOptions(.{});
 
-    const exe = b.addExecutable("simdify", "src/main.zig");
+    const exe = b.addExecutable("bytes_in_set", "src/bytes_in_set.zig");
     setup(exe, mode, target);
     exe.install();
 

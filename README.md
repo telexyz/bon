@@ -9,7 +9,7 @@ Mục tiêu cuối phân tách âm tiết utf-8 thành `âm đầu + âm giữa 
 
 * Tập làm quen với phân tích ngữ âm
 
-`tuoizr` => `t` + `uoz` + `i` + `r`
+`tuoizr, tuozir, tuozri` => `t` + `uoz` + `i` + `r`
 - âm đầu `t`
 - âm giữa `uoz` (`uô`)
 - âm cuối `i`
@@ -27,28 +27,28 @@ b2/ ...
 
 `tuổi` => `t` + `uoz` + `i` + `r`
 
-b1/ các ký tự có dấu `ơ, ô, ổ ...` được cấu thành từ nhiều byte nên ta bắt đầu bằng việc xác định các ký tự đơn byte như `t, u, i ...` và nên phân tách thành nguyên âm đơn byte `u, i ...` và phụ âm đơn byte như `t ...`
+c1/ các ký tự có dấu `ơ, ô, ổ ...` được cấu thành từ nhiều byte nên ta bắt đầu bằng việc xác định các ký tự đơn byte như `t, u, i ...` và nên phân tách thành nguyên âm đơn byte `u, i ...` và phụ âm đơn byte như `t ...`
 
-b2/ ...
-
+c2/ dùng lookup table để tìm trực tiếp các âm cần tìm ở dạng 32-bit
 
 - - -
 
 
 ## Tham khảo
 
-https://github.com/travisstaloch/simdjzon | nhiều code mẫu SIMD = Zig
+https://github.com/travisstaloch/simdjzon | code mẫu SIMD = Zig
+
+https://github.com/google/highway | CPUs provide SIMD/vector instructions that apply the same operation to multiple data items. This can reduce energy usage e.g. fivefold because fewer instructions are executed. We also often see 5-10x speedups.
+
+https://github.com/google/XNNPACK | 
 
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
-
-SIMD and vectorization using AVX intrinsic functions (Tutorial)
-https://www.youtube.com/watch?v=AT5nuQQO96o
 
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
 
 • SSE2/3/4: 8 128-bit XMM registers [1999]
 
-• AVX-2: 16 256-bit YMM registers [2011]
+• AVX2:    16 256-bit YMM registers [2011]
 
 • AVX-512, 32 512-bit ZMM registers [2017 Xeon, Ice Lake]
