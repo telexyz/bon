@@ -6,14 +6,10 @@ const simd = @import("simd.zig");
 const fmtHex = std.fmt.fmtSliceHexLower;
 
 pub fn inSet(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u8x16) v.u8x16 {
-    const lo_nibbles: v.u8x16 = simd.and_m128(
-        input_bytes,
-        simd.setall8_m128(0b0000_1111),
-    );
-    const hi_nibbles: v.u8x16 = simd.and_m128(
-        simd.rshift16_m128(input_bytes, 4), // right shift cùng lúc 2 input_bytes
-        simd.setall8_m128(0b0000_1111),
-    );
+    const lower = simd.setall8_m128(0b0000_1111);
+    const lo_nibbles: v.u8x16 = simd.and_m128(input_bytes, lower);
+    const hi_nibbles: v.u8x16 = simd.and_m128(simd.rshift16_m128(input_bytes, 4), lower);
+    //                                          ^^ right shift cùng lúc 2 input_bytes
 
     // bitmasks[0..3] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
     // bitmasks[4..7] có bit tại vị trí hi_nibbles[i]-4 là 1, còn lại là 0
