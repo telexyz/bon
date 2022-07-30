@@ -1,4 +1,4 @@
-// Triển khai thuật toán đã được chứng minh tại simd_byte_lookup.zig
+//! Triển khai thuật toán đã được chứng minh tại simd_byte_lookup.zig
 
 const std = @import("std");
 const v = @import("vector_types.zig");

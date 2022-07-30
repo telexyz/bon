@@ -1,65 +1,65 @@
-// Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#simd-algorithms
-//
-// Cho 1 tập bytes, tìm byte-mask chỉ ra các bytes nào nằm trong một tập hợp cho trước.
-//
-//
-// ## Thuật toán chung
-//
-// Tập bytes cho trước được thể hiện ở dạng bảng `16 x 16` bits (hình dưới),
-// giá trị ô là 1 có nghĩa là thành phần đó của bảng có trong tập hợp.
-// Trong đó một byte được thể hiện bởi 2 nửa 4-bit được gọi là nibbles (miếng nhỏ).
-//
-// .     hi nibble
-//   .   +--------------------------------
-//     . | 0 1 2 3 4 5 6 7 8 9 a b c d e f
-//   +---+--------------------------------
-// l | 0 | x x . . . . x . . . x . . x . .
-// o | 1 | x x x x . x x . . . . . x x . x
-//   | 2 | . x . . x . x . . . x . . x . .
-// n | 3 | . x x . . . . x . . x . x . x .
-// i | 4 | . . . . . . . . . . . . x x x x
-// b | 5 | x x . . x . x x x . x . . . x x
-// b | 6 | x . . . . x . x . . x . x . . .
-// l | 7 | . . x . . . . . . . . x . . x .
-// e | 8 | . . x x . . . . . . . . . . . x
-//   | 9 | . . x x x . . x . . x . . . . .
-//   | a | . . . . . . x . . . x . . . . x
-//   | b | . . . x . . x . . . . . . . . .
-//   | c | x . . . x . . . . . . . . . x x
-//   | d | . . . x x x . x . . x x . . . .
-//   | e | x . x . . . . x . x . x . . . .
-//   | f | x x . . . . x . . . . . x x x .
-//
-// Thuật toán dưới dạng scalar code như sau:
-// bool in_set(uint16_t bitmap[16], uint8_t byte) {
-//
-//     const uint8_t lo_nibble = byte & 0b1111; // lấy 4-bit thâps
-//     const uint8_t hi_nibble = byte >> 4; // shift right để lấy 4-bit cao
-//
-//     const uint16_t bitset  = bitmap[lo_nibble]; // lấy giá trị của bitmap tại lo_nibble
-//     const uint16_t bitmask = uint16_t(1) << hi_nibble; // shift left hi_nibble pos
-//
-//     // bitmask có bit tại vị trí hi_nibble là 1, còn lại là 0. Dùng bitmap để xác định:
-//     // nếu bit tại vị trí hi_nibble của bitset là 1 thì trả về true
-//     return (bitset & bitmask) != 0;
-// }
-//
-// Để cài đặt bằng SIMD, ta bẻ bảng bit thành 2 nửa `bitmap_0_07` và `bitmap_8_15`
-// để đặt vừa 1 vector 128-bits. Rồi sử dụng lệnh `pshufb (_mm_shuffle_epi8)`,
-// có trong SSE, AVX2 và AVX-512. Lệnh này tra cứu đồng thời 16-byte register (or lane)
-// sử dụng 4-bit indices từ một vector khác:
-//
-// for (int i=0; i < VECTOR_SIZE; i++) {
-//     uint8_t index = indices_vector[i];
-//     if (index & 0x80) // 0x80: 0b10000000
-//         result[i] = 0x00;
-//     else
-//         result[i] = lookup_vector[index & 0x0f]; // 0x0f = 0b1111
-// }
-//
-// Trả về lookup_vector[n], với n = 4 bit thấp nhất của index
-// Nếu bit thứ 8 của index = 1 thì kết quả luôn là 0 (clear flag)
-//
+//! Dịch từ http://0x80.pl/articles/simd-byte-lookup.html#simd-algorithms
+//!
+//! Cho 1 tập bytes, tìm byte-mask chỉ ra các bytes nào nằm trong một tập hợp cho trước.
+//!
+//!
+//! ## Thuật toán chung
+//!
+//! Tập bytes cho trước được thể hiện ở dạng bảng `16 x 16` bits (hình dưới),
+//! giá trị ô là 1 có nghĩa là thành phần đó của bảng có trong tập hợp.
+//! Trong đó một byte được thể hiện bởi 2 nửa 4-bit được gọi là nibbles (miếng nhỏ).
+//!
+//! .     hi nibble
+//!   .   +--------------------------------
+//!     . | 0 1 2 3 4 5 6 7 8 9 a b c d e f
+//!   +---+--------------------------------
+//! l | 0 | x x . . . . x . . . x . . x . .
+//! o | 1 | x x x x . x x . . . . . x x . x
+//!   | 2 | . x . . x . x . . . x . . x . .
+//! n | 3 | . x x . . . . x . . x . x . x .
+//! i | 4 | . . . . . . . . . . . . x x x x
+//! b | 5 | x x . . x . x x x . x . . . x x
+//! b | 6 | x . . . . x . x . . x . x . . .
+//! l | 7 | . . x . . . . . . . . x . . x .
+//! e | 8 | . . x x . . . . . . . . . . . x
+//!   | 9 | . . x x x . . x . . x . . . . .
+//!   | a | . . . . . . x . . . x . . . . x
+//!   | b | . . . x . . x . . . . . . . . .
+//!   | c | x . . . x . . . . . . . . . x x
+//!   | d | . . . x x x . x . . x x . . . .
+//!   | e | x . x . . . . x . x . x . . . .
+//!   | f | x x . . . . x . . . . . x x x .
+//!
+//! Thuật toán dưới dạng scalar code như sau:
+//! bool in_set(uint16_t bitmap[16], uint8_t byte) {
+//!
+//!     const uint8_t lo_nibble = byte & 0b1111; // lấy 4-bit thâps
+//!     const uint8_t hi_nibble = byte >> 4; // shift right để lấy 4-bit cao
+//!
+//!     const uint16_t bitset  = bitmap[lo_nibble]; // lấy giá trị của bitmap tại lo_nibble
+//!     const uint16_t bitmask = uint16_t(1) << hi_nibble; // shift left hi_nibble pos
+//!
+//!     // bitmask có bit tại vị trí hi_nibble là 1, còn lại là 0. Dùng bitmap để xác định:
+//!     // nếu bit tại vị trí hi_nibble của bitset là 1 thì trả về true
+//!     return (bitset & bitmask) != 0;
+//! }
+//!
+//! Để cài đặt bằng SIMD, ta bẻ bảng bit thành 2 nửa `bitmap_0_07` và `bitmap_8_15`
+//! để đặt vừa 1 vector 128-bits. Rồi sử dụng lệnh `pshufb (_mm_shuffle_epi8)`,
+//! có trong SSE, AVX2 và AVX-512. Lệnh này tra cứu đồng thời 16-byte register (or lane)
+//! sử dụng 4-bit indices từ một vector khác:
+//!
+//! for (int i=0; i < VECTOR_SIZE; i++) {
+//!     uint8_t index = indices_vector[i];
+//!     if (index & 0x80) // 0x80: 0b10000000
+//!         result[i] = 0x00;
+//!     else
+//!         result[i] = lookup_vector[index & 0x0f]; // 0x0f = 0b1111
+//! }
+//!
+//! Trả về lookup_vector[n], với n = 4 bit thấp nhất của index
+//! Nếu bit thứ 8 của index = 1 thì kết quả luôn là 0 (clear flag)
+//!
 
 const std = @import("std");
 const v = @import("vector_types.zig");
