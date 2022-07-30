@@ -1,7 +1,8 @@
-# Dùng SIMD để phân tích âm tiết tiếng Việt
+# SIMD, branchless và các kỹ thuật tối ưu trong phân tích âm tiết tiếng Việt
 
-Mục tiêu cuối phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`
+Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`
 
+Kỳ vọng tăng tốc độ so với scalar code từ 10x - 20x
 
 ## Bài toán nhập môn: phân tích âm tiết ở dạng ascii-telex
 
@@ -33,14 +34,11 @@ c2/ dùng lookup table để tìm trực tiếp các âm cần tìm ở dạng 3
 
 - - -
 
-
 ## Tham khảo
 
 https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.htm
 
-https://github.com/travisstaloch/simdjzon | code mẫu SIMD = Zig
-
-https://github.com/google/highway | CPUs provide SIMD/vector instructions that apply the same operation to multiple data items. This can reduce energy usage e.g. fivefold because fewer instructions are executed. We also often see 5-10x speedups.
+https://github.com/travisstaloch/simdjzon | A CPU with both AVX2 and CLMUL is required (Haswell from 2013 onwards should do for Intel, for AMD a Ryzen/EPYC CPU (Q1 2017) should be sufficient).
 
 https://github.com/intel/hyperscan | SIMD regular expression matching library
 
@@ -50,7 +48,11 @@ https://github.com/lemire/fastbase64
 
 https://www.reddit.com/r/simd/comments/pl3ee1/pshufb_for_table_lookup
 
-Sneller's query performance derives from pervasive use of SIMD, specifically AVX-512 [assembly](https://github.com/SnellerInc/sneller/blob/master/vm/evalbc_amd64.s) in its 250+ core primitives. The main engine is capable of processing many lanes in parallel per core for very high processing throughput. This eliminates the need to pre-process JSON data into an alternate representation - such as search indices (Elasticsearch and variants) or columnar formats like parquet (as commonly done with SQL-based tools). Combined with the fact that Sneller's main 'API' is SQL (with JSON as the primary output format), this greatly simplifies processing pipelines built around JSON data.
+https://github.com/google/highway | CPUs provide SIMD/vector instructions that apply the same operation to multiple data items. This can reduce energy usage e.g. fivefold because fewer instructions are executed. We also often see 5-10x speedups.
+
+https://github.com/SnellerInc/sneller/blob/master/vm/evalbc_amd64.s | Sneller's query performance derives from pervasive use of SIMD, specifically AVX-512 assembly in its 250+ core primitives. Capable of processing many lanes in parallel per core for very high processing throughput. This eliminates the need to pre-process JSON data into an alternate representation - such as search indices (Elasticsearch and variants) or columnar formats like parquet (as commonly done with SQL-based tools). Combined with the fact that Sneller's main 'API' is SQL (with JSON as the primary output format), this greatly simplifies processing pipelines built around JSON data.
+
+- - -
 
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
