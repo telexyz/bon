@@ -72,11 +72,11 @@ pub fn main() void {
     // input_bytes    = [36|10|91|21|10|ed|ed|21|36|bd|36|21|91|91|ed|10]
     //                      ^^    ^^ ^^       ^^    ^^    ^^          ^^
     //
-    const lookups: v.u8x16 = simd.set8_rev_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
+    const lookups: v.u8x16 = simd.setrev8_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128);
 
-    const input_bytes: v.u8x16 = simd.set8_rev_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
+    const input_bytes: v.u8x16 = simd.setrev8_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
 
-    const bitmap_0_07: v.u8x16 = simd.set8_rev_m128(
+    const bitmap_0_07: v.u8x16 = simd.setrev8_m128(
         0b0100_0011,
         0b0110_1111,
         0b0101_0010,
@@ -95,7 +95,7 @@ pub fn main() void {
         0b0100_0011,
     );
 
-    const bitmap_8_15: v.u8x16 = simd.set8_rev_m128(
+    const bitmap_8_15: v.u8x16 = simd.setrev8_m128(
         0b0010_0100,
         0b1011_0000,
         0b0010_0100,

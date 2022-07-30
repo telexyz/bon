@@ -14,7 +14,7 @@ pub fn inSet(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u8x16) v
     // bitmasks[0..3] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
     // bitmasks[4..7] có bit tại vị trí hi_nibbles[i]-4 là 1, còn lại là 0
     const bitmasks: v.u8x16 = simd.pshufb_m128(
-        simd.set8_rev_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128),
+        simd.setrev8_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128),
         hi_nibbles,
     );
 
@@ -35,17 +35,17 @@ pub fn inSetNoBlend(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u
     // https://github.com/intel/hyperscan/blob/master/src/nfa/truffle.c
     //
     const lower = simd.setall8_m128(0b0000_1111);
+
     const lo_nibbles = simd.and_m128(input_bytes, lower);
     const hi_nibbles = simd.and_m128(simd.rshift16_m128(input_bytes, 4), lower);
-    const msblo_nibbles = simd.and_m128(
-        input_bytes, // keep the most significant bits (msb) and lo_nibbles
-        simd.setall8_m128(0b1000_1111),
-    );
 
-    // bitmasks[0..3] có bit tại vị trí hi_nibbles[i] là 1, còn lại là 0
-    // bitmasks[4..7] có bit tại vị trí hi_nibbles[i]-4 là 1, còn lại là 0
+    const msblo_nibbles = simd.and_m128(
+        input_bytes,
+        simd.setall8_m128(0b1000_1111),
+    ); //                   ^    ^^^^ keep the most significant bit (msb) and lo_nibbles
+
     const bitmasks = simd.pshufb_m128(
-        simd.set8_rev_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128),
+        simd.setrev8_m128(1, 2, 4, 8, 16, 32, 64, 128, 1, 2, 4, 8, 16, 32, 64, 128),
         hi_nibbles,
     );
 
@@ -62,7 +62,7 @@ pub fn inSetNoBlend(input_bytes: v.u8x16, bitmap_0_07: v.u8x16, bitmap_8_15: v.u
 }
 
 pub fn main() void {
-    const bitmap_0_07: v.u8x16 = simd.set8_rev_m128(
+    const bitmap_0_07: v.u8x16 = simd.setrev8_m128(
         0b0100_0011,
         0b0110_1111,
         0b0101_0010,
@@ -81,7 +81,7 @@ pub fn main() void {
         0b0100_0011,
     );
 
-    const bitmap_8_15: v.u8x16 = simd.set8_rev_m128(
+    const bitmap_8_15: v.u8x16 = simd.setrev8_m128(
         0b0010_0100,
         0b1011_0000,
         0b0010_0100,
@@ -99,7 +99,7 @@ pub fn main() void {
         0b0000_1010,
         0b0111_0000,
     );
-    const input_bytes: v.u8x16 = simd.set8_rev_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
+    const input_bytes: v.u8x16 = simd.setrev8_m128(0x36, 0x10, 0x91, 0x21, 0x10, 0xed, 0xed, 0x21, 0x36, 0xbd, 0x36, 0x21, 0x91, 0x91, 0xed, 0x10);
 
     std.debug.print(
         "\ninSet        {d}\n",

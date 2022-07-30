@@ -27,7 +27,7 @@ pub inline fn pshufb_m128(a: v.u8x16, b: v.u8x16) v.u8x16 {
 // dst[7:0] := v15, dst[15:8] := v14 .. dst[127:120] := v0
 // dst = destination for shot
 pub extern fn mm_setr_epi8(v15: u8, v14: u8, v13: u8, v12: u8, v11: u8, v10: u8, v9: u8, v8: u8, v7: u8, v6: u8, v5: u8, v4: u8, v3: u8, v2: u8, v1: u8, v0: u8) v.u8x16;
-pub inline fn set8_rev_m128(v15: u8, v14: u8, v13: u8, v12: u8, v11: u8, v10: u8, v9: u8, v8: u8, v7: u8, v6: u8, v5: u8, v4: u8, v3: u8, v2: u8, v1: u8, v0: u8) v.u8x16 {
+pub inline fn setrev8_m128(v15: u8, v14: u8, v13: u8, v12: u8, v11: u8, v10: u8, v9: u8, v8: u8, v7: u8, v6: u8, v5: u8, v4: u8, v3: u8, v2: u8, v1: u8, v0: u8) v.u8x16 {
     return mm_setr_epi8(v15, v14, v13, v12, v11, v10, v9, v8, v7, v6, v5, v4, v3, v2, v1, v0);
 }
 
