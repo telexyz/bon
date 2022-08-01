@@ -13,7 +13,8 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
     const target = b.standardTargetOptions(.{});
 
-    const exe = b.addExecutable("bytes_in_set", "src/bytes_in_set.zig");
+    // const exe = b.addExecutable("bytes_in_set", "src/bytes_in_set.zig");
+    const exe = b.addExecutable("am_dau", "src/am_dau.zig");
     setup(exe, mode, target);
     exe.install();
 
