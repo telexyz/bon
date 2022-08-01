@@ -60,6 +60,7 @@ pub fn main() void {
     const initials: []const []const u8 = &.{ "x", "v", "s", "r", "m", "l", "6", "h", "d", "b", "10", "11", "g", "gi", "q", "qu", "18", "tr", "p", "ph", "n", "ng", "k", "kh", "g", "gh", "0", "zd", "c", "ch", "t", "th", "0" };
     std.debug.print("\nPhụ âm đầu = `{s}`\n", .{initials[pos]});
 }
+// http://0x80.pl/notesen/2019-02-03-simd-switch-implementation.html
 
 // const value = @Vector(4, i32){ 1, -1, 1, -1 };
 // const result = value > @splat(4, @as(i32, 0));
