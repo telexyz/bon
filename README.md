@@ -4,6 +4,22 @@ Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm c
 
 Kỳ vọng tăng tốc độ so với scalar code từ `~10x`
 
+## [ TODO ]
+
+- SIMDify char stream: tìm vị trí space
+
+- Tìm hiểu Zig Vector operators được SIMD hoá ntn?
+  và `simdjzon` sử dụng các operators đó ntn?
+
+## [ DONE ]
+
+- Tối ưu hoá việc tìm utf8 char tiếng Việt, toLower() và tách tone
+
+- Dùng SIMD để gạn phụ âm đầu => làm tương tự cho âm giữa và âm cuối
+
+- Cài đặt SIM byte lookup algorithm
+
+
 ## Tham khảo
 
 https://www.intel.com/content/www/us/en/docs/intrinsics-guide/index.htm
@@ -16,9 +32,6 @@ https://github.com/intel/hyperscan | SIMD regular expression matching library
 
 https://github.com/simdutf/simdutf | Unicode validation and transcoding
 
-https://github.com/lemire/fastbase64
-
-- - -
 
 SSE = Streaming SIMD Extensions
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
