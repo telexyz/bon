@@ -9,7 +9,11 @@ pub fn main() !void {
     var buf_reader = std.io.bufferedReader(file.reader());
     var in_stream = buf_reader.reader();
 
-    var buf: [1028]u8 = undefined;
-    const len = try in_stream.read(&buf);
-    std.debug.print("{d}\n{s}", .{ len, buf });
+    var buf: [32]u8 = undefined;
+    var len = try in_stream.read(&buf);
+
+    while (len > 0) {
+        std.debug.print("{s}\n", .{buf[0..len]});
+        len = try in_stream.read(&buf);
+    }
 }
