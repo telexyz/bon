@@ -1,12 +1,5 @@
 // 23 âm giữa (âm đệm + nguyên âm)
 
-- extractTone(): lọc tone ra khỏi ký tự nguyên âm `mượn => mươn + j_tone`
-  1/ é ý ú í ó á ế ứ ớ ố ắ ấ : 12 * ~2 ~= 24-byte
-  2/ è
-  3/ ẻ
-  4/ ẽ
-  5/ ẹ
-
 // 2 x 16 = 32-byte
 0a, // a
 0e, // e
