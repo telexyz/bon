@@ -13,7 +13,8 @@ pub fn build(b: *std.build.Builder) void {
     const mode = b.standardReleaseOptions();
     const target = b.standardTargetOptions(.{});
 
-    // const exe = b.addExecutable("bytes_in_set", "src/bytes_in_set.zig");
+    // const exe = b.addExecutable("simd_byte_lookup", "src/simd_byte_lookup_algorithm.zig");
+    // const exe = b.addExecutable("simd_byte_lookup", "src/simd_byte_lookup_deploy.zig");
     // const exe = b.addExecutable("am_dau", "src/am_dau.zig");
     const exe = b.addExecutable("am_tiet", "src/am_tiet.zig");
     setup(exe, mode, target);
