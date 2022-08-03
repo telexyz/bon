@@ -49,9 +49,9 @@ pub fn main() !void {
     var prev_bytes = buf2[0..]; // khởi tạo previous buffer
 
     var vec: v.u8x32 = undefined;
-    var token_idx: usize = TOKEN_PROCESSED;
-    var space_idx: usize = undefined;
-    // token đang xử lý sẽ nằm từ token_idx .. space_idx
+    var tk_idx: usize = TOKEN_PROCESSED; // token index
+    var sp_idx: usize = undefined; // separator index
+    // token đang xử lý sẽ nằm từ token_idx .. sp_idx
 
     // đọc dữ liệu lần đầu tiên
     var len = try in_stream.read(curr_bytes);
@@ -65,31 +65,30 @@ pub fn main() !void {
         std.debug.print("\nbuf[{d}]: \"{s}\"\n", .{ count, curr_bytes[0..len] });
 
         vec = curr_bytes.*;
-
         const sp_bits = getIsNonAlphabetAsciiBits(vec);
-        space_idx = @ctz(u32, sp_bits);
+        sp_idx = @ctz(u32, sp_bits);
 
-        if (token_idx != TOKEN_PROCESSED) {
+        if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
             std.debug.print("{d:0>2}-{d:0>2}: {s}{s}\n", .{
-                token_idx,               space_idx,
-                prev_bytes[token_idx..], curr_bytes[0..space_idx],
+                tk_idx,               sp_idx,
+                prev_bytes[tk_idx..], curr_bytes[0..sp_idx],
             });
-        } else if (space_idx != 0) {
+        } else if (sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
-            printToken(0, space_idx, curr_bytes);
+            printToken(0, sp_idx, curr_bytes);
         }
 
-        while (space_idx < len) {
+        while (sp_idx < len) {
             // Tìm next token index
-            while (space_idx < len and inSet(sp_bits, space_idx)) space_idx += 1;
-            token_idx = space_idx;
+            while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
+            tk_idx = sp_idx;
 
             // Tìm next space index
-            while (space_idx < len and !inSet(sp_bits, space_idx)) space_idx += 1;
+            while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
 
-            if (space_idx < len)
-                printToken(token_idx, space_idx, curr_bytes);
+            if (sp_idx < len)
+                printToken(tk_idx, sp_idx, curr_bytes);
         }
 
         // swap curr_bytes and prev_bytes
