@@ -1,10 +1,12 @@
 const std = @import("std");
-const v = @import("vector_types.zig");
 
-// Dùng Zig Vector type và các operators trước khi tự cài SIMD
-// const simd = @import("simd.zig");
+// Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
+// SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
 
-const BYTES_PROCESSED = 32;
+const VecType = std.meta.Vector(BYTES_PROCESSED, u8);
+const BitType = u64;
+
+const BYTES_PROCESSED = 64;
 const TOKEN_PROCESSED = BYTES_PROCESSED;
 
 const A_byte: u8 = 'A';
@@ -19,21 +21,21 @@ const a_vec = @splat(BYTES_PROCESSED, a_byte);
 const z_vec = @splat(BYTES_PROCESSED, z_byte);
 const max_ascii_vec = @splat(BYTES_PROCESSED, z_byte);
 
-inline fn getIsNonAlphabetAsciiBits(vec: v.u8x32) u32 {
-    var results = @ptrCast(*const u32, &(vec < A_vec)).*;
+inline fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
+    var results = @ptrCast(*const BitType, &(vec < A_vec)).*;
 
-    results |= @ptrCast(*const u32, &(vec > Z_vec)).* &
-        @ptrCast(*const u32, &(vec < a_vec)).*;
+    results |= @ptrCast(*const BitType, &(vec > Z_vec)).* &
+        @ptrCast(*const BitType, &(vec < a_vec)).*;
 
-    results |= @ptrCast(*const u32, &(vec > z_vec)).* &
-        @ptrCast(*const u32, &(vec <= max_ascii_vec)).*;
+    results |= @ptrCast(*const BitType, &(vec > z_vec)).* &
+        @ptrCast(*const BitType, &(vec <= max_ascii_vec)).*;
 
     return results;
 }
 
-const idx_bits: []const u32 = &.{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30, 1 << 31 };
+const idx_bits: []const BitType = &.{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30, 1 << 31, 1 << 32, 1 << 33, 1 << 34, 1 << 35, 1 << 36, 1 << 37, 1 << 38, 1 << 39, 1 << 40, 1 << 41, 1 << 42, 1 << 43, 1 << 44, 1 << 45, 1 << 46, 1 << 47, 1 << 48, 1 << 49, 1 << 50, 1 << 51, 1 << 52, 1 << 53, 1 << 54, 1 << 55, 1 << 56, 1 << 57, 1 << 58, 1 << 59, 1 << 60, 1 << 61, 1 << 62, 1 << 63 };
 
-fn inSet(bits: u32, idx: usize) bool {
+fn inSet(bits: BitType, idx: usize) bool {
     return (idx_bits[idx] & bits) != 0;
 }
 
@@ -53,7 +55,7 @@ pub fn main() !void {
     var curr_bytes = buf1[0..]; // khởi tạo current buffer
     var prev_bytes = buf2[0..]; // khởi tạo previous buffer
 
-    var vec: v.u8x32 = undefined;
+    var vec: VecType = undefined;
     var tk_idx: usize = TOKEN_PROCESSED; // token index
     var sp_idx: usize = undefined; // separator index
     // token đang xử lý sẽ nằm từ token_idx .. sp_idx
@@ -71,7 +73,7 @@ pub fn main() !void {
 
         vec = curr_bytes.*;
         const sp_bits = getIsNonAlphabetAsciiBits(vec);
-        sp_idx = @ctz(u32, sp_bits);
+        sp_idx = @ctz(BitType, sp_bits);
 
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
