@@ -21,8 +21,13 @@ const max_ascii_vec = @splat(BYTES_PROCESSED, z_byte);
 
 inline fn getIsNonAlphabetAsciiBits(vec: v.u8x32) u32 {
     var results = @ptrCast(*const u32, &(vec < A_vec)).*;
-    // results |= (vec > Z_vec) & (vec < a_vec);
-    // results |= (vec > z_vec) & (vec <= max_ascii_vec);
+
+    results |= @ptrCast(*const u32, &(vec > Z_vec)).* &
+        @ptrCast(*const u32, &(vec < a_vec)).*;
+
+    results |= @ptrCast(*const u32, &(vec > z_vec)).* &
+        @ptrCast(*const u32, &(vec <= max_ascii_vec)).*;
+
     return results;
 }
 

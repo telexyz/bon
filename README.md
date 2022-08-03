@@ -6,12 +6,12 @@ Kỳ vọng tăng tốc độ so với scalar code từ `~10x`
 
 ## [ TODO ]
 
-- SIMDify char stream to tokens: tìm vị trí của ascii nonalphabet bytes
-
 - Tìm hiểu Zig Vector operators được SIMD hoá ntn?
   và `simdjzon` sử dụng các operators đó ntn?
 
 ## [ DONE ]
+
+- SIMDify char stream to tokens: tìm vị trí của ascii nonalphabet bytes
 
 - SIMDify char stream to tokens: tìm vị trí space
 
