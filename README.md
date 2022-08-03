@@ -6,6 +6,8 @@ Kỳ vọng tăng tốc độ so với scalar code từ `~10x`
 
 ## [ TODO ]
 
+- Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
+
 - Tìm hiểu Zig Vector operators được SIMD hoá ntn?
   và `simdjzon` sử dụng các operators đó ntn?
 

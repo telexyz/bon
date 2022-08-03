@@ -1,3 +1,32 @@
+const std = @import("std");
+const sds = @import("syllable_data_structs.zig");
+const getInitial = @import("am_dau.zig").getInitial;
+
+pub fn parseSyllable(str: []const u8) sds.Syllable {
+    var syll = sds.Syllable.new();
+    var idx: usize = 0;
+
+    if (str.len > 1) {
+        // chỉ phân tích âm đầu khi có 2 ký tự trở lên
+        // vì âm tiết lúc nào cũng có nguyên âm
+        const initial = getInitial(str[0], str[1]);
+        idx = initial.len;
+        std.debug.print("{s} ", .{initial});
+    }
+
+    // phân tích âm giữa
+    // const c = str[idx];
+    return syll;
+}
+
+inline fn isAscii(c: u8) bool {
+    return c < 128;
+}
+
+pub fn main() void {
+    _ = parseSyllable("nghiêng");
+}
+
 // Các thao tác trên âm tiết là 1 chuỗi ký tự utf-8 bao gồm:
 //
 // - utf8Mark(): để đánh dấu bytes thuộc utf-8
@@ -8,6 +37,7 @@
 //
 // MÃ UTF8 TIẾNG VIỆT
 // - - - - - - - - -
+//
 // - chia tập mã utf8 tv thành 4 tập A/ B/ C/ D/
 // - next-byte trong tập A/ C/ D/ là uniq
 // - next-byte trong tập B/ bị trùng ở 'Ĩ'196:168 'ĩ'196:169
@@ -156,26 +186,6 @@
 // 'Ỵ'225:187:180 'ỵ'225:187:181 'Ỷ'225:187:182 'ỷ'225:187:183
 // 'Ỹ'225:187:184 'ỹ'225:187:185
 //
-
-const std = @import("std");
-
-pub fn main() void {
-    // const c: []const []const u8 = &.{ "é", "ý", "ú", "í", "ó", "á", "ế", "ứ", "ớ", "ố", "ắ", "ấ", "è", "ỳ", "ù", "ì", "ò", "à", "ề", "ừ", "ờ", "ồ", "ằ", "ầ", "ẻ", "ỷ", "ủ", "ỉ", "ỏ", "ả", "ể", "ử", "ở", "ổ", "ẳ", "ẩ", "ẽ", "ỹ", "ũ", "ĩ", "õ", "ã", "ễ", "ữ", "ỡ", "ỗ", "ẵ", "ẫ", "ẹ", "ỵ", "ụ", "ị", "ọ", "ạ", "ệ", "ự", "ợ", "ộ", "ặ", "ậ" };
-    const c: []const []const u8 = &.{ "Ư", "ư", "ậ", "Ạ", "Ậ", "Ỳ", "Ỷ", "Ỹ", "Ỵ" };
-    for (c) |s| {
-        if (s.len == 2) {
-            std.debug.print("'{s}'{d}:{d} ", .{ s, s[0], s[1] });
-        } else {
-            std.debug.print("'{s}'{d}:{d}:{d} ", .{ s, s[0], s[1], s[2] });
-        }
-    }
-
-    std.debug.print("\n\n", .{});
-    const d: []const u8 = &.{ 195, 196, 197, 198, 186, 187, 225 };
-    for (d) |x| {
-        std.debug.print("{b}\n", .{x});
-    }
-}
 
 // DỮ LIỆU ĐỂ SCAN TONE NHANH
 //
