@@ -6,8 +6,7 @@ Kỳ vọng tăng tốc độ so với scalar code từ `~10x`
 
 ## [ TODO ]
 
-- SIMDify char stream to tokens: dùng simd_byte_lookup để tìm vị trí của ascii nonalphabet chars:
-  `\n\s\t1234567890-=!@#$%^&*()_+[]\{}|;':",./<>?`
+- SIMDify char stream to tokens: tìm vị trí của ascii nonalphabet bytes
 
 - Tìm hiểu Zig Vector operators được SIMD hoá ntn?
   và `simdjzon` sử dụng các operators đó ntn?

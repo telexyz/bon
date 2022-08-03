@@ -7,6 +7,31 @@ const v = @import("vector_types.zig");
 const BYTES_PROCESSED = 32;
 const TOKEN_PROCESSED = BYTES_PROCESSED;
 
+const A_byte: u8 = 'A';
+const Z_byte: u8 = 'Z';
+const a_byte: u8 = 'a';
+const z_byte: u8 = 'z';
+const max_ascii_byte: u8 = 127;
+
+const A_vec = @splat(BYTES_PROCESSED, A_byte);
+const Z_vec = @splat(BYTES_PROCESSED, Z_byte);
+const a_vec = @splat(BYTES_PROCESSED, a_byte);
+const z_vec = @splat(BYTES_PROCESSED, z_byte);
+const max_ascii_vec = @splat(BYTES_PROCESSED, z_byte);
+
+inline fn getIsNonAlphabetAsciiBits(vec: v.u8x32) u32 {
+    var results = @ptrCast(*const u32, &(vec < A_vec)).*;
+    // results |= (vec > Z_vec) & (vec < a_vec);
+    // results |= (vec > z_vec) & (vec <= max_ascii_vec);
+    return results;
+}
+
+const idx_bits: []const u32 = &.{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30, 1 << 31 };
+
+fn inSet(bits: u32, idx: usize) bool {
+    return (idx_bits[idx] & bits) != 0;
+}
+
 pub fn main() !void {
     // cwd(): curr_bytesent working directory
     var file = try std.fs.cwd().openFile("utf8tv.txt", .{});
@@ -28,23 +53,20 @@ pub fn main() !void {
     var space_idx: usize = undefined;
     // token đang xử lý sẽ nằm từ token_idx .. space_idx
 
-    const sp_vec = @splat(BYTES_PROCESSED, @as(u8, ' '));
-
     // đọc dữ liệu lần đầu tiên
     var len = try in_stream.read(curr_bytes);
     var count: usize = 0;
 
     while (len > 0) {
         // cần prev_bytes_bytes vì 1 ký tự utf8 (2-4 bytes) hoặc một token nằm ngay
-        // giữa đoạn cắt khi đọc dữ liệu theo từng BYTES_PROCaceESSED
+        // giữa đoạn cắt khi đọc dữ liệu theo từng BYTES_PROCESSED
         // => curr_bytes lưu nửa sau của utf8-char hoặc token
         //    prev_bytes lưu nửa đầu của utf8-char hoặc token
         std.debug.print("\nbuf[{d}]: \"{s}\"\n", .{ count, curr_bytes[0..len] });
 
         vec = curr_bytes.*;
 
-        const is_space = (vec == sp_vec);
-        const sp_bits = @ptrCast(*const u32, &is_space).*;
+        const sp_bits = getIsNonAlphabetAsciiBits(vec);
         space_idx = @ctz(u32, sp_bits);
 
         if (token_idx != TOKEN_PROCESSED) {
@@ -60,13 +82,13 @@ pub fn main() !void {
 
         while (space_idx < len) {
             // Tìm next token index
-            while (space_idx < len and is_space[space_idx]) space_idx += 1;
+            while (space_idx < len and inSet(sp_bits, space_idx)) space_idx += 1;
             token_idx = space_idx;
 
             // Tìm next space index
-            while (space_idx < len and !is_space[space_idx]) space_idx += 1;
+            while (space_idx < len and !inSet(sp_bits, space_idx)) space_idx += 1;
 
-            if (space_idx < BYTES_PROCESSED)
+            if (space_idx < len)
                 printToken(token_idx, space_idx, curr_bytes);
         }
 
