@@ -78,22 +78,22 @@ const Char = struct {
         const x = str[idx];
         self.tone = ._none;
 
-        if (x < 128 or idx < str.len - 1) {
-            const y = if (x < 128) 0 else str[idx + 1];
-            const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
-            std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
-        }
+        // DEBUG
+        // if (x < 128 or idx < str.len - 1) {
+        //     const y = if (x < 128) 0 else str[idx + 1];
+        //     const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
+        //     std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
+        // }
 
         switch (x) {
-            0...127 => {
-                // std.debug.print("\n\n{c}: {x}", .{ x, x });
+            0...127 => { // 1-byte chars
                 //              a: 01100001
                 //              A: 01000001
                 self.isUpper = ((0b00100000 & x)) == 0;
                 self.byte0 = x | 0b00100000; // toLower
                 self.byte1 = 0;
             },
-            195 => {
+            195 => { // 2-byte chars A/
                 self.byte1 = x;
                 var y = str[idx + 1];
                 //              ê: 10101010
@@ -161,7 +161,7 @@ const Char = struct {
                     },
                 }
             },
-            196...198 => {
+            196...198 => { // 2-byte chars B/
                 var y = str[idx + 1];
 
                 switch (y) {
@@ -177,27 +177,288 @@ const Char = struct {
                     },
                     else => {
                         self.isUpper = (y & 0b1) == 0;
-                        y |= 0b1;
-                        if (y == 196) {
+                        y |= 0b1; // toLower
+                        if (y == 169) {
                             self.tone = .x;
                             self.byte0 = if (x == 196) 'i' else 'u';
                             self.byte1 = 0;
+                        } else {
+                            self.byte0 = y;
+                            self.byte1 = x;
                         }
-                        self.byte0 = y;
-                        self.byte1 = x;
                     },
                 }
             },
-            255 => {},
+            225 => { // 3-byte chars
+                self.byte1 = str[idx + 1];
+                var y = str[idx + 2];
+                self.isUpper = (y & 0b1) == 0;
+                y |= 0b1; // toLower
+                switch (self.byte1) {
+                    186 => // 3-byte chars C/
+                    switch (y) {
+                        161 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'a';
+                            self.tone = .j;
+                        }, // 'ạ'225:186:161
+                        163 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'a';
+                            self.tone = .r;
+                        }, // 'ả'225:186:163
+                        // 'â'195:162
+                        165 => {
+                            self.byte1 = 195;
+                            self.byte0 = 162;
+                            self.tone = .s;
+                        }, // 'ấ'225:186:165
+                        167 => {
+                            self.byte1 = 195;
+                            self.byte0 = 162;
+                            self.tone = .f;
+                        }, // 'ầ'225:186:167
+                        169 => {
+                            self.byte1 = 195;
+                            self.byte0 = 162;
+                            self.tone = .r;
+                        }, // 'ẩ'225:186:169
+                        171 => {
+                            self.byte1 = 195;
+                            self.byte0 = 162;
+                            self.tone = .x;
+                        }, // 'ẫ'225:186:171
+                        173 => {
+                            self.byte1 = 195;
+                            self.byte0 = 162;
+                            self.tone = .j;
+                        }, // 'ậ'225:186:173
+                        // 'ă'196:131
+                        175 => {
+                            self.byte1 = 196;
+                            self.byte0 = 131;
+                            self.tone = .s;
+                        }, // 'ắ'225:186:175
+                        177 => {
+                            self.byte1 = 196;
+                            self.byte0 = 131;
+                            self.tone = .f;
+                        }, // 'ằ'225:186:177
+                        179 => {
+                            self.byte1 = 196;
+                            self.byte0 = 131;
+                            self.tone = .r;
+                        }, // 'ẳ'225:186:179
+                        181 => {
+                            self.byte1 = 196;
+                            self.byte0 = 131;
+                            self.tone = .x;
+                        }, // 'ẵ'225:186:181
+                        183 => {
+                            self.byte1 = 196;
+                            self.byte0 = 131;
+                            self.tone = .j;
+                        }, // 'ặ'225:186:183
+                        185 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'e';
+                            self.tone = .j;
+                        }, // 'ẹ'225:186:185
+                        187 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'e';
+                            self.tone = .r;
+                        }, // 'ẻ'225:186:187
+                        189 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'e';
+                            self.tone = .x;
+                        }, // 'ẽ'225:186:189
+                        // 'ê'195:170
+                        191 => {
+                            self.byte1 = 195;
+                            self.byte0 = 170;
+                            self.tone = .s;
+                        }, // 'ế'225:186:191
+                        else => {
+                            self.byte0 = 0;
+                            self.byte1 = 0;
+                        },
+                    },
+                    187 => switch (y) { // 3-byte chars D/
+                        // 'ê'195:170
+                        129 => {
+                            self.byte1 = 195;
+                            self.byte0 = 170;
+                            self.tone = .f;
+                        }, // 'ề'225:187:129
+                        131 => {
+                            self.byte1 = 195;
+                            self.byte0 = 170;
+                            self.tone = .r;
+                        }, // 'ể'225:187:131
+                        133 => {
+                            self.byte1 = 195;
+                            self.byte0 = 170;
+                            self.tone = .x;
+                        }, // 'ễ'225:187:133
+                        135 => {
+                            self.byte1 = 195;
+                            self.byte0 = 170;
+                            self.tone = .j;
+                        }, // 'ệ'225:187:135
+                        // i
+                        137 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'i';
+                            self.tone = .r;
+                        }, // 'ỉ'225:187:137
+                        139 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'i';
+                            self.tone = .j;
+                        }, // 'ị'225:187:139
+                        // o
+                        141 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'o';
+                            self.tone = .j;
+                        }, // 'ọ'225:187:141
+                        143 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'o';
+                            self.tone = .r;
+                        }, // 'ỏ'225:187:143
+                        // 'ô'195:180
+                        145 => {
+                            self.byte1 = 195;
+                            self.byte0 = 180;
+                            self.tone = .s;
+                        }, // 'ố'225:187:145
+                        147 => {
+                            self.byte1 = 195;
+                            self.byte0 = 180;
+                            self.tone = .f;
+                        }, // 'ồ'225:187:147
+                        149 => {
+                            self.byte1 = 195;
+                            self.byte0 = 180;
+                            self.tone = .r;
+                        }, // 'ổ'225:187:149
+                        151 => {
+                            self.byte1 = 195;
+                            self.byte0 = 180;
+                            self.tone = .x;
+                        }, // 'ỗ'225:187:151
+                        153 => {
+                            self.byte1 = 195;
+                            self.byte0 = 180;
+                            self.tone = .j;
+                        }, // 'ộ'225:187:153
+                        // 'ơ'198:161
+                        155 => {
+                            self.byte1 = 198;
+                            self.byte0 = 161;
+                            self.tone = .s;
+                        }, // 'ớ'225:187:155
+                        157 => {
+                            self.byte1 = 198;
+                            self.byte0 = 161;
+                            self.tone = .f;
+                        }, // 'ờ'225:187:157
+                        159 => {
+                            self.byte1 = 198;
+                            self.byte0 = 161;
+                            self.tone = .r;
+                        }, // 'ở'225:187:159
+                        161 => {
+                            self.byte1 = 198;
+                            self.byte0 = 161;
+                            self.tone = .x;
+                        }, // 'ỡ'225:187:161
+                        163 => {
+                            self.byte1 = 198;
+                            self.byte0 = 161;
+                            self.tone = .j;
+                        }, // 'ợ'225:187:163
+                        // u
+                        165 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'u';
+                            self.tone = .j;
+                        }, // 'ụ'225:187:165
+                        167 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'u';
+                            self.tone = .r;
+                        }, // 'ủ'225:187:167
+                        // 'ư'198:176
+                        169 => {
+                            self.byte1 = 198;
+                            self.byte0 = 176;
+                            self.tone = .s;
+                        }, // 'ứ'225:187:169
+                        171 => {
+                            self.byte1 = 198;
+                            self.byte0 = 176;
+                            self.tone = .f;
+                        }, // 'ừ'225:187:171
+                        173 => {
+                            self.byte1 = 198;
+                            self.byte0 = 176;
+                            self.tone = .r;
+                        }, // 'ử'225:187:173
+                        175 => {
+                            self.byte1 = 198;
+                            self.byte0 = 176;
+                            self.tone = .x;
+                        }, // 'ữ'225:187:175
+                        177 => {
+                            self.byte1 = 198;
+                            self.byte0 = 176;
+                            self.tone = .j;
+                        }, // 'ự'225:187:177
+                        // y
+                        179 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'y';
+                            self.tone = .f;
+                        }, // 'ỳ'225:187:179
+                        181 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'y';
+                            self.tone = .j;
+                        }, // 'ỵ'225:187:181
+                        183 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'y';
+                            self.tone = .r;
+                        }, // 'ỷ'225:187:183
+                        185 => {
+                            self.byte1 = 0;
+                            self.byte0 = 'y';
+                            self.tone = .x;
+                        }, // 'ỹ'225:187:185
+                        else => {
+                            self.byte0 = 0;
+                            self.byte1 = 0;
+                        },
+                    },
+                    else => {
+                        self.byte0 = 0;
+                        self.byte1 = 0;
+                    },
+                }
+            },
             else => {
                 // invalid
                 self.byte0 = 0;
                 self.byte1 = 0;
             },
         }
-        //
-        const w: []const u8 = &.{ self.byte1, self.byte0 };
-        std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
+        // DEBUG
+        // const w: []const u8 = &.{ self.byte1, self.byte0 };
+        // std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
     }
 
     pub inline fn len(self: *Char) usize {
@@ -217,11 +478,11 @@ const Char = struct {
 pub fn main() void {
     std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
     _ = parseSyllable("GÀN");
-    _ = parseSyllable("GáN");
-    _ = parseSyllable("GIúp");
+    _ = parseSyllable("GặN");
+    _ = parseSyllable("GIừp");
     _ = parseSyllable("nGhiÊng");
     _ = parseSyllable("nGiêng");
-    _ = parseSyllable("đưm");
+    _ = parseSyllable("đĩm");
 
     // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
 }
@@ -384,97 +645,3 @@ pub fn main() void {
 // 'Ự'225:187:176 'ự'225:187:177 'Ỳ'225:187:178 'ỳ'225:187:179
 // 'Ỵ'225:187:180 'ỵ'225:187:181 'Ỷ'225:187:182 'ỷ'225:187:183
 // 'Ỹ'225:187:184 'ỹ'225:187:185
-//
-
-// DỮ LIỆU ĐỂ SCAN TONE NHANH
-//
-// 'à'    195:160
-// 'è'    195:168
-// 'ì'    195:172
-// 'ò'    195:178
-// 'ù'    195:185
-// 'ầ'225:186:167
-// 'ằ'225:186:177
-// 'ề'225:187:129
-// 'ồ'225:187:147
-// 'ờ'225:187:157
-// 'ừ'225:187:171
-// 'ỳ'225:187:179
-//
-//
-// 'à'195:160 'á'195:161 'ã'195:163
-// 'ạ'186:161 'ả'186:163
-
-// 'è'195:168 'é'195:169
-// 'ẹ'186:185 'ẻ'186:187 'ẽ'186:189
-
-// 'ì'195:172 'í'195:173
-// 'ĩ'196:169
-// 'ỉ'187:137 'ị'187:139
-
-// 'ò'195:178 'ó'195:179 'õ'195:181
-// 'ọ'187:141 'ỏ'187:143
-
-// 'ù'195:185 'ú'195:186
-// 'ũ'197:169
-// 'ụ'187:165 'ủ'187:167
-
-// 'ý'195:189
-// 'ỳ'187:179 'ỵ'187:181 'ỷ'187:183 'ỹ'187:185
-
-// 'ấ'186:165 'ầ'186:167 'ẩ'186:169 'ẫ'186:171 'ậ'186:173
-// 'ắ'186:175 'ằ'186:177 'ẳ'186:179 'ẵ'186:181 'ặ'186:183
-
-// 'ế'186:191
-// 'ề'187:129 'ể'187:131 'ễ'187:133 'ệ'187:135
-
-// 'ố'187:145 'ồ'187:147 'ổ'187:149 'ỗ'187:151 'ộ'187:153
-// 'ớ'187:155 'ờ'187:157 'ở'187:159 'ỡ'187:161 'ợ'187:163
-// 'ứ'187:169 'ừ'187:171 'ử'187:173 'ữ'187:175 'ự'187:177
-
-// 'ạ'225:186:161
-// 'ả'225:186:163
-// 'ấ'225:186:165
-// 'ầ'225:186:167
-// 'ẩ'225:186:169
-// 'ẫ'225:186:171
-// 'ậ'225:186:173
-// 'ắ'225:186:175
-// 'ằ'225:186:177
-// 'ẳ'225:186:179
-// 'ẵ'225:186:181
-// 'ặ'225:186:183
-// 'ẹ'225:186:185
-// 'ẻ'225:186:187
-// 'ẽ'225:186:189
-// 'ế'225:186:191
-//
-// 'ề'225:187:129
-// 'ể'225:187:131
-// 'ễ'225:187:133
-// 'ệ'225:187:135
-// 'ỉ'225:187:137
-// 'ị'225:187:139
-// 'ọ'225:187:141
-// 'ỏ'225:187:143
-// 'ố'225:187:145
-// 'ồ'225:187:147
-// 'ổ'225:187:149
-// 'ỗ'225:187:151
-// 'ộ'225:187:153
-// 'ớ'225:187:155
-// 'ờ'225:187:157
-// 'ở'225:187:159
-// 'ỡ'225:187:161
-// 'ợ'225:187:163
-// 'ụ'225:187:165
-// 'ủ'225:187:167
-// 'ứ'225:187:169
-// 'ừ'225:187:171
-// 'ử'225:187:173
-// 'ữ'225:187:175
-// 'ự'225:187:177
-// 'ỳ'225:187:179
-// 'ỵ'225:187:181
-// 'ỷ'225:187:183
-// 'ỹ'225:187:185
