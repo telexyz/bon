@@ -15,8 +15,8 @@ pub fn build(b: *std.build.Builder) void {
 
     // const exe = b.addExecutable("simd_byte_lookup", "src/simd_byte_lookup_algorithm.zig");
     // const exe = b.addExecutable("simd_byte_lookup", "src/simd_byte_lookup_deploy.zig");
-    // const exe = b.addExecutable("am_dau", "src/am_dau.zig");
-    const exe = b.addExecutable("am_tiet", "src/am_tiet.zig");
+    const exe = b.addExecutable("am_dau", "src/am_dau.zig");
+    // const exe = b.addExecutable("am_tiet", "src/am_tiet.zig");
     // const exe = b.addExecutable("char_stream", "src/char_stream.zig");
     setup(exe, mode, target);
     exe.install();

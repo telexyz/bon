@@ -10,12 +10,15 @@
 const std = @import("std");
 const v = @import("vector_types.zig");
 const simd = @import("simd.zig");
+const AmDau = @import("syllable.zig").AmDau;
 
-const initials: []const []const u8 = &.{
-    "x",  "v",  "s",  "r",  "m",  "l",  "6",  "h", "d",  "b", "10", "11", "g", //
-    "gi", "q",  "qu", "18", "tr", "p",  "ph", "n", "ng", "k", "kh", "g",  "gh",
-    "0",  "zd", "c",  "ch", "t",  "th", "",
-};
+const initials: []const AmDau = &.{ AmDau.x, AmDau.v, AmDau.s, AmDau.r, AmDau.m, AmDau.l, AmDau._none, AmDau.h, AmDau.d, AmDau.b, AmDau._none, AmDau._none, AmDau.g, AmDau.gi, AmDau._none, AmDau.qu, AmDau._none, AmDau.tr, AmDau.p, AmDau.ph, AmDau.n, AmDau.ng, AmDau._none, AmDau.kh, AmDau.g, AmDau.gh, AmDau._none, AmDau.zd, AmDau.c, AmDau.ch, AmDau.t, AmDau.th, AmDau._none };
+
+// const initials: []const []const u8 = &.{
+//     "x",  "v",  "s",  "r",  "m",  "l",  "6",  "h", "d",  "b", "10", "11", "g", //
+//     "gi", "q",  "qu", "18", "tr", "p",  "ph", "n", "ng", "k", "kh", "g",  "gh",
+//     "0",  "zd", "c",  "ch", "t",  "th", "",
+// };
 
 const lookup = v.u8x32{
     'x', 'v', 's', 'r', 'm', 'l', '-', 'h', 'd', 'b', '-', '-', //
@@ -25,7 +28,7 @@ const lookup = v.u8x32{
 
 const phu_am_don_mask = 0b01010101010101010101001111111111;
 
-pub inline fn getInitial(f: u8, s: u8) []const u8 {
+pub inline fn getInitial(f: u8, s: u8) AmDau {
     const a = (@intCast(u16, s) << 8) + f;
     const b = (@intCast(u16, f) << 8) + f;
     const input = simd.set16_m256(a, a, a, a, a, a, a, a, a, a, b, b, b, b, b, b);
@@ -51,8 +54,8 @@ pub inline fn getInitial(f: u8, s: u8) []const u8 {
 }
 
 pub fn main() void {
-    std.debug.print("{s}\n", .{getInitial('c', 'd')});
-    std.debug.print("{s}\n", .{getInitial('x', 'e')});
-    std.debug.print("{s}\n", .{getInitial('e', 'd')});
-    std.debug.print("{s}\n", .{getInitial('z', 'd')});
+    std.debug.print("{}\n", .{getInitial('c', 'd')});
+    // std.debug.print("{s}\n", .{getInitial('x', 'e')});
+    // std.debug.print("{s}\n", .{getInitial('e', 'd')});
+    // std.debug.print("{s}\n", .{getInitial('z', 'd')});
 }
