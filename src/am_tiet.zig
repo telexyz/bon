@@ -1,28 +1,63 @@
 const std = @import("std");
 const sds = @import("syllable_data_structs.zig");
 const getInitial = @import("am_dau.zig").getInitial;
+const getMiddle = @import("am_giua.zig").getMiddle;
 
 pub fn parseSyllable(str: []const u8) sds.Syllable {
     var syll = sds.Syllable.new();
-    var idx: usize = 0;
     if (str.len > 10) return syll;
 
     var c0: Char = undefined;
-    c0.parse(str, 0);
-
     var c1: Char = undefined;
+
+    c0.parse(str, 0);
+    var pos = c0.len();
+
+    var initial: []const u8 = undefined;
 
     if (str.len > 1) {
         // chỉ phân tích âm đầu khi có 2 ký tự trở lên
         // vì âm tiết lúc nào cũng có nguyên âm
-        c1.parse(str, c0.len());
-        const initial = getInitial(c0.byte0, c1.byte0);
-        idx = initial.len;
-        std.debug.print("{s} ", .{initial});
+
+        if (pos > 1) { // đ
+            initial = getInitial(c0.byte1, c0.byte0);
+        } else {
+            c1.parse(str, pos);
+            pos += c1.len();
+            initial = getInitial(c0.byte0, c1.byte0);
+        }
     }
 
     // phân tích âm giữa
-    // const c = str[idx];
+    if (initial.len == 2) {
+        c0.parse(str, pos);
+        pos += c0.len();
+        c1.parse(str, pos);
+        pos += c1.len();
+    } else { // sử dụng lại c1
+        c0 = c1;
+        c1.parse(str, pos);
+    }
+    // oa, // hoa
+    // oe, // toe
+    // oo, // boong
+    // uy, // tuy
+    if ((c0.byte0 == 'u' and c1.byte0 == 'y') or
+        (c0.byte1 == 0 and c0.byte0 == 'o' and c1.byte1 == 0 and
+        (c1.byte0 == 'a' or c1.byte0 == 'e' or c1.byte0 == 'o')))
+    {
+        c0.byte1 = c0.byte0;
+        c0.byte0 = c1.byte0;
+        c1.parse(str, pos);
+    }
+
+    var middle = getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1);
+
+    std.debug.print(
+        "\n{s: >11}: {s: >2} {s: >3}",
+        .{ str, initial, middle },
+    );
+
     return syll;
 }
 
@@ -30,10 +65,12 @@ const Char = struct {
     byte0: u8 = undefined,
     byte1: u8 = undefined,
     isUpper: bool = undefined,
+    tone: u8 = undefined,
 
     pub inline fn parse(self: *Char, str: []const u8, idx: usize) void {
-        const x = str[idx];
+        self.tone = 0;
 
+        const x = str[idx];
         switch (x) {
             0...127 => {
                 //              a: 01100001
@@ -42,7 +79,75 @@ const Char = struct {
                 self.byte0 = x | 0b00100000; // toLower
                 self.byte1 = 0;
             },
-            195...198 => {
+            195 => {
+                self.byte1 = x;
+                var y = str[idx + 1];
+                // const w = [_]u8{ x, y };
+                // std.debug.print("\n\n{s}: {b:0>8}", .{ w, y });
+                //              ê: 10101010
+                //              Ê: 10001010
+                self.isUpper = ((0b00100000 & x)) == 0;
+                y |= 0b00100000; // toLower
+                switch (y) {
+                    160 => {
+                        self.byte0 = 'a';
+                        self.tone = 'f';
+                    },
+                    161 => {
+                        self.byte0 = 'a';
+                        self.tone = 's';
+                    },
+                    163 => {
+                        self.byte0 = 'a';
+                        self.tone = 'x';
+                    },
+                    168 => {
+                        self.byte0 = 'e';
+                        self.tone = 'f';
+                    },
+                    169 => {
+                        self.byte0 = 'e';
+                        self.tone = 's';
+                    },
+                    172 => {
+                        self.byte0 = 'i';
+                        self.tone = 'f';
+                    },
+                    173 => {
+                        self.byte0 = 'i';
+                        self.tone = 's';
+                    },
+                    178 => {
+                        self.byte0 = 'o';
+                        self.tone = 'f';
+                    },
+                    179 => {
+                        self.byte0 = 'o';
+                        self.tone = 's';
+                    },
+                    181 => {
+                        self.byte0 = 'o';
+                        self.tone = 'x';
+                    },
+                    185 => {
+                        self.byte0 = 'u';
+                        self.tone = 'f';
+                    },
+                    186 => {
+                        self.byte0 = 'u';
+                        self.tone = 's';
+                    },
+                    189 => {
+                        self.byte0 = 'y';
+                        self.tone = 's';
+                    },
+                    else => {
+                        self.byte0 = y;
+                        self.tone = 0;
+                    },
+                }
+            },
+            196...198 => {
                 const y = str[idx + 1];
                 self.isUpper = (y & 0b1) != 0;
             },
@@ -69,7 +174,10 @@ const Char = struct {
 };
 
 pub fn main() void {
-    _ = parseSyllable("nGhiêng");
+    _ = parseSyllable("GÁN");
+    _ = parseSyllable("nGhiÊng");
+    _ = parseSyllable("nGiÊng");
+    _ = parseSyllable("nGiêng");
 
     // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
 }
