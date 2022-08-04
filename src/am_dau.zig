@@ -23,7 +23,7 @@ const initials: []const AmDau = &.{ AmDau.x, AmDau.v, AmDau.s, AmDau.r, AmDau.m,
 const lookup = v.u8x32{
     'x', 'v', 's', 'r', 'm', 'l', '-', 'h', 'd', 'b', '-', '-', //
     'g', 'i', 'q', 'u', 't', 'r', 'p', 'h', 'n', 'g', 'k', 'h',
-    'g', 'h', 'z', 'd', 'c', 'h', 't', 'h',
+    'g', 'h', 196, 145, 'c', 'h', 't', 'h', // 'đ'196:145
 };
 
 const phu_am_don_mask = 0b01010101010101010101001111111111;
@@ -54,8 +54,8 @@ pub inline fn getInitial(f: u8, s: u8) AmDau {
 }
 
 pub fn main() void {
-    std.debug.print("{}\n", .{getInitial('c', 'd')});
-    // std.debug.print("{s}\n", .{getInitial('x', 'e')});
-    // std.debug.print("{s}\n", .{getInitial('e', 'd')});
-    // std.debug.print("{s}\n", .{getInitial('z', 'd')});
+    std.debug.print("{s}\n", .{@tagName(getInitial('c', 'd'))});
+    std.debug.print("{s}\n", .{@tagName(getInitial('x', 'e'))});
+    std.debug.print("{s}\n", .{@tagName(getInitial('e', 'd'))});
+    std.debug.print("{s}\n", .{@tagName(getInitial(196, 145))}); // 'đ'196:145
 }
