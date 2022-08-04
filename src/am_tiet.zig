@@ -11,7 +11,7 @@ pub fn main() void {
     // _ = parseSyllable("GIừp");
     // _ = parseSyllable("nGhiÊng");
     // _ = parseSyllable("nGiêng");
-    // _ = parseSyllable("đĩm");
+    _ = parseSyllable("đim");
     _ = parseSyllable("ĩm");
     _ = parseSyllable("gĩm");
 }
@@ -26,7 +26,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     var c1: Char = undefined;
 
     c0.parse(str, 0);
-    var pos = c0.len();
+    var pos = c0.len;
 
     if (str.len > 1) {
         // chỉ phân tích âm đầu khi có 2 ký tự trở lên
@@ -36,7 +36,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
             syll.am_dau = getInitial(c0.byte1, c0.byte0);
         } else {
             c1.parse(str, pos);
-            pos += c1.len();
+            pos += c1.len;
             syll.am_dau = getInitial(c0.byte0, c1.byte0);
         }
     }
@@ -47,12 +47,15 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     // phân tích âm giữa
     if (syll.am_dau.len() == 2) {
         c0.parse(str, pos);
-        pos += c0.len();
+        pos += c0.len;
+
         c1.parse(str, pos);
-        pos += c1.len();
+        pos += c1.len;
+        //
     } else { // sử dụng lại c1
         c0 = c1;
         c1.parse(str, pos);
+        pos += c1.len;
     }
     // oa, // hoa
     // oe, // toe
@@ -65,6 +68,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
         c0.byte1 = c0.byte0;
         c0.byte0 = c1.byte0;
         c1.parse(str, pos);
+        pos += c1.len;
     }
 
     syll.am_giua = getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1);
@@ -86,6 +90,7 @@ const Char = struct {
     byte1: u8 = undefined,
     isUpper: bool = undefined,
     tone: sds.Tone = undefined,
+    len: usize = undefined,
 
     pub inline fn parse(self: *Char, str: []const u8, idx: usize) void {
         const x = str[idx];
@@ -95,7 +100,7 @@ const Char = struct {
         if (DEBUG and (x < 128 or idx < str.len - 1)) {
             const y = if (x < 128) 0 else str[idx + 1];
             const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
-            std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
+            std.debug.print("\nstr[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, w, x, y });
         }
 
         switch (x) {
@@ -105,6 +110,7 @@ const Char = struct {
                 self.isUpper = ((0b00100000 & x)) == 0;
                 self.byte0 = x | 0b00100000; // toLower
                 self.byte1 = 0;
+                self.len = 1;
             },
             195 => { // 2-byte chars A/
                 self.byte1 = x;
@@ -114,6 +120,8 @@ const Char = struct {
                 self.isUpper = ((0b00100000 & x)) == 0;
                 y |= 0b00100000; // toLower
                 self.byte1 = 0;
+                self.len = 2;
+
                 switch (y) {
                     160 => {
                         self.byte0 = 'a';
@@ -176,6 +184,7 @@ const Char = struct {
             },
             196...198 => { // 2-byte chars B/
                 var y = str[idx + 1];
+                self.len = 2;
 
                 switch (y) {
                     175 => {
@@ -207,6 +216,8 @@ const Char = struct {
                 var y = str[idx + 2];
                 self.isUpper = (y & 0b1) == 0;
                 y |= 0b1; // toLower
+                self.len = 3;
+
                 switch (self.byte1) {
                     186 => // 3-byte chars C/
                     switch (y) {
@@ -472,21 +483,8 @@ const Char = struct {
         // DEBUG
         if (DEBUG) {
             const w: []const u8 = &.{ self.byte1, self.byte0 };
-            std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
+            std.debug.print(" >> {s: >2}: {d: >3}:{d: >3}", .{ w, self.byte1, self.byte0 });
         }
-    }
-
-    pub inline fn len(self: *Char) usize {
-        switch (self.byte1) {
-            0 => return 1,
-            195...198 => return 2,
-            186, 187 => return 3,
-            else => return 4,
-        }
-    }
-
-    pub inline fn isAscii(self: *Char) bool {
-        return self.byte1 == 0 and self.byte0 < 128;
     }
 };
 
