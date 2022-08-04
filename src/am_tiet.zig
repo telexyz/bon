@@ -2,6 +2,19 @@ const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
 const getMiddle = @import("am_giua.zig").getMiddle;
+const DEBUG = true;
+
+pub fn main() void {
+    std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
+    // _ = parseSyllable("GÀN");
+    // _ = parseSyllable("GặN");
+    // _ = parseSyllable("GIừp");
+    // _ = parseSyllable("nGhiÊng");
+    // _ = parseSyllable("nGiêng");
+    // _ = parseSyllable("đĩm");
+    _ = parseSyllable("ĩm");
+    _ = parseSyllable("gĩm");
+}
 
 const MAX_SYLLABLE_LEN = 10;
 
@@ -79,11 +92,11 @@ const Char = struct {
         self.tone = ._none;
 
         // DEBUG
-        // if (x < 128 or idx < str.len - 1) {
-        //     const y = if (x < 128) 0 else str[idx + 1];
-        //     const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
-        //     std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
-        // }
+        if (DEBUG and (x < 128 or idx < str.len - 1)) {
+            const y = if (x < 128) 0 else str[idx + 1];
+            const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
+            std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
+        }
 
         switch (x) {
             0...127 => { // 1-byte chars
@@ -457,8 +470,10 @@ const Char = struct {
             },
         }
         // DEBUG
-        // const w: []const u8 = &.{ self.byte1, self.byte0 };
-        // std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
+        if (DEBUG) {
+            const w: []const u8 = &.{ self.byte1, self.byte0 };
+            std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
+        }
     }
 
     pub inline fn len(self: *Char) usize {
@@ -474,18 +489,6 @@ const Char = struct {
         return self.byte1 == 0 and self.byte0 < 128;
     }
 };
-
-pub fn main() void {
-    std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
-    _ = parseSyllable("GÀN");
-    _ = parseSyllable("GặN");
-    _ = parseSyllable("GIừp");
-    _ = parseSyllable("nGhiÊng");
-    _ = parseSyllable("nGiêng");
-    _ = parseSyllable("đĩm");
-
-    // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
-}
 
 // Các thao tác trên âm tiết là 1 chuỗi ký tự utf-8 bao gồm:
 //
