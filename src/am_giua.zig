@@ -38,7 +38,7 @@ const middle16: []const AmGiua = &.{
     AmGiua.uw, //    12: ư
     AmGiua.oa, //    13: oa
     AmGiua.oe, //    14: oe
-    AmGiua.ooo, //   15: boong
+    AmGiua.oo, //    15: boong
     AmGiua.uy, //    16: uy
     AmGiua._none, // 17: none
 };

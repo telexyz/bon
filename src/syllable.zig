@@ -117,7 +117,7 @@ pub const AmGiua = enum {
 
     oa,
     oe,
-    ooo, // boong
+    oo, // boong
     uy, // 15th
 
     iez, // iê <= ie (tiên <= tien, tieen, tiezn)
@@ -184,7 +184,7 @@ pub const AmGiua = enum {
         if (self.len() == 4 or self.len() == 3) return true;
         if (self.len() == 2) {
             switch (self) {
-                .oa, .ooo, .ua, .uw, .uy => { // .uo,
+                .oa, .oo, .ua, .uw, .uy => { // .uo,
                     return false;
                 },
                 else => {
@@ -197,7 +197,7 @@ pub const AmGiua = enum {
     pub fn hasAmDem(self: AmGiua) bool {
         return switch (self) {
             .uaz, .uez, .uy, .uyez, .uya => true,
-            .oa, .oaw, .oe, .ooo => true,
+            .oa, .oaw, .oe, .oo => true,
             else => false,
         };
     }
@@ -568,7 +568,7 @@ pub const Syllable = struct {
         const giua = switch (self.am_giua) {
             .uow => if (self.am_cuoi == ._none) "uaw" else "uow",
             .uoz => if (self.am_cuoi == ._none) "ua" else "uoz",
-            .ooo => "oo",
+            .oo => "oo",
             .iez => blk: {
                 if (self.am_cuoi == ._none) break :blk "ia";
                 if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yez";
@@ -651,7 +651,7 @@ pub const Syllable = struct {
         };
         // n(giua) = 22 (23 - 1)
         const giua = switch (self.am_giua) {
-            .ooo => "oo",
+            .oo => "oo",
             .iez => "yez",
             .i => "y",
             // Xem rút gọn âm cuối docs/syllable_n_token_ids.md
@@ -757,7 +757,7 @@ pub const Syllable = struct {
                     break :blk "iê";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uya" else "uyê",
-                .ooo => "oo",
+                .oo => "oo",
                 else => @tagName(self.am_giua),
             },
             .s => switch (self.am_giua) {
@@ -790,7 +790,7 @@ pub const Syllable = struct {
                 .ia => "ía",
                 .oa => "oá",
                 .oe => "oé",
-                .ooo => "oó",
+                .oo => "oó",
                 .uy => "uý",
                 else => @tagName(self.am_giua),
             },
@@ -824,7 +824,7 @@ pub const Syllable = struct {
                 .ia => "ìa",
                 .oa => "oà",
                 .oe => "oè",
-                .ooo => "oò",
+                .oo => "oò",
                 .uy => "uỳ",
                 else => @tagName(self.am_giua),
             },
@@ -858,7 +858,7 @@ pub const Syllable = struct {
                 .ia => "ỉa",
                 .oa => "oả",
                 .oe => "oẻ",
-                .ooo => "oỏ",
+                .oo => "oỏ",
                 .uy => "uỷ",
                 else => @tagName(self.am_giua),
             },
@@ -892,7 +892,7 @@ pub const Syllable = struct {
                 .ia => "ĩa",
                 .oa => "oã",
                 .oe => "oẽ",
-                .ooo => "oõ",
+                .oo => "oõ",
                 .uy => "uỹ",
                 else => @tagName(self.am_giua),
             },
@@ -926,7 +926,7 @@ pub const Syllable = struct {
                 .ia => "ịa",
                 .oa => "oạ",
                 .oe => "oẹ",
-                .ooo => "oọ",
+                .oo => "oọ",
                 .uy => "uỵ",
                 else => @tagName(self.am_giua),
             },
@@ -1003,7 +1003,7 @@ test "Syllable's printBuff" {
     try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_c oa n");
 
     syll.am_dau = .ng;
-    syll.am_giua = .ooo;
+    syll.am_giua = .oo;
     syll.am_cuoi = .ng;
     try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng oo ng");
 

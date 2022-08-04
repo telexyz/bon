@@ -28,6 +28,9 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
         }
     }
 
+    // bỏ qua h của ngh
+    if (initial == .ng and (str[pos] == 'h' or str[pos] == 'H')) pos += 1;
+
     // phân tích âm giữa
     if (initial.len() == 2) {
         c0.parse(str, pos);
@@ -177,10 +180,9 @@ const Char = struct {
 };
 
 pub fn main() void {
-    _ = parseSyllable("GÁN");
+    _ = parseSyllable("GÀN");
     _ = parseSyllable("GáN");
     _ = parseSyllable("nGhiÊng");
-    _ = parseSyllable("nGiÊng");
     _ = parseSyllable("nGiêng");
 
     // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
