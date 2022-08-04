@@ -5,6 +5,7 @@ const getInitial = @import("am_dau.zig").getInitial;
 pub fn parseSyllable(str: []const u8) sds.Syllable {
     var syll = sds.Syllable.new();
     var idx: usize = 0;
+    if (str.len > 10) return syll;
 
     if (str.len > 1) {
         // chỉ phân tích âm đầu khi có 2 ký tự trở lên
@@ -18,6 +19,27 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     // const c = str[idx];
     return syll;
 }
+
+inline fn parseChar(str: []const u8, idx: usize) Char {
+    var ch = Char;
+    _ = str;
+    _ = idx;
+    return ch;
+}
+
+const Char = struct {
+    code1: u8,
+    code2: u8,
+    isUpper: bool,
+
+    pub fn new() Char {
+        return .{
+            .code1 = 0,
+            .code2 = 0,
+            .isUpper = 0,
+        };
+    }
+};
 
 inline fn isAscii(c: u8) bool {
     return c < 128;
