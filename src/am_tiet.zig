@@ -61,7 +61,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     if (syll.tone == ._none) syll.tone = c1.tone;
 
     std.debug.print(
-        "\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}",
+        "\n     - - - - - - - - - - - - - - - -" ++ "\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}",
         .{ str, @tagName(syll.am_dau), @tagName(syll.am_giua), @tagName(syll.am_cuoi), @tagName(syll.tone) },
     );
 
@@ -78,6 +78,12 @@ const Char = struct {
         const x = str[idx];
         self.tone = ._none;
 
+        if (x < 128 or idx < str.len - 1) {
+            const y = if (x < 128) 0 else str[idx + 1];
+            const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
+            std.debug.print("\nstr[{d}] = {s: >2} {d}:{d}", .{ idx, w, x, y });
+        }
+
         switch (x) {
             0...127 => {
                 // std.debug.print("\n\n{c}: {x}", .{ x, x });
@@ -90,8 +96,6 @@ const Char = struct {
             195 => {
                 self.byte1 = x;
                 var y = str[idx + 1];
-                // const w = [_]u8{ x, y };
-                // std.debug.print("\n\n{s}: {b:0>8}", .{ w, y });
                 //              ê: 10101010
                 //              Ê: 10001010
                 self.isUpper = ((0b00100000 & x)) == 0;
@@ -158,15 +162,42 @@ const Char = struct {
                 }
             },
             196...198 => {
-                const y = str[idx + 1];
-                self.isUpper = (y & 0b1) != 0;
+                var y = str[idx + 1];
+
+                switch (y) {
+                    175 => {
+                        self.byte0 = 176;
+                        self.byte1 = x;
+                        self.isUpper = true;
+                    },
+                    176 => {
+                        self.byte0 = 176;
+                        self.byte1 = x;
+                        self.isUpper = false;
+                    },
+                    else => {
+                        self.isUpper = (y & 0b1) == 0;
+                        y |= 0b1;
+                        if (y == 196) {
+                            self.tone = .x;
+                            self.byte0 = if (x == 196) 'i' else 'u';
+                            self.byte1 = 0;
+                        }
+                        self.byte0 = y;
+                        self.byte1 = x;
+                    },
+                }
             },
             255 => {},
             else => {
+                // invalid
                 self.byte0 = 0;
                 self.byte1 = 0;
             },
         }
+        //
+        const w: []const u8 = &.{ self.byte1, self.byte0 };
+        std.debug.print(" >> {s: >2}: {d}:{d}", .{ w, self.byte1, self.byte0 });
     }
 
     pub inline fn len(self: *Char) usize {
@@ -184,12 +215,13 @@ const Char = struct {
 };
 
 pub fn main() void {
-    std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}\n     - - - - - - - - - - - - - - - -", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
+    std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
     _ = parseSyllable("GÀN");
     _ = parseSyllable("GáN");
     _ = parseSyllable("GIúp");
     _ = parseSyllable("nGhiÊng");
     _ = parseSyllable("nGiêng");
+    _ = parseSyllable("đưm");
 
     // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
 }
@@ -233,7 +265,7 @@ pub fn main() void {
 // * Check byte in 196-198 => B/ 12-chars
 //   - toLower:
 //       if next-byte == 175 -> next-byte == 176
-//       else -> set next-byte's 0th-bit = 0
+//       else -> set next-byte's 0th-bit = 1
 //
 //   - extractTone: if (next-byte == 169) {
 //          tone = 'x'
