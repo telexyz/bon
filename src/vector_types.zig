@@ -22,6 +22,7 @@ pub const u8x16 = std.meta.Vector(16, u8);
 pub const u8x32 = std.meta.Vector(32, u8);
 pub const u8x64 = std.meta.Vector(64, u8);
 pub const u16x8 = std.meta.Vector(8, u16);
+pub const u16x16 = std.meta.Vector(16, u16);
 pub const u32x4 = std.meta.Vector(4, u32);
 pub const u32x8 = std.meta.Vector(8, u32);
 pub const i64x2 = std.meta.Vector(2, i64);

@@ -73,6 +73,7 @@ const Char = struct {
         const x = str[idx];
         switch (x) {
             0...127 => {
+                // std.debug.print("\n\n{c}: {x}", .{ x, x });
                 //              a: 01100001
                 //              A: 01000001
                 self.isUpper = ((0b00100000 & x)) == 0;
@@ -88,6 +89,7 @@ const Char = struct {
                 //              Ê: 10001010
                 self.isUpper = ((0b00100000 & x)) == 0;
                 y |= 0b00100000; // toLower
+                self.byte1 = 0;
                 switch (y) {
                     160 => {
                         self.byte0 = 'a';
@@ -175,6 +177,7 @@ const Char = struct {
 
 pub fn main() void {
     _ = parseSyllable("GÁN");
+    _ = parseSyllable("GáN");
     _ = parseSyllable("nGhiÊng");
     _ = parseSyllable("nGiÊng");
     _ = parseSyllable("nGiêng");
