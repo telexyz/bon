@@ -1,5 +1,5 @@
 const std = @import("std");
-const sds = @import("syllable_data_structs.zig");
+const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
 const getMiddle = @import("am_giua.zig").getMiddle;
 
@@ -13,7 +13,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     c0.parse(str, 0);
     var pos = c0.len();
 
-    var initial: []const u8 = undefined;
+    var initial: sds.AmDau = undefined;
 
     if (str.len > 1) {
         // chỉ phân tích âm đầu khi có 2 ký tự trở lên
@@ -29,7 +29,7 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     }
 
     // phân tích âm giữa
-    if (initial.len == 2) {
+    if (initial.len() == 2) {
         c0.parse(str, pos);
         pos += c0.len();
         c1.parse(str, pos);
@@ -51,11 +51,11 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
         c1.parse(str, pos);
     }
 
-    var middle = getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1);
+    const middle = getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1);
 
     std.debug.print(
-        "\n{s: >11}: {s: >2} {s: >3}",
-        .{ str, initial, middle },
+        "\n{s: >11}: {s: >5} {s: >5}",
+        .{ str, @tagName(initial), @tagName(middle) },
     );
 
     return syll;

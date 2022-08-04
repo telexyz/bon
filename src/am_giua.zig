@@ -1,5 +1,6 @@
 const std = @import("std");
 const v = @import("vector_types.zig");
+const AmGiua = @import("syllable.zig").AmGiua;
 
 // 23 âm giữa (âm đệm + nguyên âm)
 // 16 middle16 + 7 middle 32
@@ -22,24 +23,24 @@ const lookup16 = v.u16x16{
     (@as(u16, 'o') << 8) + 'o',
     (@as(u16, 'u') << 8) + 'y',
 };
-const middle16: []const []const u8 = &.{
-    "a", //  01: a
-    "e", //  02: e
-    "i", //  03: i
-    "o", //  04: o
-    "u", //  05: u
-    "y", //  06: y
-    "az", // 07: â
-    "aw", // 08: ă
-    "ez", // 09: ê
-    "oz", // 10: ô
-    "ow", // 11: ơ
-    "uw", // 12: ư
-    "oa", // 13: oa
-    "oe", // 14: oe
-    "oo", // 15: boong
-    "uy", // 16: uy
-    "", //   17: _none
+const middle16: []const AmGiua = &.{
+    AmGiua.a, //     01: a
+    AmGiua.e, //     02: e
+    AmGiua.i, //     03: i
+    AmGiua.o, //     04: o
+    AmGiua.u, //     05: u
+    AmGiua.y, //     06: y
+    AmGiua.az, //    07: â
+    AmGiua.aw, //    08: ă
+    AmGiua.ez, //    09: ê
+    AmGiua.oz, //    10: ô
+    AmGiua.ow, //    11: ơ
+    AmGiua.uw, //    12: ư
+    AmGiua.oa, //    13: oa
+    AmGiua.oe, //    14: oe
+    AmGiua.ooo, //   15: boong
+    AmGiua.uy, //    16: uy
+    AmGiua._none, // 17: none
 };
 
 const lookup32 = v.u32x8{
@@ -52,19 +53,19 @@ const lookup32 = v.u32x8{
     (@as(u32, 198) << 24) + (@as(u32, 176) << 16) + (@as(u32, 198) << 8) + 161, // 'ư'198:176'ơ'
     (@as(u32, 'u') << 24) + (@as(u32, 'y') << 16) + (@as(u32, 195) << 8) + 170, // uy'ê'195:170
 };
-const middle32: []const []const u8 = &.{
-    "iez", //  0: iê
-    "oaw", //  1: oă (loắt choắt)
-    "uaz", //  2: uâ (tuân)
-    "uez", //  3: uê (tuềnh toàng)
-    "uoz", //  4: uô
-    "uwow", // 5: uơ tự convert thành ươ
-    "uwow", // 6: ươ
-    "uyez", // 7: uyê
-    "", //     8: _none
+const middle32: []const AmGiua = &.{
+    AmGiua.iez, //  0: iê
+    AmGiua.oaw, //  1: oă (loắt choắt)
+    AmGiua.uaz, //  2: uâ (tuân)
+    AmGiua.uez, //  3: uê (tuềnh toàng)
+    AmGiua.uoz, //  4: uô
+    AmGiua.uow, //  5: uơ tự convert thành ươ
+    AmGiua.uow, //  6: ươ
+    AmGiua.uyez, // 7: uyê
+    AmGiua._none, // 8: none
 };
 
-pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) []const u8 {
+pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const a = (@intCast(u32, c0b1) << 24) + (@intCast(u32, c0b0) << 16) +
         (@intCast(u32, c1b1) << 8) + c1b0;
     const input32 = v.u32x8{ a, a, a, a, a, a, a, a };
