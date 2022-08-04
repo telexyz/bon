@@ -7,10 +7,16 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     var idx: usize = 0;
     if (str.len > 10) return syll;
 
+    var c0: Char = undefined;
+    c0.parse(str, 0);
+
+    var c1: Char = undefined;
+
     if (str.len > 1) {
         // chỉ phân tích âm đầu khi có 2 ký tự trở lên
         // vì âm tiết lúc nào cũng có nguyên âm
-        const initial = getInitial(str[0], str[1]);
+        c1.parse(str, c0.len());
+        const initial = getInitial(c0.byte0, c1.byte0);
         idx = initial.len;
         std.debug.print("{s} ", .{initial});
     }
@@ -20,33 +26,52 @@ pub fn parseSyllable(str: []const u8) sds.Syllable {
     return syll;
 }
 
-inline fn parseChar(str: []const u8, idx: usize) Char {
-    var ch = Char;
-    _ = str;
-    _ = idx;
-    return ch;
-}
-
 const Char = struct {
-    code1: u8,
-    code2: u8,
-    isUpper: bool,
+    byte0: u8 = undefined,
+    byte1: u8 = undefined,
+    isUpper: bool = undefined,
 
-    pub fn new() Char {
-        return .{
-            .code1 = 0,
-            .code2 = 0,
-            .isUpper = 0,
-        };
+    pub inline fn parse(self: *Char, str: []const u8, idx: usize) void {
+        const x = str[idx];
+
+        switch (x) {
+            0...127 => {
+                //              a: 01100001
+                //              A: 01000001
+                self.isUpper = ((0b00100000 & x)) == 0;
+                self.byte0 = x | 0b00100000; // toLower
+                self.byte1 = 0;
+            },
+            195...198 => {
+                const y = str[idx + 1];
+                self.isUpper = (y & 0b1) != 0;
+            },
+            255 => {},
+            else => {
+                self.byte0 = 0;
+                self.byte1 = 0;
+            },
+        }
+    }
+
+    pub inline fn len(self: *Char) usize {
+        switch (self.byte1) {
+            0 => return 1,
+            195...198 => return 2,
+            186, 187 => return 3,
+            else => return 4,
+        }
+    }
+
+    pub inline fn isAscii(self: *Char) bool {
+        return self.byte1 == 0 and self.byte0 < 128;
     }
 };
 
-inline fn isAscii(c: u8) bool {
-    return c < 128;
-}
-
 pub fn main() void {
-    _ = parseSyllable("nghiêng");
+    _ = parseSyllable("nGhiêng");
+
+    // std.debug.print("\na:{b}\nA:{b}", .{ 'a', 'A' });
 }
 
 // Các thao tác trên âm tiết là 1 chuỗi ký tự utf-8 bao gồm:
