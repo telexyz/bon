@@ -145,6 +145,7 @@ const Char = struct {
                     },
                     else => {
                         self.byte0 = y;
+                        self.byte1 = x;
                         self.tone = 0;
                     },
                 }
