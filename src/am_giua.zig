@@ -73,20 +73,18 @@ pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const pos32: u8 = if (match32 > 0) @ctz(u8, match32) else 8;
 
     if (pos32 < 8) {
-        // std.debug.print("\n\n{x}-{x} {x}-{x}", .{ c0b1, c0b0, c1b1, c1b0 });
-        // std.debug.print("\n\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
-        // std.debug.print("\n\n{b:0>8} {d}\n", .{ match32, pos32 });
         return middle32[pos32];
-    } else {
-        const b = (@intCast(u16, c0b1) << 8) + c0b0;
-        const input16 = v.u16x16{ b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b };
-        const match16: u16 = @ptrCast(*const u16, &(input16 == lookup16)).*;
-        const pos16 = if (match16 > 0) @ctz(u16, match16) else 16;
-
-        // const w = [_]u8{ if (c0b1 == 0) 32 else c0b1, c0b0 };
-        // std.debug.print("\n\n'{s}'{x}:{x}", .{ w, c0b1, c0b0 });
-        // std.debug.print("\n\n{x:0>8}\n{x:0>8}", .{ input16, lookup16 });
-        // std.debug.print("\n\n{b:0>8} {d}\n", .{ match16, pos16 });
-        return middle16[pos16];
     }
+    const b = (@intCast(u16, c0b1) << 8) + c0b0;
+    const input16 = v.u16x16{ b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b };
+    const match16: u16 = @ptrCast(*const u16, &(input16 == lookup16)).*;
+    const pos16 = if (match16 > 0) @ctz(u16, match16) else 16;
+
+    // const c0: []const u8 = &.{ c0b1, c0b0 };
+    // const c1: []const u8 = &.{ c1b1, c1b0 };
+    // std.debug.print("\n\n'{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
+    // std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
+    // std.debug.print("\n{b:0>8} {d}\n", .{ match32, pos32 });
+
+    return middle16[pos16];
 }
