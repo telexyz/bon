@@ -39,7 +39,12 @@ pub const Char = struct {
 
         switch (curr_byte) {
             // 1-byte chars
-            0...127 => {
+            0...'A' - 1, 'Z' + 1...'a' - 1, 'z' + 1...127 => {
+                self.byte1 = 0;
+                self.byte0 = curr_byte;
+                self.len = 1;
+            },
+            'A'...'Z', 'a'...'z' => {
                 //              a: 01100001
                 //              A: 01000001
                 self.upper = ((0b00100000 & curr_byte)) == 0;
@@ -204,10 +209,21 @@ fn _parse(char: *Char, bytes: []const u8) *Char {
     return char;
 }
 
+test "char.parse(ascii)" {
+    var char: Char = undefined;
+    var i: u8 = 0;
+    var str: [1]u8 = undefined;
+    while (i < 128) : (i += 1) {
+        str[0] = i;
+        // std.debug.print("\n>> char.parse(ascii): {s}-{d}\n", .{ str, i });
+        const upper = (i >= 'A' and i <= 'Z');
+        if (upper) i += 32; // A-Z => a-z
+        try charEqual(_parse(&char, &str), 0, i, ._none, 1, upper);
+    }
+}
+
 test "char.parse(A/)" {
     var char: Char = undefined;
-    // try charEqual(_parse(&char, "Ứ"), 198, 176, .s, 3, true);
-
     try charEqual(_parse(&char, "à"), 0, 'a', .f, 2, false);
     try charEqual(_parse(&char, "á"), 0, 'a', .s, 2, false);
     try charEqual(_parse(&char, "â"), "â"[0], "â"[1], ._none, 2, false);
