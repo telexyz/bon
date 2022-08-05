@@ -25,39 +25,39 @@ pub const Char = struct {
     }
 
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
-        const x = bytes[idx];
+        const curr_byte = bytes[idx];
 
         //  DEBUG
-        if (DEBUG and (x < 128 or idx < bytes.len - 1)) {
-            const y = if (x < 128) 0 else bytes[idx + 1];
-            const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
-            std.debug.print("\nbytes[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, w, x, y });
+        if (DEBUG and (curr_byte < 128 or idx < bytes.len - 1)) {
+            const next_byte = if (curr_byte < 128) 0 else bytes[idx + 1];
+            var s = if (curr_byte < 128) [_]u8{ 32, curr_byte } else [_]u8{ curr_byte, next_byte };
+            std.debug.print("\nbytes[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, s, curr_byte, next_byte });
         }
 
         self.tone = ._none;
         self.len = 0;
 
-        switch (x) {
+        switch (curr_byte) {
             // 1-byte chars
             0...127 => {
                 //              a: 01100001
                 //              A: 01000001
-                self.upper = ((0b00100000 & x)) == 0;
-                self.byte0 = x | 0b00100000; // toLower
+                self.upper = ((0b00100000 & curr_byte)) == 0;
+                self.byte0 = curr_byte | 0b00100000; // toLower
                 self.byte1 = 0;
                 self.len = 1;
             },
 
             // 2-byte chars A/
             195 => {
-                var y = bytes[idx + 1];
+                var next_byte = bytes[idx + 1];
                 //              ê: 10101010
                 //              Ê: 10001010
-                self.upper = ((0b00100000 & y)) == 0;
-                y |= 0b00100000; // toLower
+                self.upper = ((0b00100000 & next_byte)) == 0;
+                next_byte |= 0b00100000; // toLower
                 self.len = 2;
 
-                switch (y) {
+                switch (next_byte) {
                     160 => self.setb1b0t(0, 'a', .f), // 'à'195:160
                     161 => self.setb1b0t(0, 'a', .s), // 'á'195:161
                     163 => self.setb1b0t(0, 'a', .x), // 'ã'195:163
@@ -71,37 +71,38 @@ pub const Char = struct {
                     185 => self.setb1b0t(0, 'u', .f), // 'ù'195:185
                     186 => self.setb1b0t(0, 'u', .s), // 'ú'195:186
                     189 => self.setb1b0t(0, 'y', .s), // 'ý'195:189
-                    else => self.setb1b0t(y, x, ._none), // 'â'195:162 'ê'195:170 'ô'195:180
+                    // còn lại giữ nguyên 'â'195:162 'ê'195:170 'ô'195:180
+                    else => self.setb1b0t(next_byte, curr_byte, ._none),
                 }
             },
 
             // 2-byte chars B/
             196...198 => {
-                var y = bytes[idx + 1];
+                var next_byte = bytes[idx + 1];
                 self.len = 2;
 
-                switch (y) {
-                    175 => self.setb1b0tUp(x, 176, ._none, true),
-                    176 => self.setb1b0tUp(x, 176, ._none, false),
+                switch (next_byte) {
+                    175 => self.setb1b0tUp(curr_byte, 176, ._none, true),
+                    176 => self.setb1b0tUp(curr_byte, 176, ._none, false),
                     else => {
-                        self.upper = (y & 0b1) == 0;
-                        y |= 0b1; // toLower
-                        if (y == 169) self.setb1b0t(0, if (x == 196) 'i' else 'u', .x) //
-                        else self.setb1b0t(x, y, ._none);
+                        self.upper = (next_byte & 0b1) == 0;
+                        next_byte |= 0b1; // toLower
+                        if (next_byte == 169) self.setb1b0t(0, if (curr_byte == 196) 'i' else 'u', .x) //
+                        else self.setb1b0t(curr_byte, next_byte, ._none);
                     },
                 }
             },
 
             // 3-byte chars C/ + D/
             225 => {
-                var y = bytes[idx + 2];
-                self.upper = (y & 0b1) == 0;
-                y |= 0b1; // toLower
+                var next_byte = bytes[idx + 2];
+                self.upper = (next_byte & 0b1) == 0;
+                next_byte |= 0b1; // toLower
                 self.len = 3;
 
                 switch (bytes[idx + 1]) {
                     // 3-byte chars C/
-                    186 => switch (y) {
+                    186 => switch (next_byte) {
                         161 => self.setb1b0t(0, 'a', .j), //   'ạ'225:186:161
                         163 => self.setb1b0t(0, 'a', .r), //   'ả'225:186:163
 
@@ -129,7 +130,7 @@ pub const Char = struct {
                     },
 
                     // 3-byte chars D/
-                    187 => switch (y) {
+                    187 => switch (next_byte) {
                         // 'ê'195:170
                         129 => self.setb1b0t(195, 170, .f), // 'ề'225:187:129
                         131 => self.setb1b0t(195, 170, .r), // 'ể'225:187:131
@@ -176,10 +177,10 @@ pub const Char = struct {
                     },
                     else => self.setb1b0t(0, 0, ._none), //     invalid
                 }
-            }, // switch (x)
+            }, // switch (curr_byte)
             else => self.setb1b0t(0, 0, ._none), //             invalid
         }
-        // DEBUG
+        //  DEBUG
         if (DEBUG) {
             const w: []const u8 = &.{ self.byte1, self.byte0 };
             std.debug.print(" >> {s: >2}: {d: >3}:{d: >3}", .{ w, self.byte1, self.byte0 });
