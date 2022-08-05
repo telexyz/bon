@@ -72,7 +72,7 @@ pub const Char = struct {
                     186 => self.setb1b0t(0, 'u', .s), // 'ú'195:186
                     189 => self.setb1b0t(0, 'y', .s), // 'ý'195:189
                     // còn lại giữ nguyên 'â'195:162 'ê'195:170 'ô'195:180
-                    else => self.setb1b0t(next_byte, curr_byte, ._none),
+                    else => self.setb1b0t(curr_byte, next_byte, ._none),
                 }
             },
 
@@ -188,14 +188,57 @@ pub const Char = struct {
     }
 };
 
-fn charEqual(char: Char, byte1: u8, byte0: u8, tone: sds.Tone, len: usize, upper: bool) bool {
-    return char.byte1 == byte1 and char.byte0 == byte0 and
-        char.tone == tone and char.len == len and char.upper == upper;
+//
+const expectEqual = std.testing.expectEqual;
+fn charEqual(char: *Char, byte1: u8, byte0: u8, tone: sds.Tone, len: usize, upper: bool) !void {
+    // if (byte1 == 195) std.debug.print("{}", .{char}); // DEBUG
+    try expectEqual(char.byte1, byte1);
+    try expectEqual(char.byte0, byte0);
+    try expectEqual(char.tone, tone);
+    try expectEqual(char.len, len);
+    try expectEqual(char.upper, upper);
 }
 
-const expect = std.testing.expect;
-test "char.parse()" {
+fn _parse(char: *Char, bytes: []const u8) *Char {
+    char.parse(bytes, 0);
+    return char;
+}
+
+test "char.parse(A/)" {
     var char: Char = undefined;
-    char.parse("Ứ", 0);
-    try expect(charEqual(char, 198, 176, .s, 3, true));
+    // try charEqual(_parse(&char, "Ứ"), 198, 176, .s, 3, true);
+
+    try charEqual(_parse(&char, "à"), 0, 'a', .f, 2, false);
+    try charEqual(_parse(&char, "á"), 0, 'a', .s, 2, false);
+    try charEqual(_parse(&char, "â"), 195, 162, ._none, 2, false);
+    try charEqual(_parse(&char, "ã"), 0, 'a', .x, 2, false);
+    try charEqual(_parse(&char, "è"), 0, 'e', .f, 2, false);
+    try charEqual(_parse(&char, "é"), 0, 'e', .s, 2, false);
+    try charEqual(_parse(&char, "ê"), 195, 170, ._none, 2, false);
+    try charEqual(_parse(&char, "ì"), 0, 'i', .f, 2, false);
+    try charEqual(_parse(&char, "í"), 0, 'i', .s, 2, false);
+    try charEqual(_parse(&char, "ò"), 0, 'o', .f, 2, false);
+    try charEqual(_parse(&char, "ó"), 0, 'o', .s, 2, false);
+    try charEqual(_parse(&char, "ô"), 195, 180, ._none, 2, false);
+    try charEqual(_parse(&char, "õ"), 0, 'o', .x, 2, false);
+    try charEqual(_parse(&char, "ù"), 0, 'u', .f, 2, false);
+    try charEqual(_parse(&char, "ú"), 0, 'u', .s, 2, false);
+    try charEqual(_parse(&char, "ý"), 0, 'y', .s, 2, false);
+
+    try charEqual(_parse(&char, "À"), 0, 'a', .f, 2, true);
+    try charEqual(_parse(&char, "Á"), 0, 'a', .s, 2, true);
+    try charEqual(_parse(&char, "Â"), 195, 162, ._none, 2, true);
+    try charEqual(_parse(&char, "Ã"), 0, 'a', .x, 2, true);
+    try charEqual(_parse(&char, "È"), 0, 'e', .f, 2, true);
+    try charEqual(_parse(&char, "É"), 0, 'e', .s, 2, true);
+    try charEqual(_parse(&char, "Ê"), 195, 170, ._none, 2, true);
+    try charEqual(_parse(&char, "Ì"), 0, 'i', .f, 2, true);
+    try charEqual(_parse(&char, "Í"), 0, 'i', .s, 2, true);
+    try charEqual(_parse(&char, "Ò"), 0, 'o', .f, 2, true);
+    try charEqual(_parse(&char, "Ó"), 0, 'o', .s, 2, true);
+    try charEqual(_parse(&char, "Ô"), 195, 180, ._none, 2, true);
+    try charEqual(_parse(&char, "Õ"), 0, 'o', .x, 2, true);
+    try charEqual(_parse(&char, "Ù"), 0, 'u', .f, 2, true);
+    try charEqual(_parse(&char, "Ú"), 0, 'u', .s, 2, true);
+    try charEqual(_parse(&char, "Ý"), 0, 'y', .s, 2, true);
 }
