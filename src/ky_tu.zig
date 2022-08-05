@@ -242,3 +242,20 @@ test "char.parse(A/)" {
     try charEqual(_parse(&char, "Ú"), 0, 'u', .s, 2, true);
     try charEqual(_parse(&char, "Ý"), 0, 'y', .s, 2, true);
 }
+
+test "char.parse(B/)" {
+    var char: Char = undefined;
+    try charEqual(_parse(&char, "ă"), 196, 131, ._none, 2, false); // 'ă'196:131
+    try charEqual(_parse(&char, "đ"), 196, 145, ._none, 2, false); // 'đ'196:145
+    try charEqual(_parse(&char, "ĩ"), 0, 'i', .x, 2, false); //       'ĩ'196:169
+    try charEqual(_parse(&char, "ũ"), 0, 'u', .x, 2, false); //       'ũ'197:169
+    try charEqual(_parse(&char, "ơ"), 198, 161, ._none, 2, false); // 'ơ'198:161
+    try charEqual(_parse(&char, "ư"), 198, 176, ._none, 2, false); // 'ư'198:176
+
+    try charEqual(_parse(&char, "Ă"), 196, 131, ._none, 2, true); // 'ă'196:131
+    try charEqual(_parse(&char, "Đ"), 196, 145, ._none, 2, true); // 'đ'196:145
+    try charEqual(_parse(&char, "Ĩ"), 0, 'i', .x, 2, true); //       'ĩ'196:169
+    try charEqual(_parse(&char, "Ũ"), 0, 'u', .x, 2, true); //       'ũ'197:169
+    try charEqual(_parse(&char, "Ơ"), 198, 161, ._none, 2, true); // 'ơ'198:161
+    try charEqual(_parse(&char, "Ư"), 198, 176, ._none, 2, true); // 'ư'198:176
+}
