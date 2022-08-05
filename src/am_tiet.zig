@@ -2,6 +2,7 @@ const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
 const getMiddle = @import("am_giua.zig").getMiddle;
+const getFinal = @import("am_cuoi.zig").getFinal;
 const Char = @import("ky_tu.zig").Char;
 
 pub fn main() void {
@@ -12,8 +13,8 @@ pub fn main() void {
     _ = parseSyllable("nGhiÊng");
     _ = parseSyllable("nGiêng");
     _ = parseSyllable("đim");
+    _ = parseSyllable("gĩm");
     _ = parseSyllable("ĩm");
-    // _ = parseSyllable("gĩm");
 }
 
 const MAX_SYLLABLE_LEN = 10;
@@ -45,17 +46,24 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     // bỏ qua h của ngh
     if (syll.am_dau == .ng and (bytes[idx] == 'h' or bytes[idx] == 'H')) idx += 1;
 
+    // gi nhưng i là âm giữa
+    if (syll.am_dau == .gi and getFinal(0, bytes[idx]) != ._none) { // âm sau là phụ âm cuối
+        // std.debug.print("\n---------- {} {d} {d}\n", .{ syll.am_dau, idx, bytes.len });
+        syll.am_dau = .g;
+    }
+
     // phân tích âm giữa
     switch (syll.am_dau.len()) {
         0 => { // không có âm đầu
-
+            c1.parse(bytes, idx);
+            idx += c1.len;
         },
-        1 => { // sử dụng lại c1
+        1 => { // âm đầu 1 ký tự => sử dụng lại c1
             c0 = c1;
             c1.parse(bytes, idx);
             idx += c1.len;
         },
-        2 => {
+        2 => { // âm đầu 2 ký tự
             c0.parse(bytes, idx);
             idx += c0.len;
 
@@ -84,10 +92,46 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     syll.tone = c0.tone;
     if (syll.tone == ._none) syll.tone = c1.tone;
 
-    std.debug.print(
-        "\n     - - - - - - - - - - - - - - - -" ++ "\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}",
-        .{ bytes, @tagName(syll.am_dau), @tagName(syll.am_giua), @tagName(syll.am_cuoi), @tagName(syll.tone) },
-    );
+    // parse âm cuối
+    var valid_final = true;
+    var no_more = false;
+
+    if (syll.am_giua.len() < 3) { // nguyên âm đơn
+        // std.debug.print("\n >>>>> sử dụng lại char của phân tích âm giữa <<<<< \n", .{});
+        c0 = c1;
+    } else if (idx < bytes.len) {
+        // parse char mới
+        c0.parse(bytes, idx);
+        idx += c0.len;
+    } else {
+        no_more = true;
+        valid_final = true;
+        syll.am_cuoi = ._none;
+    }
+
+    // khả năng âm cuối có hai ký tự
+    if (idx < bytes.len) {
+        // std.debug.print("\n >>>>> âm cuối có thêm 1 ký tự nữa <<<<< \n", .{});
+        c1.parse(bytes, idx);
+        idx += c1.len;
+        if (idx < bytes.len) {
+            // phần còn lại có nhiều hơn 2 ký tự
+            syll.am_cuoi = ._none;
+            valid_final = false;
+        } else {
+            syll.am_cuoi = getFinal(c0.byte0, c1.byte0);
+            valid_final = (syll.am_cuoi != ._none); // parse không ra
+        }
+    } else if (!no_more) {
+        // khả năng âm cuối có 1 ký tự
+        syll.am_cuoi = getFinal(0, c0.byte0);
+        valid_final = (syll.am_cuoi != ._none);
+    }
+
+    // TODO: cần check can_be_vietnamese từ khâu initial và middle
+    syll.can_be_vietnamese = valid_final;
+
+    std.debug.print("\n     - - - - - - - - - - - - - - - -" ++ "\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ bytes, @tagName(syll.am_dau), @tagName(syll.am_giua), @tagName(syll.am_cuoi), @tagName(syll.tone) });
 
     return syll;
 }

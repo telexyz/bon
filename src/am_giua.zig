@@ -42,6 +42,9 @@ const middle16: []const AmGiua = &.{
     AmGiua.uy, //    16: uy
     AmGiua._none, // 17: none
 };
+// TODO: bổ xung
+// ua, // => uoz
+// ia, // => iez
 
 const lookup32 = v.u32x8{
     (@as(u32, 'i') << 16) + (@as(u32, 195) << 8) + 170, // i'ê'195:170
@@ -64,6 +67,9 @@ const middle32: []const AmGiua = &.{
     AmGiua.uyez, // 7: uyê
     AmGiua._none, // 8: none
 };
+// TODO: bổ xung
+// uaw, // ưa => ươ
+// uya, // => uyez
 
 pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const a = (@intCast(u32, c0b1) << 24) + (@intCast(u32, c0b0) << 16) +
