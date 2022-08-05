@@ -24,14 +24,14 @@ pub const Char = struct {
         self.isUpper = isUp;
     }
 
-    pub inline fn parse(self: *Char, str: []const u8, idx: usize) void {
-        const x = str[idx];
+    pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
+        const x = bytes[idx];
 
         // DEBUG
-        if (DEBUG and (x < 128 or idx < str.len - 1)) {
-            const y = if (x < 128) 0 else str[idx + 1];
+        if (DEBUG and (x < 128 or idx < bytes.len - 1)) {
+            const y = if (x < 128) 0 else bytes[idx + 1];
             const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
-            std.debug.print("\nstr[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, w, x, y });
+            std.debug.print("\nbytes[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, w, x, y });
         }
 
         self.tone = ._none;
@@ -50,7 +50,7 @@ pub const Char = struct {
 
             // 2-byte chars A/
             195 => {
-                var y = str[idx + 1];
+                var y = bytes[idx + 1];
                 //              ê: 10101010
                 //              Ê: 10001010
                 self.isUpper = ((0b00100000 & y)) == 0;
@@ -77,7 +77,7 @@ pub const Char = struct {
 
             // 2-byte chars B/
             196...198 => {
-                var y = str[idx + 1];
+                var y = bytes[idx + 1];
                 self.len = 2;
 
                 switch (y) {
@@ -94,12 +94,12 @@ pub const Char = struct {
 
             // 3-byte chars C/ + D/
             225 => {
-                var y = str[idx + 2];
+                var y = bytes[idx + 2];
                 self.isUpper = (y & 0b1) == 0;
                 y |= 0b1; // toLower
                 self.len = 3;
 
-                switch (str[idx + 1]) {
+                switch (bytes[idx + 1]) {
                     // 3-byte chars C/
                     186 => switch (y) {
                         161 => self.setb1b0t(0, 'a', .j), //   'ạ'225:186:161
