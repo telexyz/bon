@@ -7,7 +7,7 @@ const DEBUG = false;
 pub const Char = struct {
     byte0: u8 = undefined,
     byte1: u8 = undefined,
-    isUpper: bool = undefined,
+    upper: bool = undefined,
     tone: sds.Tone = undefined,
     len: usize = undefined,
 
@@ -17,17 +17,17 @@ pub const Char = struct {
         self.tone = t;
     }
 
-    inline fn setb1b0tUp(self: *Char, b1: u8, b0: u8, t: sds.Tone, isUp: bool) void {
+    inline fn setb1b0tUp(self: *Char, b1: u8, b0: u8, t: sds.Tone, up: bool) void {
         self.byte1 = b1;
         self.byte0 = b0;
         self.tone = t;
-        self.isUpper = isUp;
+        self.upper = up;
     }
 
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
         const x = bytes[idx];
 
-        // DEBUG
+        //  DEBUG
         if (DEBUG and (x < 128 or idx < bytes.len - 1)) {
             const y = if (x < 128) 0 else bytes[idx + 1];
             const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
@@ -42,7 +42,7 @@ pub const Char = struct {
             0...127 => {
                 //              a: 01100001
                 //              A: 01000001
-                self.isUpper = ((0b00100000 & x)) == 0;
+                self.upper = ((0b00100000 & x)) == 0;
                 self.byte0 = x | 0b00100000; // toLower
                 self.byte1 = 0;
                 self.len = 1;
@@ -53,7 +53,7 @@ pub const Char = struct {
                 var y = bytes[idx + 1];
                 //              ê: 10101010
                 //              Ê: 10001010
-                self.isUpper = ((0b00100000 & y)) == 0;
+                self.upper = ((0b00100000 & y)) == 0;
                 y |= 0b00100000; // toLower
                 self.len = 2;
 
@@ -84,7 +84,7 @@ pub const Char = struct {
                     175 => self.setb1b0tUp(x, 176, ._none, true),
                     176 => self.setb1b0tUp(x, 176, ._none, false),
                     else => {
-                        self.isUpper = (y & 0b1) == 0;
+                        self.upper = (y & 0b1) == 0;
                         y |= 0b1; // toLower
                         if (y == 169) self.setb1b0t(0, if (x == 196) 'i' else 'u', .x) //
                         else self.setb1b0t(x, y, ._none);
@@ -95,7 +95,7 @@ pub const Char = struct {
             // 3-byte chars C/ + D/
             225 => {
                 var y = bytes[idx + 2];
-                self.isUpper = (y & 0b1) == 0;
+                self.upper = (y & 0b1) == 0;
                 y |= 0b1; // toLower
                 self.len = 3;
 
@@ -186,3 +186,15 @@ pub const Char = struct {
         }
     }
 };
+
+fn charEqual(char: Char, byte1: u8, byte0: u8, tone: sds.Tone, len: usize, upper: bool) bool {
+    return char.byte1 == byte1 and char.byte0 == byte0 and
+        char.tone == tone and char.len == len and char.upper == upper;
+}
+
+const expect = std.testing.expect;
+test "char.parse()" {
+    var char: Char = undefined;
+    char.parse("Ứ", 0);
+    try expect(charEqual(char, 198, 176, .s, 3, true));
+}
