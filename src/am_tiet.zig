@@ -7,21 +7,24 @@ const Char = @import("ky_tu.zig").Char;
 
 pub fn main() void {
     std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
-    _ = parseSyllable("GÀN");
-    _ = parseSyllable("GặN");
-    _ = parseSyllable("GIừp");
-    _ = parseSyllable("nGhiÊng");
-    _ = parseSyllable("nGiêng");
-    _ = parseSyllable("đim");
-    _ = parseSyllable("gĩm");
-    _ = parseSyllable("ĩm");
+    // _ = parseSyllable("GÀN");
+    // _ = parseSyllable("GặN");
+    // _ = parseSyllable("GIừp");
+    // _ = parseSyllable("nGhiÊng");
+    // _ = parseSyllable("nGiêng");
+    // _ = parseSyllable("đim");
+    // _ = parseSyllable("gĩm");
+    // _ = parseSyllable("ĩm");
+    _ = parseSyllable("thúýếng");
+    // _ = parseSyllable("a");
 }
 
-const MAX_SYLLABLE_LEN = 10;
+const MAX_SYLLABLE_LEN = 11;
 
 pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     var syll = sds.Syllable.new();
     // chuỗi rỗng hoặc lớn hơn 10 bytes không phải âm tiết utf8
+    // std.debug.print("(( {d} ))", .{bytes.len});
     if (bytes.len == 0 or bytes.len > MAX_SYLLABLE_LEN) return syll;
 
     var c0: Char = undefined;
