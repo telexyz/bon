@@ -1,3 +1,5 @@
+// Xem phân tích ký tự utf8 tiếng Việt tại `docs/utf8tv.md`
+
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
@@ -119,7 +121,8 @@ const Char = struct {
         self.len = 0;
 
         switch (x) {
-            0...127 => { // 1-byte chars
+            // 1-byte chars
+            0...127 => {
                 //              a: 01100001
                 //              A: 01000001
                 self.isUpper = ((0b00100000 & x)) == 0;
@@ -127,7 +130,9 @@ const Char = struct {
                 self.byte1 = 0;
                 self.len = 1;
             },
-            195 => { // 2-byte chars A/
+
+            // 2-byte chars A/
+            195 => {
                 var y = str[idx + 1];
                 //              ê: 10101010
                 //              Ê: 10001010
@@ -136,23 +141,25 @@ const Char = struct {
                 self.len = 2;
 
                 switch (y) {
-                    160 => self.setb1b0t(0, 'a', .f),
-                    161 => self.setb1b0t(0, 'a', .s),
-                    163 => self.setb1b0t(0, 'a', .x),
-                    168 => self.setb1b0t(0, 'e', .f),
-                    169 => self.setb1b0t(0, 'e', .s),
-                    172 => self.setb1b0t(0, 'i', .f),
-                    173 => self.setb1b0t(0, 'i', .s),
-                    178 => self.setb1b0t(0, 'o', .f),
-                    179 => self.setb1b0t(0, 'o', .s),
-                    181 => self.setb1b0t(0, 'o', .x),
-                    185 => self.setb1b0t(0, 'u', .f),
-                    186 => self.setb1b0t(0, 'u', .s),
-                    189 => self.setb1b0t(0, 'y', .s),
-                    else => self.setb1b0t(y, x, ._none),
+                    160 => self.setb1b0t(0, 'a', .f), // 'à'195:160
+                    161 => self.setb1b0t(0, 'a', .s), // 'á'195:161
+                    163 => self.setb1b0t(0, 'a', .x), // 'ã'195:163
+                    168 => self.setb1b0t(0, 'e', .f), // 'è'195:168
+                    169 => self.setb1b0t(0, 'e', .s), // 'é'195:169
+                    172 => self.setb1b0t(0, 'i', .f), // 'ì'195:172
+                    173 => self.setb1b0t(0, 'i', .s), // 'í'195:173
+                    178 => self.setb1b0t(0, 'o', .f), // 'ò'195:178
+                    179 => self.setb1b0t(0, 'o', .s), // 'ó'195:179
+                    181 => self.setb1b0t(0, 'o', .x), // 'õ'195:181
+                    185 => self.setb1b0t(0, 'u', .f), // 'ù'195:185
+                    186 => self.setb1b0t(0, 'u', .s), // 'ú'195:186
+                    189 => self.setb1b0t(0, 'y', .s), // 'ý'195:189
+                    else => self.setb1b0t(y, x, ._none), // 'â'195:162 'ê'195:170 'ô'195:180
                 }
             },
-            196...198 => { // 2-byte chars B/
+
+            // 2-byte chars B/
+            196...198 => {
                 var y = str[idx + 1];
                 self.len = 2;
 
@@ -167,17 +174,19 @@ const Char = struct {
                     },
                 }
             },
-            225 => { // 3-byte chars
+
+            // 3-byte chars C/ + D/
+            225 => {
                 var y = str[idx + 2];
                 self.isUpper = (y & 0b1) == 0;
                 y |= 0b1; // toLower
                 self.len = 3;
 
                 switch (str[idx + 1]) {
-                    186 => // 3-byte chars C/
-                    switch (y) {
-                        161 => self.setb1b0t(0, 'a', .j), // 'ạ'225:186:161
-                        163 => self.setb1b0t(0, 'a', .r), // 'ả'225:186:163
+                    // 3-byte chars C/
+                    186 => switch (y) {
+                        161 => self.setb1b0t(0, 'a', .j), //   'ạ'225:186:161
+                        163 => self.setb1b0t(0, 'a', .r), //   'ả'225:186:163
 
                         // 'â'195:162
                         165 => self.setb1b0t(195, 162, .s), // 'ấ'225:186:165
@@ -193,26 +202,28 @@ const Char = struct {
                         181 => self.setb1b0t(196, 131, .x), // 'ẵ'225:186:181
                         183 => self.setb1b0t(196, 131, .j), // 'ặ'225:186:183
 
-                        185 => self.setb1b0t(0, 'e', .j), // 'ẹ'225:186:185
-                        187 => self.setb1b0t(0, 'e', .r), // 'ẻ'225:186:187
-                        189 => self.setb1b0t(0, 'e', .x), // 'ẽ'225:186:189
+                        185 => self.setb1b0t(0, 'e', .j), //   'ẹ'225:186:185
+                        187 => self.setb1b0t(0, 'e', .r), //   'ẻ'225:186:187
+                        189 => self.setb1b0t(0, 'e', .x), //   'ẽ'225:186:189
 
                         // 'ê'195:170
                         191 => self.setb1b0t(195, 170, .s), // 'ế'225:186:191
                         else => self.setb1b0t(0, 0, ._none),
                     },
-                    187 => switch (y) { // 3-byte chars D/
+
+                    // 3-byte chars D/
+                    187 => switch (y) {
                         // 'ê'195:170
                         129 => self.setb1b0t(195, 170, .f), // 'ề'225:187:129
                         131 => self.setb1b0t(195, 170, .r), // 'ể'225:187:131
                         133 => self.setb1b0t(195, 170, .x), // 'ễ'225:187:133
                         135 => self.setb1b0t(195, 170, .j), // 'ệ'225:187:135
 
-                        137 => self.setb1b0t(0, 'i', .r), // 'ỉ'225:187:137
-                        139 => self.setb1b0t(0, 'i', .j), // 'ị'225:187:139
+                        137 => self.setb1b0t(0, 'i', .r), //   'ỉ'225:187:137
+                        139 => self.setb1b0t(0, 'i', .j), //   'ị'225:187:139
 
-                        141 => self.setb1b0t(0, 'o', .j), // 'ọ'225:187:141
-                        143 => self.setb1b0t(0, 'o', .r), // 'ỏ'225:187:143
+                        141 => self.setb1b0t(0, 'o', .j), //   'ọ'225:187:141
+                        143 => self.setb1b0t(0, 'o', .r), //   'ỏ'225:187:143
 
                         // 'ô'195:180
                         145 => self.setb1b0t(195, 180, .s), // 'ố'225:187:145
@@ -225,11 +236,12 @@ const Char = struct {
                         155 => self.setb1b0t(198, 161, .s), // 'ớ'225:187:155
                         157 => self.setb1b0t(198, 161, .f), // 'ờ'225:187:157
                         159 => self.setb1b0t(198, 161, .r), // 'ở'225:187:159
+
                         161 => self.setb1b0t(198, 161, .x), // 'ỡ'225:187:161
                         163 => self.setb1b0t(198, 161, .j), // 'ợ'225:187:163
 
-                        165 => self.setb1b0t(0, 'u', .j), // 'ụ'225:187:165
-                        167 => self.setb1b0t(0, 'u', .r), // 'ủ'225:187:167
+                        165 => self.setb1b0t(0, 'u', .j), //   'ụ'225:187:165
+                        167 => self.setb1b0t(0, 'u', .r), //   'ủ'225:187:167
 
                         // 'ư'198:176
                         169 => self.setb1b0t(198, 176, .s), // 'ứ'225:187:169
@@ -238,16 +250,17 @@ const Char = struct {
                         175 => self.setb1b0t(198, 176, .x), // 'ữ'225:187:175
                         177 => self.setb1b0t(198, 176, .j), // 'ự'225:187:177
 
-                        179 => self.setb1b0t(0, 'y', .f), // 'ỳ'225:187:179
-                        181 => self.setb1b0t(0, 'y', .j), // 'ỵ'225:187:181
-                        183 => self.setb1b0t(0, 'y', .r), // 'ỷ'225:187:183
-                        185 => self.setb1b0t(0, 'y', .x), // 'ỹ'225:187:185
+                        179 => self.setb1b0t(0, 'y', .f), //   'ỳ'225:187:179
+                        181 => self.setb1b0t(0, 'y', .j), //   'ỵ'225:187:181
+                        183 => self.setb1b0t(0, 'y', .r), //   'ỷ'225:187:183
+                        185 => self.setb1b0t(0, 'y', .x), //   'ỹ'225:187:185
+                        //
                         else => self.setb1b0t(0, 0, ._none), // invalid
                     },
-                    else => self.setb1b0t(0, 0, ._none), // invalid
+                    else => self.setb1b0t(0, 0, ._none), //     invalid
                 }
             }, // switch (x)
-            else => self.setb1b0t(0, 0, ._none), // invalid
+            else => self.setb1b0t(0, 0, ._none), //             invalid
         }
         // DEBUG
         if (DEBUG) {
