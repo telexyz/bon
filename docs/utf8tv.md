@@ -14,6 +14,14 @@ MÃ UTF8 TIẾNG VIỆT
 - next-byte trong tập B/ bị trùng ở 'Ĩ'196:168 'ĩ'196:169
                                     'Ũ'197:168 'ũ'197:169
 
+* Mark nguyên âm bằng SIMD
+```py
+12 elems: e,y,u,i,o,a,E,Y,U,I,O,A
+03 comps: A+B/195..198:xxx C/ 225:186:xxx D/ 225:187:xxx
+(byte >= 195 and byte <= 198) => 2-byte chars
+(byte == 255) => 3-byte chars
+```
+
 * Check byte == 195 => A/ 32-chars
   - toLower: set next-byte's 5th-bit = 0
 ```py
@@ -124,7 +132,6 @@ A/ 32-chars: bit thứ 5 = 0 là viết hoa, 1 là viết thường
 'ù'195:185 'ú'195:186
 'ý'195:189
 ```
-
 B/ 12-chars: bit thấp nhất = 0 là viết hoa, 1 là viết thường trừ trường hợp `Ưư`
 ```c
 'Ă'196:130 'ă'196:131
