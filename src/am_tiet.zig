@@ -46,17 +46,23 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     if (syll.am_dau == .ng and (bytes[idx] == 'h' or bytes[idx] == 'H')) idx += 1;
 
     // phân tích âm giữa
-    if (syll.am_dau.len() == 2) {
-        c0.parse(bytes, idx);
-        idx += c0.len;
+    switch (syll.am_dau.len()) {
+        0 => { // không có âm đầu
 
-        c1.parse(bytes, idx);
-        idx += c1.len;
-        //
-    } else { // sử dụng lại c1
-        c0 = c1;
-        c1.parse(bytes, idx);
-        idx += c1.len;
+        },
+        1 => { // sử dụng lại c1
+            c0 = c1;
+            c1.parse(bytes, idx);
+            idx += c1.len;
+        },
+        2 => {
+            c0.parse(bytes, idx);
+            idx += c0.len;
+
+            c1.parse(bytes, idx);
+            idx += c1.len;
+        },
+        else => unreachable,
     }
     // oa, // hoa
     // oe, // toe
