@@ -2,18 +2,18 @@ const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
 const getMiddle = @import("am_giua.zig").getMiddle;
-const DEBUG = true;
 
+const DEBUG = false;
 pub fn main() void {
     std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5}", .{ "ÂM TIẾT", "ĐẦU", "GIỮA", "CUỐI", "THANH" });
-    // _ = parseSyllable("GÀN");
-    // _ = parseSyllable("GặN");
-    // _ = parseSyllable("GIừp");
-    // _ = parseSyllable("nGhiÊng");
-    // _ = parseSyllable("nGiêng");
+    _ = parseSyllable("GÀN");
+    _ = parseSyllable("GặN");
+    _ = parseSyllable("GIừp");
+    _ = parseSyllable("nGhiÊng");
+    _ = parseSyllable("nGiêng");
     _ = parseSyllable("đim");
     _ = parseSyllable("ĩm");
-    _ = parseSyllable("gĩm");
+    // _ = parseSyllable("gĩm");
 }
 
 const MAX_SYLLABLE_LEN = 10;
@@ -92,9 +92,21 @@ const Char = struct {
     tone: sds.Tone = undefined,
     len: usize = undefined,
 
+    inline fn setb1b0t(self: *Char, b1: u8, b0: u8, t: sds.Tone) void {
+        self.byte1 = b1;
+        self.byte0 = b0;
+        self.tone = t;
+    }
+
+    inline fn setb1b0tUp(self: *Char, b1: u8, b0: u8, t: sds.Tone, isUp: bool) void {
+        self.byte1 = b1;
+        self.byte0 = b0;
+        self.tone = t;
+        self.isUpper = isUp;
+    }
+
     pub inline fn parse(self: *Char, str: []const u8, idx: usize) void {
         const x = str[idx];
-        self.tone = ._none;
 
         // DEBUG
         if (DEBUG and (x < 128 or idx < str.len - 1)) {
@@ -102,6 +114,9 @@ const Char = struct {
             const w = if (x < 128) [_]u8{ 32, x } else [_]u8{ x, y };
             std.debug.print("\nstr[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, w, x, y });
         }
+
+        self.tone = ._none;
+        self.len = 0;
 
         switch (x) {
             0...127 => { // 1-byte chars
@@ -113,73 +128,28 @@ const Char = struct {
                 self.len = 1;
             },
             195 => { // 2-byte chars A/
-                self.byte1 = x;
                 var y = str[idx + 1];
                 //              ê: 10101010
                 //              Ê: 10001010
-                self.isUpper = ((0b00100000 & x)) == 0;
+                self.isUpper = ((0b00100000 & y)) == 0;
                 y |= 0b00100000; // toLower
-                self.byte1 = 0;
                 self.len = 2;
 
                 switch (y) {
-                    160 => {
-                        self.byte0 = 'a';
-                        self.tone = .f;
-                    },
-                    161 => {
-                        self.byte0 = 'a';
-                        self.tone = .s;
-                    },
-                    163 => {
-                        self.byte0 = 'a';
-                        self.tone = .x;
-                    },
-                    168 => {
-                        self.byte0 = 'e';
-                        self.tone = .f;
-                    },
-                    169 => {
-                        self.byte0 = 'e';
-                        self.tone = .s;
-                    },
-                    172 => {
-                        self.byte0 = 'i';
-                        self.tone = .f;
-                    },
-                    173 => {
-                        self.byte0 = 'i';
-                        self.tone = .s;
-                    },
-                    178 => {
-                        self.byte0 = 'o';
-                        self.tone = .f;
-                    },
-                    179 => {
-                        self.byte0 = 'o';
-                        self.tone = .s;
-                    },
-                    181 => {
-                        self.byte0 = 'o';
-                        self.tone = .x;
-                    },
-                    185 => {
-                        self.byte0 = 'u';
-                        self.tone = .f;
-                    },
-                    186 => {
-                        self.byte0 = 'u';
-                        self.tone = .s;
-                    },
-                    189 => {
-                        self.byte0 = 'y';
-                        self.tone = .s;
-                    },
-                    else => {
-                        self.byte0 = y;
-                        self.byte1 = x;
-                        self.tone = ._none;
-                    },
+                    160 => self.setb1b0t(0, 'a', .f),
+                    161 => self.setb1b0t(0, 'a', .s),
+                    163 => self.setb1b0t(0, 'a', .x),
+                    168 => self.setb1b0t(0, 'e', .f),
+                    169 => self.setb1b0t(0, 'e', .s),
+                    172 => self.setb1b0t(0, 'i', .f),
+                    173 => self.setb1b0t(0, 'i', .s),
+                    178 => self.setb1b0t(0, 'o', .f),
+                    179 => self.setb1b0t(0, 'o', .s),
+                    181 => self.setb1b0t(0, 'o', .x),
+                    185 => self.setb1b0t(0, 'u', .f),
+                    186 => self.setb1b0t(0, 'u', .s),
+                    189 => self.setb1b0t(0, 'y', .s),
+                    else => self.setb1b0t(y, x, ._none),
                 }
             },
             196...198 => { // 2-byte chars B/
@@ -187,298 +157,97 @@ const Char = struct {
                 self.len = 2;
 
                 switch (y) {
-                    175 => {
-                        self.byte0 = 176;
-                        self.byte1 = x;
-                        self.isUpper = true;
-                    },
-                    176 => {
-                        self.byte0 = 176;
-                        self.byte1 = x;
-                        self.isUpper = false;
-                    },
+                    175 => self.setb1b0tUp(x, 176, ._none, true),
+                    176 => self.setb1b0tUp(x, 176, ._none, false),
                     else => {
                         self.isUpper = (y & 0b1) == 0;
                         y |= 0b1; // toLower
-                        if (y == 169) {
-                            self.tone = .x;
-                            self.byte0 = if (x == 196) 'i' else 'u';
-                            self.byte1 = 0;
-                        } else {
-                            self.byte0 = y;
-                            self.byte1 = x;
-                        }
+                        if (y == 169) self.setb1b0t(0, if (x == 196) 'i' else 'u', .x) //
+                        else self.setb1b0t(x, y, ._none);
                     },
                 }
             },
             225 => { // 3-byte chars
-                self.byte1 = str[idx + 1];
                 var y = str[idx + 2];
                 self.isUpper = (y & 0b1) == 0;
                 y |= 0b1; // toLower
                 self.len = 3;
 
-                switch (self.byte1) {
+                switch (str[idx + 1]) {
                     186 => // 3-byte chars C/
                     switch (y) {
-                        161 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'a';
-                            self.tone = .j;
-                        }, // 'ạ'225:186:161
-                        163 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'a';
-                            self.tone = .r;
-                        }, // 'ả'225:186:163
+                        161 => self.setb1b0t(0, 'a', .j), // 'ạ'225:186:161
+                        163 => self.setb1b0t(0, 'a', .r), // 'ả'225:186:163
                         // 'â'195:162
-                        165 => {
-                            self.byte1 = 195;
-                            self.byte0 = 162;
-                            self.tone = .s;
-                        }, // 'ấ'225:186:165
-                        167 => {
-                            self.byte1 = 195;
-                            self.byte0 = 162;
-                            self.tone = .f;
-                        }, // 'ầ'225:186:167
-                        169 => {
-                            self.byte1 = 195;
-                            self.byte0 = 162;
-                            self.tone = .r;
-                        }, // 'ẩ'225:186:169
-                        171 => {
-                            self.byte1 = 195;
-                            self.byte0 = 162;
-                            self.tone = .x;
-                        }, // 'ẫ'225:186:171
-                        173 => {
-                            self.byte1 = 195;
-                            self.byte0 = 162;
-                            self.tone = .j;
-                        }, // 'ậ'225:186:173
+                        165 => self.setb1b0t(195, 162, .s), // 'ấ'225:186:165
+                        167 => self.setb1b0t(195, 162, .f), // 'ầ'225:186:167
+                        169 => self.setb1b0t(195, 162, .r), // 'ẩ'225:186:169
+                        171 => self.setb1b0t(195, 162, .x), // 'ẫ'225:186:171
+                        173 => self.setb1b0t(195, 162, .j), // 'ậ'225:186:173
                         // 'ă'196:131
-                        175 => {
-                            self.byte1 = 196;
-                            self.byte0 = 131;
-                            self.tone = .s;
-                        }, // 'ắ'225:186:175
-                        177 => {
-                            self.byte1 = 196;
-                            self.byte0 = 131;
-                            self.tone = .f;
-                        }, // 'ằ'225:186:177
-                        179 => {
-                            self.byte1 = 196;
-                            self.byte0 = 131;
-                            self.tone = .r;
-                        }, // 'ẳ'225:186:179
-                        181 => {
-                            self.byte1 = 196;
-                            self.byte0 = 131;
-                            self.tone = .x;
-                        }, // 'ẵ'225:186:181
-                        183 => {
-                            self.byte1 = 196;
-                            self.byte0 = 131;
-                            self.tone = .j;
-                        }, // 'ặ'225:186:183
-                        185 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'e';
-                            self.tone = .j;
-                        }, // 'ẹ'225:186:185
-                        187 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'e';
-                            self.tone = .r;
-                        }, // 'ẻ'225:186:187
-                        189 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'e';
-                            self.tone = .x;
-                        }, // 'ẽ'225:186:189
+                        175 => self.setb1b0t(196, 131, .s), // 'ắ'225:186:175
+                        177 => self.setb1b0t(196, 131, .f), // 'ằ'225:186:177
+                        179 => self.setb1b0t(196, 131, .r), // 'ẳ'225:186:179
+                        181 => self.setb1b0t(196, 131, .x), // 'ẵ'225:186:181
+                        183 => self.setb1b0t(196, 131, .j), // 'ặ'225:186:183
+                        185 => self.setb1b0t(0, 'e', .j), // 'ẹ'225:186:185
+                        187 => self.setb1b0t(0, 'e', .r), // 'ẻ'225:186:187
+                        189 => self.setb1b0t(0, 'e', .x), // 'ẽ'225:186:189
                         // 'ê'195:170
-                        191 => {
-                            self.byte1 = 195;
-                            self.byte0 = 170;
-                            self.tone = .s;
-                        }, // 'ế'225:186:191
-                        else => {
-                            self.byte0 = 0;
-                            self.byte1 = 0;
-                        },
+                        191 => self.setb1b0t(195, 170, .s), // 'ế'225:186:191
+                        else => self.setb1b0t(0, 0, ._none),
                     },
                     187 => switch (y) { // 3-byte chars D/
                         // 'ê'195:170
-                        129 => {
-                            self.byte1 = 195;
-                            self.byte0 = 170;
-                            self.tone = .f;
-                        }, // 'ề'225:187:129
-                        131 => {
-                            self.byte1 = 195;
-                            self.byte0 = 170;
-                            self.tone = .r;
-                        }, // 'ể'225:187:131
-                        133 => {
-                            self.byte1 = 195;
-                            self.byte0 = 170;
-                            self.tone = .x;
-                        }, // 'ễ'225:187:133
-                        135 => {
-                            self.byte1 = 195;
-                            self.byte0 = 170;
-                            self.tone = .j;
-                        }, // 'ệ'225:187:135
+                        129 => self.setb1b0t(195, 170, .f), // 'ề'225:187:129
+                        131 => self.setb1b0t(195, 170, .r), // 'ể'225:187:131
+                        133 => self.setb1b0t(195, 170, .x), // 'ễ'225:187:133
+                        135 => self.setb1b0t(195, 170, .j), // 'ệ'225:187:135
+
                         // i
-                        137 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'i';
-                            self.tone = .r;
-                        }, // 'ỉ'225:187:137
-                        139 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'i';
-                            self.tone = .j;
-                        }, // 'ị'225:187:139
+                        137 => self.setb1b0t(0, 'i', .r), // 'ỉ'225:187:137
+                        139 => self.setb1b0t(0, 'i', .j), // 'ị'225:187:139
+
                         // o
-                        141 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'o';
-                            self.tone = .j;
-                        }, // 'ọ'225:187:141
-                        143 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'o';
-                            self.tone = .r;
-                        }, // 'ỏ'225:187:143
+                        141 => self.setb1b0t(0, 'o', .j), // 'ọ'225:187:141
+                        143 => self.setb1b0t(0, 'o', .r), // 'ỏ'225:187:143
+
                         // 'ô'195:180
-                        145 => {
-                            self.byte1 = 195;
-                            self.byte0 = 180;
-                            self.tone = .s;
-                        }, // 'ố'225:187:145
-                        147 => {
-                            self.byte1 = 195;
-                            self.byte0 = 180;
-                            self.tone = .f;
-                        }, // 'ồ'225:187:147
-                        149 => {
-                            self.byte1 = 195;
-                            self.byte0 = 180;
-                            self.tone = .r;
-                        }, // 'ổ'225:187:149
-                        151 => {
-                            self.byte1 = 195;
-                            self.byte0 = 180;
-                            self.tone = .x;
-                        }, // 'ỗ'225:187:151
-                        153 => {
-                            self.byte1 = 195;
-                            self.byte0 = 180;
-                            self.tone = .j;
-                        }, // 'ộ'225:187:153
+                        145 => self.setb1b0t(195, 180, .s), // 'ố'225:187:145
+                        147 => self.setb1b0t(195, 180, .f), // 'ồ'225:187:147
+                        149 => self.setb1b0t(195, 180, .r), // 'ổ'225:187:149
+                        151 => self.setb1b0t(195, 180, .x), // 'ỗ'225:187:151
+                        153 => self.setb1b0t(195, 180, .j), // 'ộ'225:187:153
+
                         // 'ơ'198:161
-                        155 => {
-                            self.byte1 = 198;
-                            self.byte0 = 161;
-                            self.tone = .s;
-                        }, // 'ớ'225:187:155
-                        157 => {
-                            self.byte1 = 198;
-                            self.byte0 = 161;
-                            self.tone = .f;
-                        }, // 'ờ'225:187:157
-                        159 => {
-                            self.byte1 = 198;
-                            self.byte0 = 161;
-                            self.tone = .r;
-                        }, // 'ở'225:187:159
-                        161 => {
-                            self.byte1 = 198;
-                            self.byte0 = 161;
-                            self.tone = .x;
-                        }, // 'ỡ'225:187:161
-                        163 => {
-                            self.byte1 = 198;
-                            self.byte0 = 161;
-                            self.tone = .j;
-                        }, // 'ợ'225:187:163
+                        155 => self.setb1b0t(198, 161, .s), // 'ớ'225:187:155
+                        157 => self.setb1b0t(198, 161, .f), // 'ờ'225:187:157
+                        159 => self.setb1b0t(198, 161, .r), // 'ở'225:187:159
+                        161 => self.setb1b0t(198, 161, .x), // 'ỡ'225:187:161
+                        163 => self.setb1b0t(198, 161, .j), // 'ợ'225:187:163
+
                         // u
-                        165 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'u';
-                            self.tone = .j;
-                        }, // 'ụ'225:187:165
-                        167 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'u';
-                            self.tone = .r;
-                        }, // 'ủ'225:187:167
+                        165 => self.setb1b0t(0, 'u', .j), // 'ụ'225:187:165
+                        167 => self.setb1b0t(0, 'u', .r), // 'ủ'225:187:167
+
                         // 'ư'198:176
-                        169 => {
-                            self.byte1 = 198;
-                            self.byte0 = 176;
-                            self.tone = .s;
-                        }, // 'ứ'225:187:169
-                        171 => {
-                            self.byte1 = 198;
-                            self.byte0 = 176;
-                            self.tone = .f;
-                        }, // 'ừ'225:187:171
-                        173 => {
-                            self.byte1 = 198;
-                            self.byte0 = 176;
-                            self.tone = .r;
-                        }, // 'ử'225:187:173
-                        175 => {
-                            self.byte1 = 198;
-                            self.byte0 = 176;
-                            self.tone = .x;
-                        }, // 'ữ'225:187:175
-                        177 => {
-                            self.byte1 = 198;
-                            self.byte0 = 176;
-                            self.tone = .j;
-                        }, // 'ự'225:187:177
+                        169 => self.setb1b0t(198, 176, .s), // 'ứ'225:187:169
+                        171 => self.setb1b0t(198, 176, .f), // 'ừ'225:187:171
+                        173 => self.setb1b0t(198, 176, .r), // 'ử'225:187:173
+                        175 => self.setb1b0t(198, 176, .x), // 'ữ'225:187:175
+                        177 => self.setb1b0t(198, 176, .j), // 'ự'225:187:177
+
                         // y
-                        179 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'y';
-                            self.tone = .f;
-                        }, // 'ỳ'225:187:179
-                        181 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'y';
-                            self.tone = .j;
-                        }, // 'ỵ'225:187:181
-                        183 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'y';
-                            self.tone = .r;
-                        }, // 'ỷ'225:187:183
-                        185 => {
-                            self.byte1 = 0;
-                            self.byte0 = 'y';
-                            self.tone = .x;
-                        }, // 'ỹ'225:187:185
-                        else => {
-                            self.byte0 = 0;
-                            self.byte1 = 0;
-                        },
+                        179 => self.setb1b0t(0, 'y', .f), // 'ỳ'225:187:179
+                        181 => self.setb1b0t(0, 'y', .j), // 'ỵ'225:187:181
+                        183 => self.setb1b0t(0, 'y', .r), // 'ỷ'225:187:183
+                        185 => self.setb1b0t(0, 'y', .x), // 'ỹ'225:187:185
+                        else => self.setb1b0t(0, 0, ._none), // invalid
                     },
-                    else => {
-                        self.byte0 = 0;
-                        self.byte1 = 0;
-                    },
+                    else => self.setb1b0t(0, 0, ._none), // invalid
                 }
-            },
-            else => {
-                // invalid
-                self.byte0 = 0;
-                self.byte1 = 0;
-            },
+            }, // switch (x)
+            else => self.setb1b0t(0, 0, ._none), // invalid
         }
         // DEBUG
         if (DEBUG) {
