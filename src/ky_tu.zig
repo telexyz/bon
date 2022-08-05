@@ -2,12 +2,13 @@
 
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
-const DEBUG = false;
+const cmn = @import("common.zig");
 
 pub const Char = struct {
     byte0: u8 = undefined,
     byte1: u8 = undefined,
     upper: bool = undefined,
+    vowel: bool = undefined,
     tone: sds.Tone = undefined,
     len: usize = undefined,
 
@@ -27,12 +28,7 @@ pub const Char = struct {
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
         const curr_byte = bytes[idx];
 
-        //  DEBUG
-        if (DEBUG and (curr_byte < 128 or idx < bytes.len - 1)) {
-            const next_byte = if (curr_byte < 128) 0 else bytes[idx + 1];
-            var s = if (curr_byte < 128) [_]u8{ 32, curr_byte } else [_]u8{ curr_byte, next_byte };
-            std.debug.print("\nbytes[{d}] = {s: >2} {d: >3}:{d: >3}", .{ idx, s, curr_byte, next_byte });
-        }
+        if (cmn.DEBUGGING) cmn.showChatAt(bytes, idx);
 
         self.tone = ._none;
         self.len = 0;
@@ -185,11 +181,8 @@ pub const Char = struct {
             }, // switch (curr_byte)
             else => self.setb1b0t(0, 0, ._none), //             invalid
         }
-        //  DEBUG
-        if (DEBUG) {
-            const w: []const u8 = &.{ self.byte1, self.byte0 };
-            std.debug.print(" >> {s: >2}: {d: >3}:{d: >3}", .{ w, self.byte1, self.byte0 });
-        }
+
+        if (cmn.DEBUGGING) cmn.showChar(self);
     }
 };
 
