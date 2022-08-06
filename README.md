@@ -2,11 +2,13 @@
 
 Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`
 
-Kỳ vọng tăng tốc độ so với scalar code từ `~10x`
+Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ## [ TODO ]
 
 - Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
+
+- Test bộ phân tích âm tiết với mọi âm tiết tiếng Việt, viết hoa và thường lẫn lộn
 
 - Tìm hiểu Zig Vector operators được SIMD hoá ntn?
   và `simdjzon` sử dụng các operators đó ntn?
@@ -38,6 +40,7 @@ https://github.com/simdutf/simdutf | Unicode validation and transcoding
 
 
 SSE = Streaming SIMD Extensions
+
 AVX = Advanced Vector eXtensions (also known as Haswell New Instructions)
 
 • SSE2/3/4: 8 128-bit XMM registers [1999]
