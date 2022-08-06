@@ -38,6 +38,10 @@ pub const Char = struct {
         self.len = 0;
     }
 
+    inline fn isInvalid(self: Char) bool {
+        return self.len == 0;
+    }
+
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
         const curr_byte = bytes[idx];
 
@@ -167,7 +171,6 @@ pub const Char = struct {
                         155 => self.setb1b0t(198, 161, .s), // 'ớ'225:187:155
                         157 => self.setb1b0t(198, 161, .f), // 'ờ'225:187:157
                         159 => self.setb1b0t(198, 161, .r), // 'ở'225:187:159
-
                         161 => self.setb1b0t(198, 161, .x), // 'ỡ'225:187:161
                         163 => self.setb1b0t(198, 161, .j), // 'ợ'225:187:163
 
@@ -219,6 +222,12 @@ fn charEqual(char: *Char, byte1: u8, byte0: u8, tone: sds.Tone, len: usize, uppe
 fn _parse(char: *Char, bytes: []const u8) *Char {
     char.parse(bytes, 0);
     return char;
+}
+
+test "char.parse(invalid)" {
+    var char: Char = undefined;
+    var str = [_]u8{ 225, 225, 225 };
+    try std.testing.expect(_parse(&char, &str).isInvalid());
 }
 
 test "char.parse(ascii)" {
