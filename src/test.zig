@@ -6,4 +6,6 @@ test "all" {
     _ = @import("am_cuoi.zig");
     _ = @import("am_tiet.zig");
     _ = @import("char_stream.zig");
+
+    _ = @import("test_am_tiet.zig");
 }

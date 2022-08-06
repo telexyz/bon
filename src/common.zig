@@ -1,5 +1,5 @@
-pub const DEBUGGING = false;
-// pub const DEBUGGING = true;
+pub var DEBUGGING = false;
+// pub var DEBUGGING = true;
 
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures

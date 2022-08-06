@@ -18,44 +18,48 @@ fn _parse(bytes: []const u8) void {
 pub fn main() void {
     cmn.printSyllTableHeaders();
 
-    _parse("GÀN");
-    _parse("GặN");
-    _parse("GIừp");
-    _parse("nGhiÊng");
-    _parse("nGiêng");
-    _parse("đim");
-    _parse("ĩm");
-    _parse("nghúýếng");
-    _parse("giếng");
-    _parse("gĩ");
-    _parse("ginh");
-    _parse("gim");
-    _parse("giâ");
-    _parse("a");
+    // _parse("GÀN");
+    // _parse("GặN");
+    // _parse("GIừp");
+    // _parse("nGhiÊng");
+    // _parse("nGiêng");
+    // _parse("đim");
+    // _parse("ĩm");
+    // _parse("nghúýếng");
+    // _parse("giếng");
+    // _parse("gĩ");
+    // _parse("ginh");
+    // _parse("gim");
+    // _parse("giâ");
+    // _parse("a");
 
-    cmn.printSepLine();
-    _parse("gĩmmmm");
-    _parse("đ");
-    _parse("g");
-    _parse("nnnn");
+    // cmn.printSepLine();
+    // _parse("gĩmmmm");
+    // _parse("đ");
+    // _parse("g");
+    // _parse("nnnn");
 
-    cmn.printSepLine();
-    _parse("khủya");
-    _parse("tuảnh");
-    _parse("míach");
-    _parse("dưạng");
-    _parse("duơ");
+    // cmn.printSepLine();
+    // _parse("khủya");
+    // _parse("tuảnh");
+    // _parse("míach");
+    // _parse("dưạng");
+    // _parse("duơ");
 
-    cmn.printSepLine();
-    _parse("qa");
-    _parse("qui");
-    _parse("que");
-    _parse("quy");
-    _parse("cua");
-    _parse("qua");
-    // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
-    _parse("quốc");
-    _parse("cuốc");
+    // cmn.printSepLine();
+    // _parse("qa");
+    // _parse("qui");
+    // _parse("que");
+    // _parse("quy");
+    // _parse("cua");
+    // _parse("qua");
+    // // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
+    // _parse("quốc");
+    // _parse("cuốc");
+
+    // cmn.printSepLine();
+    cmn.DEBUGGING = true;
+    _parse("bà");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -140,13 +144,14 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
 
     if (idx == bytes_len) { // âm giữa một ký tự và ko có âm cuối
 
-        if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: âm giữa 1 ký tự và ko có âm cuố i))", .{});
+        if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: âm giữa 1 ký tự và ko có âm cuối))", .{});
 
         syll.am_giua = if (c0.vowel) // kiểm tra c0 có là nguyên âm k trc khi parse
             getSingleMiddle(c0.byte0, c0.byte1)
         else
             ._none;
 
+        syll.tone = c0.tone;
         syll.am_cuoi = ._none;
         syll.can_be_vietnamese = true;
         return syll; // DONE
@@ -165,8 +170,19 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             // uy, // tuy
             c0.byte1 = c0.byte0;
             c0.byte0 = c1.byte0;
-            c1.parse(bytes, idx);
-            idx += c1.len;
+
+            syll.tone = c1.tone;
+            if (syll.tone == ._none) syll.tone = c0.tone;
+
+            if (idx == bytes_len) { // không có ký tự tiếp theo
+                syll.am_giua = getSingleMiddle(c0.byte0, c0.byte1);
+                syll.am_cuoi = ._none;
+                syll.can_be_vietnamese = true;
+                return syll; // DONE
+            } else {
+                c1.parse(bytes, idx); //
+                idx += c1.len;
+            }
         }
 
         // kiểm tra c0 có là nguyên âm trước khi parse
@@ -176,7 +192,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             ._none;
 
         // ưu tiên XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ 2
-        syll.tone = c1.tone;
+        if (syll.tone == ._none) syll.tone = c1.tone;
     }
     // rồi mới XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ nhất
     if (syll.tone == ._none) syll.tone = c0.tone;
