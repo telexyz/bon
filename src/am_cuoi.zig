@@ -55,20 +55,9 @@ pub inline fn getFinal(x: u8, y: u8) AmCuoi {
 }
 
 //
-const lookup_ = std.meta.Vector(10, u8){
-    'm',
-    'n',
-    'c',
-    'p',
-    't',
-    'M',
-    'N',
-    'C',
-    'P',
-    'T',
-};
+const lookup_ = std.meta.Vector(10, u8){ 'm', 'n', 'c', 'p', 't', 'M', 'N', 'C', 'P', 'T' };
 
-pub inline fn checkConsonantFinal(x: u8) bool {
+pub inline fn isFinalConsonant(x: u8) bool {
     const input = std.meta.Vector(10, u8){ x, x, x, x, x, x, x, x, x, x };
     const match = @ptrCast(*const u10, &(input == lookup_)).*;
     return match > 0;
@@ -79,7 +68,7 @@ pub fn main() void {
     std.debug.print("\n{s}", .{@tagName(getFinal('c', 'h'))});
     std.debug.print("\n{s}", .{@tagName(getFinal(0, 'h'))});
 
-    std.debug.print("\n{}", .{checkConsonantFinal('c')});
-    std.debug.print("\n{}", .{checkConsonantFinal('i')});
-    std.debug.print("\n{}", .{checkConsonantFinal('C')});
+    std.debug.print("\n{}", .{isFinalConsonant('c')});
+    std.debug.print("\n{}", .{isFinalConsonant('i')});
+    std.debug.print("\n{}", .{isFinalConsonant('C')});
 }
