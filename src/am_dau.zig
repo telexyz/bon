@@ -1,26 +1,14 @@
-//! 22 phụ âm: b, c (k,q), ch, d, đ, g (gh), h, kh, l, m, n, nh, ng (ngh),
-//! p, ph, r, s, t, tr, th, v, x. (+ qu, gi, _none => 25)
-//!
-//! TÌM PHỤ ÂM ĐẦU
-//! phu_am_don: u8x16 = "bckqdghlmnprstvx"; // 16-bytes
-//! phu_am_doi: u16x16 = "chzdghkhngphtrthqugi"; // 20-bytes
-//
-// http://0x80.pl/notesen/2019-02-03-simd-switch-implementation.html
+// 22 phụ âm: b, c (k,q), ch, d, đ, g (gh), h, kh, l, m, n, nh, ng (ngh),
+// p, ph, r, s, t, tr, th, v, x. (+ qu, gi, _none => 25)
 
 const std = @import("std");
-const v = @import("vector_types.zig");
-const simd = @import("simd.zig");
 const AmDau = @import("syllable.zig").AmDau;
 
 const initials: []const AmDau = &.{ AmDau.x, AmDau.v, AmDau.s, AmDau.r, AmDau.m, AmDau.l, AmDau._none, AmDau.h, AmDau.d, AmDau.b, AmDau._none, AmDau._none, AmDau.g, AmDau.gi, AmDau._none, AmDau.qu, AmDau._none, AmDau.tr, AmDau.p, AmDau.ph, AmDau.n, AmDau.ng, AmDau._none, AmDau.kh, AmDau.g, AmDau.gh, AmDau._none, AmDau.zd, AmDau.c, AmDau.ch, AmDau.t, AmDau.th, AmDau._none };
 
-// const initials: []const []const u8 = &.{
-//     "x",  "v",  "s",  "r",  "m",  "l",  "6",  "h", "d",  "b", "10", "11", "g", //
-//     "gi", "q",  "qu", "18", "tr", "p",  "ph", "n", "ng", "k", "kh", "g",  "gh",
-//     "0",  "zd", "c",  "ch", "t",  "th", "",
-// };
+const u8x32 = std.meta.Vector(32, u8);
 
-const lookup = v.u8x32{
+const lookup = u8x32{
     'x', 'v', 's', 'r', 'm', 'l', '-', 'h', 'd', 'b', '-', '-', //
     'g', 'i', 'q', 'u', 't', 'r', 'p', 'h', 'n', 'g', 'k', 'h',
     'g', 'h', 196, 145, 'c', 'h', 't', 'h', // 'đ'196:145
@@ -29,14 +17,11 @@ const lookup = v.u8x32{
 const phu_am_don_mask = 0b01010101010101010101001111111111;
 
 pub inline fn getInitial(f: u8, s: u8) AmDau {
-    const a = (@intCast(u16, s) << 8) + f;
-    const b = (@intCast(u16, f) << 8) + f;
-    const input = simd.set16_m256(a, a, a, a, a, a, a, a, a, a, b, b, b, b, b, b);
-    // const input = v.u8x32{
-    //     f, f, f, f, f, f, f, f, f, f, f, f, //
-    //     f, s, f, s, f, s, f, s, f, s, f, s,
-    //     f, s, f, s, f, s, f, s,
-    // };
+    const input = u8x32{
+        f, f, f, f, f, f, f, f, f, f, f, f, //
+        f, s, f, s, f, s, f, s, f, s, f, s,
+        f, s, f, s, f, s, f, s,
+    };
 
     const match: u32 = @ptrCast(*const u32, &(input == lookup)).*; // Zig Vector `==` op
     const phu_am_doi_match = match << 1 & match;
@@ -50,6 +35,7 @@ pub inline fn getInitial(f: u8, s: u8) AmDau {
             pos = 31 - @clz(u32, phu_am_don_match);
         }
     }
+
     return initials[pos];
 }
 

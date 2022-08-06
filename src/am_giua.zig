@@ -1,11 +1,11 @@
 const std = @import("std");
-const v = @import("vector_types.zig");
 const AmGiua = @import("syllable.zig").AmGiua;
+const cmn = @import("common.zig");
 
 // 23 âm giữa (âm đệm + nguyên âm)
-// 16 middle16 + 7 middle 32
 
-const lookup16 = v.u16x16{
+const u16x16 = std.meta.Vector(16, u16);
+const lookup16 = u16x16{
     'a',
     'e',
     'i',
@@ -43,7 +43,8 @@ const middle16: []const AmGiua = &.{
     AmGiua._none, // 17: none
 };
 
-const lookup32 = v.u32x8{
+const u32x12 = std.meta.Vector(12, u32);
+const lookup32 = u32x12{
     (@as(u32, 'i') << 16) + (@as(u32, 195) << 8) + 170, // i'ê'195:170
     (@as(u32, 'o') << 16) + (@as(u32, 196) << 8) + 131, // o'ă'196:131
     (@as(u32, 'u') << 16) + (@as(u32, 195) << 8) + 162, // u'â'195:162
@@ -52,6 +53,10 @@ const lookup32 = v.u32x8{
     (@as(u32, 'u') << 16) + (@as(u32, 198) << 8) + 161, // 'u'ơ'198:161
     (@as(u32, 198) << 24) + (@as(u32, 176) << 16) + (@as(u32, 198) << 8) + 161, // 'ư'198:176'ơ'
     (@as(u32, 'u') << 24) + (@as(u32, 'y') << 16) + (@as(u32, 195) << 8) + 170, // uy'ê'195:170
+    (@as(u32, 'u') << 24) + (@as(u32, 'y') << 16) + 'a', // uya => uyê
+    (@as(u32, 'u') << 16) + 'a', //                         ua  => uô
+    (@as(u32, 'i') << 16) + 'a', //                         ia  => iê
+    (@as(u32, 198) << 24) + (176 << 16) + 'a', //           ưa  => ươ (ư'198:176)
 };
 const middle32: []const AmGiua = &.{
     AmGiua.iez, //  0: iê
@@ -62,18 +67,17 @@ const middle32: []const AmGiua = &.{
     AmGiua.uow, //  5: uơ tự convert thành ươ
     AmGiua.uow, //  6: ươ
     AmGiua.uyez, // 7: uyê
-    AmGiua._none, // 8: none
+    AmGiua.uyez, // 8: uya => uyê
+    AmGiua.uoz, //  9: ua  => uô
+    AmGiua.iez, // 10: ia  => iê
+    AmGiua.uow, // 11: ưa  => ươ (ư'198:176)
+    AmGiua._none,
 };
-// TODO: bổ xung
-// ua,  // => uoz
-// ia,  // => iez
-// uaw, // ưa => ươ
-// uya, // => uyez
 
 pub inline fn getSingleMiddle(c0b0: u8, c0b1: u8) AmGiua {
     const b = (@intCast(u16, c0b1) << 8) + c0b0;
-    const input16 = v.u16x16{ b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b };
-    const match16: u16 = @ptrCast(*const u16, &(input16 == lookup16)).*;
+    const input16 = u16x16{ b, b, b, b, b, b, b, b, b, b, b, b, b, b, b, b };
+    const match16 = @ptrCast(*const u16, &(input16 == lookup16)).*;
     const pos16 = if (match16 > 0) @ctz(u16, match16) else 16;
     return middle16[pos16];
 }
@@ -81,18 +85,20 @@ pub inline fn getSingleMiddle(c0b0: u8, c0b1: u8) AmGiua {
 pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const a = (@intCast(u32, c0b1) << 24) + (@intCast(u32, c0b0) << 16) +
         (@intCast(u32, c1b1) << 8) + c1b0;
-    const input32 = v.u32x8{ a, a, a, a, a, a, a, a };
-    const match32: u8 = @ptrCast(*const u8, &(input32 == lookup32)).*;
-    const pos32: u8 = if (match32 > 0) @ctz(u8, match32) else 8;
+    const input32 = u32x12{ a, a, a, a, a, a, a, a, a, a, a, a };
+    const match32 = @ptrCast(*const u12, &(input32 == lookup32)).*;
+    const pos32 = if (match32 > 0) @ctz(u12, match32) else 12;
 
-    if (pos32 < 8)
+    // if (cmn.DEBUGGING) {
+    //     const c0: []const u8 = &.{ c0b1, c0b0 };
+    //     const c1: []const u8 = &.{ c1b1, c1b0 };
+    //     std.debug.print("\n\n'{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
+    //     std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
+    //     std.debug.print("\n{b:0>8} {d}\n", .{ match32, pos32 });
+    // }
+
+    if (pos32 < 12)
         return middle32[pos32]
     else
         return getSingleMiddle(c0b0, c0b1);
-
-    // const c0: []const u8 = &.{ c0b1, c0b0 };
-    // const c1: []const u8 = &.{ c1b1, c1b0 };
-    // std.debug.print("\n\n'{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
-    // std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
-    // std.debug.print("\n{b:0>8} {d}\n", .{ match32, pos32 });
 }
