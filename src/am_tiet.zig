@@ -59,7 +59,7 @@ pub fn main() void {
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("bà");
+    _parse("huơ");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -100,10 +100,12 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
 
         // gi nhưng i là âm giữa vì âm sau là phụ âm cuối
         if (syll.am_dau == .gi) {
+            syll.tone = c1.tone;
+            // std.debug.print("\n>> {} <<\n", .{syll.tone});
+
             if (idx == bytes_len) { // => `gi`, `gì`, `gỉ`, `gĩ`, `gị`
                 syll.am_dau = .g;
                 syll.am_giua = .i;
-                syll.tone = c1.tone;
                 syll.am_cuoi = ._none;
                 syll.can_be_vietnamese = true;
                 return syll; // DONE
@@ -151,7 +153,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         else
             ._none;
 
-        syll.tone = c0.tone;
+        if (c0.tone != ._none) syll.tone = c0.tone;
         syll.am_cuoi = ._none;
         syll.can_be_vietnamese = true;
         return syll; // DONE
@@ -191,10 +193,10 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         else
             ._none;
 
-        // ưu tiên XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ 2
-        if (syll.tone == ._none) syll.tone = c1.tone;
+        // ưu tiên LẤY THANH ĐIỆU trên nguyên âm thứ 2
+        if (c1.tone != ._none) syll.tone = c1.tone;
     }
-    // rồi mới XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ nhất
+    // rồi mới LẤY THANH ĐIỆU trên nguyên âm thứ nhất
     if (syll.tone == ._none) syll.tone = c0.tone;
 
     // VALIDATE: Âm tiết bắt buộc phải có âm giữa
