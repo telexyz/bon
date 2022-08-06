@@ -1,4 +1,4 @@
-# SIMD và các kỹ thuật tối ưu trong phân tích âm tiết tiếng Việt
+# SIMD và tối ưu phân tích âm tiết tiếng Việt
 
 Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`
 
