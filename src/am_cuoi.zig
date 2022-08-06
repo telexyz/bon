@@ -22,18 +22,18 @@ const finals = [_]AmCuoi{
 };
 
 const lookup = v.u16x16{
-    'i',
-    'u',
-    'm',
-    'n',
+    'i' << 8,
+    'u' << 8,
+    'm' << 8,
+    'n' << 8,
     (@as(u16, 'n') << 8) + 'g',
-    'c',
-    'p',
-    't',
+    'c' << 8,
+    'p' << 8,
+    't' << 8,
     (@as(u16, 'c') << 8) + 'h',
     (@as(u16, 'n') << 8) + 'h',
-    'y',
-    'o',
+    'y' << 8,
+    'o' << 8,
     0,
     0,
     0,
@@ -45,12 +45,6 @@ pub inline fn getFinal(x: u8, y: u8) AmCuoi {
     const input = v.u16x16{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
     const match16: u16 = @ptrCast(*const u16, &(input == lookup)).*;
     const pos16 = if (match16 > 0) @ctz(u16, match16) else 12;
-
-    // const c0: []const u8 = &.{ x, y };
-    // std.debug.print("\n{}\n", .{input == lookup});
-    // std.debug.print("\n\n'{s}'{x}:{x}", .{ c0, x, y });
-    // std.debug.print("\n{x:0>4}\n{x:0>4}", .{ input, lookup });
-    // std.debug.print("\n{b:0>16} {d}\n", .{ match16, pos16 });
     return finals[pos16];
 }
 
@@ -64,11 +58,11 @@ pub inline fn isFinalConsonant(x: u8) bool {
 }
 
 pub fn main() void {
-    std.debug.print("\n{s}", .{@tagName(getFinal(0, 'i'))});
+    std.debug.print("\n{s}", .{@tagName(getFinal('i', 0))});
     std.debug.print("\n{s}", .{@tagName(getFinal('c', 'h'))});
-    std.debug.print("\n{s}", .{@tagName(getFinal(0, 'h'))});
+    std.debug.print("\n{s}", .{@tagName(getFinal('c', 0))});
 
     std.debug.print("\n{}", .{isFinalConsonant('c')});
     std.debug.print("\n{}", .{isFinalConsonant('i')});
-    std.debug.print("\n{}", .{isFinalConsonant('C')});
+    std.debug.print("\n{}", .{isFinalConsonant('d')});
 }

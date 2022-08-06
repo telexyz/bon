@@ -44,7 +44,7 @@ const MAX_SYLL_BYTES_LEN = 12;
 pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     var syll = sds.Syllable.new();
     // chuỗi rỗng hoặc lớn hơn 10 bytes không phải âm tiết utf8
-    if (bytes.len == 0 or bytes.len > MAX_SYLL_BYTES_LEN) return syll;
+    if (bytes.len == 0 or bytes.len > MAX_SYLL_BYTES_LEN) return syll; // NOT SYLLABLE
 
     const bytes_len = bytes.len;
     var c0: Char = undefined;
@@ -55,10 +55,15 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     var idx = c0.len;
 
     // PHÂN TÍCH PHỤ ÂM ĐẦU
+    // - - - - - - - - - -
     if (!c0.vowel) { // ko phải nguyên âm
-        if (idx == bytes_len) return syll; // không có phụ âm
+        // VALIDATE: chỉ có phụ âm đầu
+        if (idx == bytes_len) {
+            syll.can_be_vietnamese = false; // => vì ko có nguyên âm
+            return syll; // NOT SYLLABLE
+        }
 
-        if (c0.byte1 == 196 and c0.byte0 == 145) { // mà độ dài 2-byte thì có khả năng là `đ`
+        if (c0.byte1 == 196 and c0.byte0 == 145) {
             syll.am_dau = .zd; // đ'196:145
         } else { // lấy thêm 1 ký tự nữa để kiểm tra phụ âm đôi
             c1.parse(bytes, idx);
@@ -77,23 +82,29 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
                 syll.am_giua = .i;
                 syll.tone = c1.tone;
                 syll.am_cuoi = ._none;
-                return syll;
+                syll.can_be_vietnamese = true;
+                return syll; // DONE
             }
             if (isFinalConsonant(bytes[idx])) {
-                if (bytes_len > idx + 2) return syll; // không có final nào > 2-bytes
+                if (bytes_len > idx + 2) return syll; // NOT SYLLABLE
+                // không có final nào > 2-bytes
+
                 syll.am_dau = .g;
                 syll.am_giua = .i;
                 syll.tone = c1.tone;
 
-                const curr = 0b00100000 | bytes[idx];
-                idx += 1;
-                if (idx < bytes_len) syll.am_cuoi = getFinal(curr, 0b00100000 | bytes[idx]) else syll.am_cuoi = getFinal(0, curr);
-                return syll;
+                // Xác định âm cuối nhanh rồi trả về kết quả
+                const curr = 0b00100000 | bytes[idx]; // toLower ascii
+                const next = if (idx + 1 < bytes_len) 0b00100000 | bytes[idx + 1] else 0;
+                syll.am_cuoi = getFinal(curr, next);
+                syll.can_be_vietnamese = syll.am_cuoi != ._none;
+                return syll; // DONE
             }
         }
     }
 
     // PHÂN TÍCH ÂM GIỮA
+    // - - - - - - - - -
     switch (syll.am_dau.len()) {
         // 0 => { // không có âm đầu
         // },
@@ -142,50 +153,45 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     // rồi mới XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ nhất
     if (syll.tone == ._none) syll.tone = c0.tone;
 
-    // PARSE ÂM CUỐI
-    // Nếu ko có âm giữa thì k cần parse âm cuối
+    // VALIDATE: Âm tiết bắt buộc phải có âm giữa
     if (syll.am_giua == ._none) {
         syll.can_be_vietnamese = false;
-        return syll;
+        return syll; // NOT SYLLABLE
     }
 
-    var valid_final = true;
-    var no_more = false;
+    // PHÂN TÍCH ÂM CUỐI
+    // - - - - - - - - -
 
-    if (syll.am_giua.len() < 3) { // nguyên âm đơn
-        // std.debug.print("\n >> sử dụng lại char của phân tích âm giữa << \n", .{});
-        c0 = c1;
-    } else if (idx < bytes_len) {
-        // parse char mới
-        c0.parse(bytes, idx);
-        idx += c0.len;
-    } else {
-        no_more = true;
-        valid_final = true;
+    if (idx == bytes_len) {
         syll.am_cuoi = ._none;
+        syll.can_be_vietnamese = true;
+        return syll; // DONE vì ko có phụ âm cuối
     }
 
-    // khả năng âm cuối có hai ký tự
-    if (idx < bytes_len) {
-        // std.debug.print("\n >> âm cuối có thêm 1 ký tự nữa << \n", .{});
-        c1.parse(bytes, idx);
-        idx += c1.len;
-        if (idx < bytes_len) {
-            // phần còn lại có nhiều hơn 2 ký tự
-            syll.am_cuoi = ._none;
-            valid_final = false;
-        } else {
-            syll.am_cuoi = getFinal(c0.byte0, c1.byte0);
-            valid_final = (syll.am_cuoi != ._none); // parse không ra
-        }
-    } else if (!no_more) {
-        // khả năng âm cuối có 1 ký tự
-        syll.am_cuoi = getFinal(0, c0.byte0);
-        valid_final = (syll.am_cuoi != ._none);
+    // Xác định ký tự thứ nhất của âm cuối
+    if (syll.am_giua.len() < 3) { // NẾU là nguyên âm đơn
+        c0 = c1; // THÌ sử dụng lại char cuối của phân tích âm giữa
+    } else if (idx < bytes_len) { // NẾU còn bytes
+        c0.parse(bytes, idx); // THÌ parse char mới
+        idx += c0.len;
     }
+
+    if (idx < bytes_len) { // Xác định ký tự thứ hai của âm cuối
+        c1.parse(bytes, idx); // NẾU lấy ký tự tiếp theo
+        idx += c1.len;
+        if (idx < bytes_len) { // MÀ vẫn còn 1 dữ liệu
+            // THÌ còn lại có nhiều hơn 2 ký tự
+            syll.am_cuoi = ._none;
+            syll.can_be_vietnamese = false;
+            return syll; // DONE vì ko hợp lệ!
+        }
+    } else { // chỉ có 1 ký tự
+        c1.byte0 = 0; // để phân tích đúng âm cuối có 1 ký tự
+    }
+
+    syll.am_cuoi = getFinal(c0.byte0, c1.byte0);
 
     // TODO: cần check can_be_vietnamese từ khâu initial và middle
-    syll.can_be_vietnamese = valid_final;
-
-    return syll;
+    syll.can_be_vietnamese = (syll.am_cuoi != ._none); // VALIDATE âm cuối có hợp lệ
+    return syll; // DONE
 }
