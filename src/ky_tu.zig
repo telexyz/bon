@@ -58,6 +58,7 @@ pub const Char = struct {
                 self.byte0 = (0b00100000 | curr_byte); // toLower
                 self.byte1 = 0;
                 self.len = 1;
+                self.tone = ._none;
                 self.vowel = isAsciiVowel(self.byte0);
             },
 
