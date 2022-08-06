@@ -5,27 +5,43 @@ Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm c
 Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ```
+
     ÂM TIẾT:   ĐẦU  GIỮA  CUỐI THANH  CBVN
  - - - - - - - - - - - - - - - - - - - - -
-        GÀN:     g     a     n     f  true
-        GặN:     g    aw     n     j  true
-       GIừp:    gi    uw     p     f  true
-    nGhiÊng:    ng   iez    ng _none  true
-     nGiêng:    ng   iez    ng _none  true
-        đim:    zd     i     m _none  true
-         ĩm: _none     i     m     x  true
-   nghúýếng:    ng  uyez    ng     s  true
-      giếng:    gi    ez    ng     s  true
-         gĩ:     g     i _none     x  true
-       ginh:     g     i    nh _none  true
-        gim:     g     i     m _none  true
-        giâ:    gi    az     i _none  true
+        GÀN:     g     a     n     f  true      gàn
+        GặN:     g    aw     n     j  true      gặn
+       GIừp:    gi    uw     p     f  true     giừp
+    nGhiÊng:    ng   iez    ng _none  true  nghiêng
+     nGiêng:    ng   iez    ng _none  true  nghiêng
+        đim:    zd     i     m _none  true      đim
+         ĩm: _none     i     m     x  true       ĩm
+   nghúýếng:    ng  uyez    ng     s  true  nguyếng
+      giếng:    gi    ez    ng     s  true    giếng
+         gĩ:     g     i _none     x  true      ghĩ
+       ginh:     g     i    nh _none  true    ghinh
+        gim:     g     i     m _none  true     ghim
+        giâ:    gi    az _none _none  true      giâ
+          a: _none     a _none _none  true        a
  - - - - - - - - - - - - - - - - - - - - -
      gĩmmmm:    gi _none _none _none false
           đ: _none _none _none _none false
           g: _none _none _none _none false
-          a: _none     a _none _none false
        nnnn:     n _none _none _none false
+ - - - - - - - - - - - - - - - - - - - - -
+      khủya:    kh  uyez _none     r  true    khuỷa
+      tuảnh:     t   uoz    nh     r  true    tuổnh
+      míach:     m   iez    ch     s  true    miếch
+      dưạng:     d   uow    ng     j  true    dượng
+        duơ:     d   uow _none _none  true      dưa
+ - - - - - - - - - - - - - - - - - - - - -
+         qa: _none _none _none _none  true
+        qui:    qu     i _none _none  true      qui
+        que:    qu     e _none _none  true      que
+        quy:    qu     y _none _none  true      quy
+        cua:     c   uoz _none _none  true      cua
+        qua:    qu     a _none _none  true      qua
+       quốc:    qu    oz     c     s  true     quốc
+       cuốc:     c   uoz     c     s  true     cuốc
 ```
 
 ## [ DOING ]
