@@ -187,8 +187,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             }
         }
 
-        // kiểm tra c0 có là nguyên âm trước khi parse
-        syll.am_giua = if (c0.vowel)
+        syll.am_giua = if (c0.vowel) // kiểm tra c0 có là nguyên âm trước khi parse
             getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1)
         else
             ._none;
@@ -239,6 +238,6 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     syll.am_cuoi = getFinal(c0.byte0, c1.byte0);
 
     // TODO: cần check can_be_vietnamese từ khâu initial và middle
-    syll.can_be_vietnamese = (syll.am_cuoi != ._none); // VALIDATE âm cuối có hợp lệ
+    syll.can_be_vietnamese = true;
     return syll; // DONE
 }
