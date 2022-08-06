@@ -36,6 +36,7 @@ pub fn main() void {
     _parse("gim");
     _parse("giâ");
     _parse("a");
+    _parse("nnnn");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -107,8 +108,10 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     }
 
     if (idx == bytes_len) { // âm giữa một ký tự
-        syll.am_giua = getSingleMiddle(c0.byte0, c0.byte1);
-        c1.tone = ._none;
+        syll.am_giua = if (c0.vowel) // kiểm tra c0 có là nguyên âm k trc khi parse
+            getSingleMiddle(c0.byte0, c0.byte1)
+        else
+            ._none;
     } else { // âm giữa có thể có 2 ký tự
         c1.parse(bytes, idx);
         idx += c1.len;
@@ -126,14 +129,26 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             c1.parse(bytes, idx);
             idx += c1.len;
         }
-        syll.am_giua = getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1);
-    }
 
-    // XÁC ĐỊNH THANH ĐIỆU
-    syll.tone = c0.tone;
-    if (syll.tone == ._none) syll.tone = c1.tone;
+        // kiểm tra c0 và c1 có là nguyên âm k trc khi parse
+        syll.am_giua = if (c0.vowel and c1.vowel)
+            getMiddle(c0.byte0, c0.byte1, c1.byte0, c1.byte1)
+        else
+            ._none;
+
+        // ưu tiên XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ 2
+        syll.tone = c1.tone;
+    }
+    // rồi mới XÁC ĐỊNH THANH ĐIỆU trên nguyên âm thứ nhất
+    if (syll.tone == ._none) syll.tone = c0.tone;
 
     // PARSE ÂM CUỐI
+    // Nếu ko có âm giữa thì k cần parse âm cuối
+    if (syll.am_giua == ._none) {
+        syll.can_be_vietnamese = false;
+        return syll;
+    }
+
     var valid_final = true;
     var no_more = false;
 
