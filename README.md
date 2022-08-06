@@ -4,14 +4,35 @@ Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm c
 
 Kỳ vọng tăng tốc  `~10x` so với scalar code
 
-## [ TODO ]
+```
+    ÂM TIẾT:   ĐẦU  GIỮA  CUỐI THANH  CBVN
+ - - - - - - - - - - - - - - - - - - - - -
+        GÀN:     g     a     n     f  true
+        GặN:     g    aw     n     j  true
+       GIừp:    gi    uw     p     f  true
+    nGhiÊng:    ng   iez    ng _none  true
+     nGiêng:    ng   iez    ng _none  true
+        đim:    zd     i     m _none  true
+         ĩm: _none     i     m     x  true
+   nghúýếng:    ng  uyez    ng     s  true
+      giếng:    gi    ez    ng     s  true
+         gĩ:     g     i _none     x  true
+       ginh:     g     i    nh _none  true
+        gim:     g     i     m _none  true
+        giâ:    gi    az     i _none  true
+ - - - - - - - - - - - - - - - - - - - - -
+     gĩmmmm:    gi _none _none _none false
+          đ: _none _none _none _none false
+          g: _none _none _none _none false
+          a: _none     a _none _none false
+       nnnn:     n _none _none _none false
+```
+
+## [ DOING ]
 
 - Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
 
 - Test bộ phân tích âm tiết với mọi âm tiết tiếng Việt, viết hoa và thường lẫn lộn
-
-- Tìm hiểu Zig Vector operators được SIMD hoá ntn?
-  và `simdjzon` sử dụng các operators đó ntn?
 
 ## [ DONE ]
 
