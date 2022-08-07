@@ -6,10 +6,9 @@ pub const AmDau = enum {
     // 25 âm đầu
     _none,
     b, // 1th
-    c, // Viết thành k trước các nguyên âm e, ê, i (iê, ia)
-    //    Cần kiểm tra từ vay mượn Bắc Kạn
-    q, // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
+    c, // Viết thành k trước các nguyên âm e, ê, i (iê, ia) => cần kiểm tra từ vay mượn Bắc Kạn
     d,
+    zd, // âm đ
     g,
     h,
     l,
@@ -20,25 +19,25 @@ pub const AmDau = enum {
     s,
     t,
     v,
-    x,
+    x, // 15th
     ch,
-    zd, // âm đ
     gi, // dùng như âm d, `gì` viết đúng, đủ là `giì`, đọc là `dì`
     kh,
     ng,
     nh, // 20th
     ph,
     th,
-    tr, // 24th
+    tr, // 23th
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
+    q, // => c; q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
     gh, // => g
     ngh, // ng
 
     pub fn len(self: AmDau) u8 {
         return switch (@enumToInt(self)) {
             0 => 0,
-            1...15 => 1,
-            26 => 3,
+            1...15, 24 => 1,
+            26 => 3, // ngh
             else => 2,
         };
     }
@@ -107,7 +106,6 @@ pub const AmGiua = enum {
     o,
     u,
     y, // nhập làm một với i? í ới, người í, người Ý, người ý ??? => ko nên
-
     az, // â
     aw, // ă
     ez, // ê
@@ -119,25 +117,24 @@ pub const AmGiua = enum {
     oe,
     oo, // boong
     uy, // 15th
+    ua, // => `oa` với qua => coa, `uâ` với tuan, còn lại giữ nguyên
 
-    iez, // iê <= ie (tiên <= tien, tieen, tiezn)
-    oaw, // oă (loắt choắt)
-    uaz, // uâ (tuân <= tuan), ua mà có âm cuối chuyển thanh uaz
-    uez, // uê <= ue (tuê <= tue, tuee, tuez) tuềnh toàng
-    uoz, // uô // 20th
-    uow, //  uwow, ươ
-    uyez, // uyez, uyê <= uye (nguyên <= nguyen, nguyeen, nguyezn)
-    // - - - - - - -
-    // Hỗ trợ
-    ah, // giúp rút gọn âm cuối
-    oah, // giúp rút gọn âm cuối // 24th
-    uo, // dùng để chứa cách viết ko dấu của uoz, uow // 25th
-    // Transit states
-    ua, // => uoz
-    // - - - - - - -
-    ia, // => iez
-    uaw, // ưa => ươ
-    uya, // => uyez
+    iez, //  iê <= ie (tiên <= tien, tieen, tiezn)
+    oaw, //  oă (loắt choắt)
+    uaz, //  uâ (tuân <= tuan), ua mà có âm cuối chuyển thanh uaz
+    uez, //  uê <= ue (tuê <= tue) tuềnh toàng, que => coe
+    uoz, //  uô
+    uow, //  ươ // 22th
+
+    uyez, // uyê
+
+    // Transit States
+    // - - - - - - - - - - - - - - - - - - - - - - -
+    ue, // => `oe` với que => coe, `uez` với tue
+    ui, // => `uy` với qui => cuy
+    // ưa => ươ
+    // uă => `oă' với quắt => coắt
+
     _none, // none chỉ để đánh dấu chưa parse, sau bỏ đi
 
     // “thuở/thủa” => convert to "ủa" nếu muốn chuẩn hoá
@@ -145,19 +142,17 @@ pub const AmGiua = enum {
     // Về việc hiển thị và bộ gõ thì ko cần convert vì thuở sẽ ko đi cùng âm cuối,
     // và ngược lại ươ ko đứng riêng mà cần âm cuối đi kèm.
 
-    pub fn normalize(self: AmGiua) AmGiua {
-        return switch (self) {
-            .ua => .uoz,
-            .ia => .iez,
-            .uaw => .uow,
-            .uya => .uyez,
-            else => self,
+    pub fn len(self: AmGiua) u8 {
+        return switch (@enumToInt(self)) {
+            0...11 => 1,
+            23 => 3,
+            else => 2,
         };
     }
 
     pub fn startWithIY(self: AmGiua) bool {
         return switch (self) {
-            .i, .y, .ia, .iez => true,
+            .i, .y, .iez => true,
             else => false,
         };
     }
@@ -166,19 +161,6 @@ pub const AmGiua = enum {
             .az, .aw, .ez, .uw, .oz, .ow, .oaw, .uaz, .uez, .uow, .uoz, .uaw, .iez, .uyez => true,
             else => false,
         };
-    }
-    pub fn len(self: AmGiua) u8 {
-        switch (@enumToInt(self)) {
-            0...5 => return 1,
-            6...15 => return 2,
-            16...20 => return 3,
-            21, 22 => return 4,
-            else => switch (self) {
-                .ua, .ia => return 2,
-                .uaw, .uya => return 3,
-                else => return 0,
-            },
-        }
     }
     pub fn isSaturated(self: AmGiua) bool {
         if (self.len() == 4 or self.len() == 3) return true;
@@ -206,13 +188,13 @@ pub const AmGiua = enum {
 test "Enum AmGiua" {
     try expect(AmGiua.a.len() == 1);
     try expect(AmGiua.y.len() == 1);
-    try expect(AmGiua.az.len() == 2);
+    try expect(AmGiua.az.len() == 1);
     try expect(AmGiua.uy.len() == 2);
-    try expect(AmGiua.iez.len() == 3);
-    try expect(AmGiua.uya.len() == 3);
-    try expect(AmGiua.uow.len() == 4);
-    try expect(AmGiua.uyez.len() == 4);
-    try expect(AmGiua._none.len() == 0);
+    try expect(AmGiua.iez.len() == 2);
+    try expect(AmGiua.uow.len() == 2);
+    try expect(AmGiua.uyez.len() == 3);
+    // try expect(AmGiua.uya.len() == 3);
+    // try expect(AmGiua._none.len() == 0);
 }
 
 /// * Âm cuối:
@@ -344,9 +326,22 @@ pub const Syllable = struct {
         // std.debug.print("\n!!!! normalizing !!!!\n", .{});
         if (self.normalized) return;
 
-        self.am_giua = self.am_giua.normalize();
-
         switch (self.am_dau) {
+            .q => {
+                self.am_dau = .c;
+                switch (self.am_giua) {
+                    .ua => { // => `oa` với qua => coa
+                        self.am_giua = .oa;
+                    },
+                    .ue => { // => `oe` với que => coe
+                        self.am_giua = .oe;
+                    },
+                    .ui => { // => `uy` với qui => cuy
+                        self.am_giua = .uy;
+                    },
+                    else => {},
+                }
+            },
             .gi => {
                 if (self.am_giua == .ez and self.am_cuoi != ._none)
                     self.am_giua = .iez;
@@ -361,6 +356,16 @@ pub const Syllable = struct {
                 // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-gìm
                 // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-ghìm
             },
+        }
+
+        switch (self.am_giua) {
+            .ua => { // => `oa` với 'uaz' với huan (có âm cuối)
+                if (self.am_cuoi != ._none) self.am_giua = .uaz;
+            },
+            .ue => { // => `uez` với tue
+                self.am_giua = .uez;
+            },
+            else => {},
         }
 
         self.normalized = true;
@@ -595,7 +600,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "ua" else "uô",
                 .uow => if (self.am_cuoi == ._none) "ưa" else "ươ",
                 .uaz => "uâ",
-                .uaw => "ưa",
                 .uez => "uê",
                 .az => "â",
                 .ez => "ê",
@@ -618,7 +622,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "úa" else "uố",
                 .uow => if (self.am_cuoi == ._none) "ứa" else "ướ",
                 .uaz => "uấ",
-                .uaw => "ứa",
                 .uez => "uế",
                 .az => "ấ",
                 .ez => "ế",
@@ -636,7 +639,6 @@ pub const Syllable = struct {
                 .y => "ý",
                 .o => "ó",
                 .ua => "úa",
-                .ia => "ía",
                 .oa => "oá",
                 .oe => "oé",
                 .oo => "oó",
@@ -652,7 +654,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "ùa" else "uồ",
                 .uow => if (self.am_cuoi == ._none) "ừa" else "ườ",
                 .uaz => "uầ",
-                .uaw => "ừa",
                 .uez => "uề",
                 .az => "ầ",
                 .ez => "ề",
@@ -670,7 +671,6 @@ pub const Syllable = struct {
                 .y => "ỳ",
                 .o => "ò",
                 .ua => "ùa",
-                .ia => "ìa",
                 .oa => "oà",
                 .oe => "oè",
                 .oo => "oò",
@@ -686,7 +686,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "ủa" else "uổ",
                 .uow => if (self.am_cuoi == ._none) "ửa" else "ưở",
                 .uaz => "uẩ",
-                .uaw => "ửa",
                 .uez => "uể",
                 .az => "ẩ",
                 .ez => "ể",
@@ -704,7 +703,6 @@ pub const Syllable = struct {
                 .y => "ỷ",
                 .o => "ỏ",
                 .ua => "ủa",
-                .ia => "ỉa",
                 .oa => "oả",
                 .oe => "oẻ",
                 .oo => "oỏ",
@@ -720,7 +718,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "ũa" else "uỗ",
                 .uow => if (self.am_cuoi == ._none) "ữa" else "ưỡ",
                 .uaz => "uẫ",
-                .uaw => "ữa",
                 .uez => "uễ",
                 .az => "ẫ",
                 .ez => "ễ",
@@ -738,7 +735,6 @@ pub const Syllable = struct {
                 .y => "ỹ",
                 .o => "õ",
                 .ua => "ũa",
-                .ia => "ĩa",
                 .oa => "oã",
                 .oe => "oẽ",
                 .oo => "oõ",
@@ -754,7 +750,6 @@ pub const Syllable = struct {
                 .uoz => if (self.am_cuoi == ._none) "ụa" else "uộ",
                 .uow => if (self.am_cuoi == ._none) "ựa" else "ượ",
                 .uaz => "uậ",
-                .uaw => "ựa",
                 .uez => "uệ",
                 .az => "ậ",
                 .ez => "ệ",
@@ -772,7 +767,6 @@ pub const Syllable = struct {
                 .y => "ỵ",
                 .o => "ọ",
                 .ua => "ụa",
-                .ia => "ịa",
                 .oa => "oạ",
                 .oe => "oẹ",
                 .oo => "oọ",
@@ -811,7 +805,7 @@ pub const Syllable = struct {
 test "Syllable's printBuff" {
     var syll = Syllable{
         .am_dau = AmDau.ng,
-        .am_giua = AmGiua.uaw,
+        .am_giua = AmGiua.uow,
         .am_cuoi = AmCuoi._none,
         .tone = Tone.s,
         .can_be_vietnamese = true,

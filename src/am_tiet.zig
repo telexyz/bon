@@ -59,7 +59,7 @@ pub fn main() void {
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("quyn");
+    _parse("quia");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -144,6 +144,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         else => {},
     }
 
+    var MIDDLE_HAS_oa_oe_oo_uy = false;
     if (idx == bytes_len) { // âm giữa một ký tự và ko có âm cuối
 
         if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: âm giữa 1 ký tự và ko có âm cuối))", .{});
@@ -162,6 +163,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
 
         c1.parse(bytes, idx);
         idx += c1.len;
+
         if (cmn.DEBUGGING) {
             const str: []const u8 = &.{ c1.byte1, c1.byte0 };
             std.debug.print("\n(( MIDDLE: lấy thêm ký tự `{s}` ))", .{str});
@@ -171,13 +173,13 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             (c0.byte0 == 'o' and (c1.byte0 == 'a' or c1.byte0 == 'e' or c1.byte0 == 'o')))
         {
             if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: oa oe oo uy ))", .{});
-            // oa, // hoa
-            // oe, // toe
-            // oo, // boong
-            // uy, // tuy
+            MIDDLE_HAS_oa_oe_oo_uy = true;
+
+            // Đẩy bytes vào char0
             c0.byte1 = c0.byte0;
             c0.byte0 = c1.byte0;
 
+            // Gán thanh điệu
             syll.tone = c1.tone;
             if (syll.tone == ._none) syll.tone = c0.tone;
 
@@ -188,8 +190,13 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
                 syll.can_be_vietnamese = true;
                 return syll; // DONE
             } else {
-                c1.parse(bytes, idx); //
+                c1.parse(bytes, idx); // Lấy ký tự tiếp theo
                 idx += c1.len;
+
+                if (cmn.DEBUGGING) {
+                    const str: []const u8 = &.{ c1.byte1, c1.byte0 };
+                    std.debug.print("\n(( MIDDLE_HAS_oa_oe_oo_uy: lấy thêm ký tự `{s}` ))", .{str});
+                }
             }
         }
 
@@ -214,7 +221,9 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     // - - - - - - - - -
 
     // Xác định ký tự thứ nhất của âm cuối
-    if (syll.am_giua.len() < 3) { // NẾU là nguyên âm đơn
+    // NẾU là nguyên âm đơn hoặc oa_oe_oo_uy
+    const am_giua_len = syll.am_giua.len();
+    if (am_giua_len < 2 or (MIDDLE_HAS_oa_oe_oo_uy and am_giua_len == 2)) {
         c0 = c1; // THÌ sử dụng lại char cuối của phân tích âm giữa
         if (cmn.DEBUGGING) std.debug.print("\n(( FINAL: sử dụng lại `{c}` ))", .{c1.byte0});
     } else if (idx < bytes_len) { // NẾU còn bytes để parse
@@ -223,7 +232,15 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         if (cmn.DEBUGGING) std.debug.print("\n(( FINAL: lấy thêm ký tự `{c}` ))", .{c1.byte0});
     } else {
         if (cmn.DEBUGGING) std.debug.print("\n(( FINAL: ko có âm cuối ))", .{});
-        syll.am_cuoi = ._none;
+
+        // BẤT QUY TẮC
+        if (syll.am_giua == .ui) {
+            syll.am_giua = .u;
+            syll.am_cuoi = .i;
+        } else {
+            syll.am_cuoi = ._none;
+        }
+
         syll.can_be_vietnamese = true;
         return syll; // DONE vì ko có phụ âm cuối
     }

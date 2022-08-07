@@ -43,8 +43,9 @@ const middle16: []const AmGiua = &.{
     AmGiua._none, // 17: none
 };
 
-const u32x12 = std.meta.Vector(12, u32);
-const lookup32 = u32x12{
+const vec32 = std.meta.Vector(15, u32);
+const bitmap32 = u15;
+const lookup32 = vec32{
     (@as(u32, 'i') << 16) + (@as(u32, 195) << 8) + 170, // i'ê'195:170
     (@as(u32, 'o') << 16) + (@as(u32, 196) << 8) + 131, // o'ă'196:131
     (@as(u32, 'u') << 16) + (@as(u32, 195) << 8) + 162, // u'â'195:162
@@ -54,9 +55,13 @@ const lookup32 = u32x12{
     (@as(u32, 198) << 24) + (@as(u32, 176) << 16) + (@as(u32, 198) << 8) + 161, // 'ư'198:176'ơ'
     (@as(u32, 'u') << 24) + (@as(u32, 'y') << 16) + (@as(u32, 195) << 8) + 170, // uy'ê'195:170
     (@as(u32, 'u') << 24) + (@as(u32, 'y') << 16) + 'a', // uya => uyê
-    (@as(u32, 'u') << 16) + 'a', //                         ua  => uô
     (@as(u32, 'i') << 16) + 'a', //                         ia  => iê
     (@as(u32, 198) << 24) + (176 << 16) + 'a', //           ưa  => ươ (ư'198:176)
+    (@as(u32, 'u') << 16) + (@as(u32, 196) << 8) + 131, //  uă => `oă' với quắt => coắt
+    //
+    (@as(u32, 'u') << 16) + 'a', //                         ua
+    (@as(u32, 'u') << 16) + 'e', //                         ue
+    (@as(u32, 'u') << 16) + 'i', //                         ui
 };
 const middle32: []const AmGiua = &.{
     AmGiua.iez, //  0: iê
@@ -68,9 +73,14 @@ const middle32: []const AmGiua = &.{
     AmGiua.uow, //  6: ươ
     AmGiua.uyez, // 7: uyê
     AmGiua.uyez, // 8: uya => uyê
-    AmGiua.uoz, //  9: ua  => uô
-    AmGiua.iez, // 10: ia  => iê
-    AmGiua.uow, // 11: ưa  => ươ (ư'198:176)
+    AmGiua.iez, //     ia  => iê
+    AmGiua.uow, //     ưa  => ươ (ư'198:176)
+    AmGiua.oaw, //     uă => `oă' với quắt => coắt
+    //
+    AmGiua.ua, // => `oa` với qua => coa, `uoz` với hua
+    AmGiua.ue, // => `oe` với que => coe, `uez` với tue
+    AmGiua.ui, // => `uy` với qui => cuy
+    //
     AmGiua._none,
 };
 
@@ -91,20 +101,25 @@ pub inline fn getSingleMiddle(c0b0: u8, c0b1: u8) AmGiua {
 pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const a = (@intCast(u32, c0b1) << 24) + (@intCast(u32, c0b0) << 16) +
         (@intCast(u32, c1b1) << 8) + c1b0;
-    const input32 = u32x12{ a, a, a, a, a, a, a, a, a, a, a, a };
-    const match32 = @ptrCast(*const u12, &(input32 == lookup32)).*;
-    const pos32 = if (match32 > 0) @ctz(u12, match32) else 12;
+    const input32 = vec32{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
+    const match32 = @ptrCast(*const bitmap32, &(input32 == lookup32)).*;
 
     if (cmn.DEBUGGING) {
-        const c0: []const u8 = &.{ c0b1, c0b0 };
-        const c1: []const u8 = &.{ c1b1, c1b0 };
-        std.debug.print("\n\n>> getMiddle: '{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
-        // std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
-        // std.debug.print("\n{b:0>8} {d}\n", .{ match32, pos32 });
+        const char0: []const u8 = &.{ c0b1, c0b0 };
+        const char1: []const u8 = &.{ c1b1, c1b0 };
+        std.debug.print(
+            "\n\n>> getMiddle: '{s}'{x}:{x} '{s}'{x}:{x}",
+            .{ char0, c0b1, c0b0, char1, c1b1, c1b0 },
+        );
     }
 
-    if (pos32 < 12)
-        return middle32[pos32]
-    else
+    if (match32 > 0) {
+        // if (cmn.DEBUGGING) {
+        //     std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
+        //     std.debug.print("\n{b:0>8} {d}\n", .{ match32, @ctz(bitmap32, match32) });
+        // }
+        return middle32[@ctz(bitmap32, match32)];
+    } else {
         return getSingleMiddle(c0b0, c0b1);
+    }
 }
