@@ -330,13 +330,23 @@ pub const Syllable = struct {
             .q => {
                 self.am_dau = .c;
                 switch (self.am_giua) {
-                    .ua => { // => `oa` với qua => coa
+                    // NHẬP NHẰNG
+                    // q+ uơ & uơ = ua
+                    // => q+ uơ  = qua
+                    // TODO: Đẩy .qu là 1 âm đầu để chống nhập nhằng
+                    .ua => { // => `oa` với qua => coa,
                         self.am_giua = .oa;
                     },
                     .ue => { // => `oe` với que => coe
                         self.am_giua = .oe;
                     },
                     .ui => { // => `uy` với qui => cuy
+                        self.am_giua = .uy;
+                    },
+
+                    .u => if (self.am_cuoi == .i) {
+                        // c u i => q u i
+                        self.am_cuoi = ._none;
                         self.am_giua = .uy;
                     },
                     else => {},
@@ -575,7 +585,7 @@ pub const Syllable = struct {
             .c => switch (@tagName(self.am_giua)[0]) {
                 'e', 'i', 'y' => "k",
                 else => switch (self.am_giua) {
-                    .uyez => "q",
+                    .uyez, .oa, .oe, .uy, .uez, .uaz => "q",
                     else => "c",
                 },
             },
@@ -611,6 +621,8 @@ pub const Syllable = struct {
                 },
                 .uyez => if (self.am_cuoi == ._none) "uya" else "uyê",
                 .oo => "oo",
+                .oa => if (self.am_dau == .c) "ua" else "oa",
+                .oe => if (self.am_dau == .c) "ue" else "oe",
                 else => @tagName(self.am_giua),
             },
             .s => switch (self.am_giua) {
@@ -639,8 +651,8 @@ pub const Syllable = struct {
                 .y => "ý",
                 .o => "ó",
                 .ua => "úa",
-                .oa => "oá",
-                .oe => "oé",
+                .oa => if (self.am_dau == .c) "uá" else "oá",
+                .oe => if (self.am_dau == .c) "ué" else "oé",
                 .oo => "oó",
                 .uy => "uý",
                 else => @tagName(self.am_giua),
@@ -671,8 +683,8 @@ pub const Syllable = struct {
                 .y => "ỳ",
                 .o => "ò",
                 .ua => "ùa",
-                .oa => "oà",
-                .oe => "oè",
+                .oa => if (self.am_dau == .c) "uà" else "oà",
+                .oe => if (self.am_dau == .c) "uè" else "oè",
                 .oo => "oò",
                 .uy => "uỳ",
                 else => @tagName(self.am_giua),
@@ -703,8 +715,8 @@ pub const Syllable = struct {
                 .y => "ỷ",
                 .o => "ỏ",
                 .ua => "ủa",
-                .oa => "oả",
-                .oe => "oẻ",
+                .oa => if (self.am_dau == .c) "uả" else "oả",
+                .oe => if (self.am_dau == .c) "uẻ" else "oẻ",
                 .oo => "oỏ",
                 .uy => "uỷ",
                 else => @tagName(self.am_giua),
@@ -735,8 +747,8 @@ pub const Syllable = struct {
                 .y => "ỹ",
                 .o => "õ",
                 .ua => "ũa",
-                .oa => "oã",
-                .oe => "oẽ",
+                .oa => if (self.am_dau == .c) "uã" else "oã",
+                .oe => if (self.am_dau == .c) "uẽ" else "oẽ",
                 .oo => "oõ",
                 .uy => "uỹ",
                 else => @tagName(self.am_giua),
@@ -767,8 +779,8 @@ pub const Syllable = struct {
                 .y => "ỵ",
                 .o => "ọ",
                 .ua => "ụa",
-                .oa => "oạ",
-                .oe => "oẹ",
+                .oa => if (self.am_dau == .c) "uạ" else "oạ",
+                .oe => if (self.am_dau == .c) "uẹ" else "oẹ",
                 .oo => "oọ",
                 .uy => "uỵ",
                 else => @tagName(self.am_giua),

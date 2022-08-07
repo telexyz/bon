@@ -160,7 +160,7 @@ test "getInitial()" {
     try expectEqual(getInitial('t', 'h'), .th);
     try expectEqual(getInitial('v', 'u'), .v);
     try expectEqual(getInitial('x', 'i'), .x);
-    try expectEqual(getInitial('q', 'i'), ._none);
+    try expectEqual(getInitial('q', 'i'), .q);
     try expectEqual(getInitial('q', 'u'), .q);
 }
 

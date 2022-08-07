@@ -59,7 +59,7 @@ pub fn main() void {
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("quia");
+    _parse("qui");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
