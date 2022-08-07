@@ -12,7 +12,7 @@ const Char = @import("ky_tu.zig").Char;
 const cmn = @import("common.zig");
 
 fn _parse(bytes: []const u8) void {
-    cmn.printSyllParts(bytes, &parseSyllable(bytes));
+    cmn.printSyllParts(bytes, parseSyllable(bytes));
 }
 
 pub fn main() void {
