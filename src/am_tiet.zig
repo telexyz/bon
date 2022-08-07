@@ -54,12 +54,13 @@ pub fn main() void {
     // _parse("cua");
     // _parse("qua");
     // // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
-    _parse("quốc");
-    _parse("cuốc");
+    // _parse("quốc");
+    // _parse("cuốc");
+    // _parse("Thuở");
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("Thuở");
+    _parse("đa");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -167,6 +168,11 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         if (cmn.DEBUGGING) {
             const str: []const u8 = &.{ c1.byte1, c1.byte0 };
             std.debug.print("\n(( MIDDLE: lấy thêm ký tự `{s}` ))", .{str});
+        }
+
+        if (syll.am_dau == ._none and c0.byte0 == 'y' and c1.byte0 == 170 and c1.byte1 == 195) {
+            if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: yê => iê ))", .{});
+            c0.byte0 = 'i';
         }
 
         if ((c0.byte0 == 'u' and c1.byte0 == 'y') or

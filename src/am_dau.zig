@@ -18,6 +18,8 @@ const initials: []const AmDau = &.{
     AmDau.gi, //   13
     AmDau._none, //14
     AmDau._none, //15
+    // AmDau.q, //    14
+    // AmDau.qu, //   15
     AmDau.t, //    16
     AmDau.tr, //   17
     AmDau.p, //    18
