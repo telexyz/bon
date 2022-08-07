@@ -98,7 +98,7 @@ pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     if (cmn.DEBUGGING) {
         const c0: []const u8 = &.{ c0b1, c0b0 };
         const c1: []const u8 = &.{ c1b1, c1b0 };
-        std.debug.print("\n\n'{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
+        std.debug.print("\n\n>> getMiddle: '{s}'{x}:{x} '{s}'{x}:{x}", .{ c0, c0b1, c0b0, c1, c1b1, c1b0 });
         // std.debug.print("\n{x:0>8}\n{x:0>8}", .{ input32, lookup32 });
         // std.debug.print("\n{b:0>8} {d}\n", .{ match32, pos32 });
     }

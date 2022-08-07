@@ -562,160 +562,6 @@ pub const Syllable = struct {
         self.can_be_vietnamese = false;
     }
 
-    //
-    pub fn printBuff(self: *Syllable, buff: []u8, spare: bool) []const u8 {
-        const blank = "";
-        const giua = switch (self.am_giua) {
-            .uow => if (self.am_cuoi == ._none) "uaw" else "uow",
-            .uoz => if (self.am_cuoi == ._none) "ua" else "uoz",
-            .oo => "oo",
-            .iez => blk: {
-                if (self.am_cuoi == ._none) break :blk "ia";
-                if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yez";
-                break :blk "iez";
-            },
-            .uyez => if (self.am_cuoi == ._none) "uya" else "uyez",
-            else => @tagName(self.am_giua),
-        };
-        const dau = switch (self.am_dau) {
-            ._none => blank,
-            .zd => if (spare) "d d" else "dd",
-            .c => switch (giua[0]) {
-                'e', 'i', 'y' => "k",
-                else => "c",
-            },
-            .gi => if (giua[0] == 'i') "g" else "gi",
-            .g => switch (giua[0]) {
-                'e', 'i', 'y' => "gh",
-                else => "g",
-            },
-            .ng => switch (giua[0]) {
-                'e', 'i', 'y' => "ngh",
-                else => "ng",
-            },
-            else => @tagName(self.am_dau),
-        };
-        const cuoi = switch (self.am_cuoi) {
-            ._none => blank,
-            else => @tagName(self.am_cuoi),
-        };
-
-        var n: usize = 0;
-        var mark: u8 = 0;
-        // dau
-        for (dau) |byte| {
-            buff[n] = byte;
-            n += 1;
-        }
-        // giua
-        for (giua) |byte| switch (byte) {
-            'w', 'z' => mark = byte,
-            else => {
-                buff[n] = byte;
-                n += 1;
-            },
-        };
-        // cuoi
-        for (cuoi) |byte| {
-            buff[n] = byte;
-            n += 1;
-        }
-        // ngăn cách với mark+tone
-        buff[n] = if (spare) ' ' else '|';
-        n += 1;
-        // mark
-        if (mark != 0) {
-            buff[n] = mark;
-            n += 1;
-        }
-        // tone
-        if (self.tone != ._none) {
-            buff[n] = @tagName(self.tone)[0];
-            n += 1;
-        }
-        // remove ending space for spare mode
-        if (buff[n - 1] == 32) n -= 1;
-
-        return buff[0..n];
-    }
-
-    pub fn printBuffParts(self: *Syllable, buff: []u8) []const u8 {
-        const blank = "";
-        // n(dau) = 22 (25 - 3 (_none, gi, qu))
-        const dau = switch (self.am_dau) {
-            ._none => blank,
-            .zd => "dd",
-            .gi => "d",
-            .qu => "cu", // ok: qua sẽ được convert thành coa
-            else => @tagName(self.am_dau),
-        };
-        // n(giua) = 22 (23 - 1)
-        const giua = switch (self.am_giua) {
-            .oo => "oo",
-            .iez => "yez",
-            .i => "y",
-            // Xem rút gọn âm cuối docs/syllable_n_token_ids.md
-            .a => if (self.am_cuoi == .y or self.am_cuoi == .o) "aw" else "a",
-            .oa => if (self.am_cuoi == .y) "oaw" else "oa",
-            else => @tagName(self.am_giua),
-        };
-        // n(cuoi) = 10 (13 - 3 (_none, o, y))
-        const cuoi = switch (self.am_cuoi) {
-            .o => "u",
-            .y => "i",
-            ._none => blank,
-            else => @tagName(self.am_cuoi),
-        };
-
-        // => n(parts) = 58 (22 + 22 + (10-1) + 5 (tones)) => u6
-        // 10-1: trùng âm cuối `u` với âm giữa `u`
-        var n: usize = 0;
-
-        // dau
-        if (dau.len > 0) {
-            buff[n] = '_';
-            n += 1;
-            for (dau) |byte| {
-                buff[n] = byte;
-                n += 1;
-            }
-            buff[n] = 32;
-            n += 1;
-        }
-
-        // giua
-        if (giua.len > 0) {
-            if (n > 1 and buff[n - 2] == 'u') { // qu => q u
-                buff[n - 2] = 32;
-                buff[n - 1] = if (giua.len == 1 and
-                    (giua[0] == 'a' or giua[0] == 'e')) 'o' else 'u';
-            }
-            for (giua) |byte| {
-                buff[n] = byte;
-                n += 1;
-            }
-        }
-
-        // cuoi
-        if (cuoi.len > 0) {
-            buff[n] = 32;
-            n += 1;
-            for (cuoi) |byte| {
-                buff[n] = byte;
-                n += 1;
-            }
-        }
-
-        // tone
-        if (self.tone != ._none) {
-            buff[n] = 32;
-            n += 1;
-            buff[n] = @tagName(self.tone)[0];
-            n += 1;
-        }
-        return buff[0..n];
-    }
-
     pub fn printBuffUtf8(self: *Syllable, buff: []u8) []const u8 {
         const blank = "";
         const dau = switch (self.am_dau) {
@@ -723,7 +569,10 @@ pub const Syllable = struct {
             .zd => "đ",
             .c => switch (@tagName(self.am_giua)[0]) {
                 'e', 'i', 'y' => "k",
-                else => "c",
+                else => switch (self.am_giua) {
+                    .uyez => "q",
+                    else => "c",
+                },
             },
             .gi => if (@tagName(self.am_giua)[0] == 'i') "g" else "gi",
             .g => switch (@tagName(self.am_giua)[0]) {
@@ -968,72 +817,20 @@ test "Syllable's printBuff" {
         .can_be_vietnamese = true,
     };
 
-    var buffer: [15]u8 = undefined;
+    var buffer: [12]u8 = undefined;
     const buff = buffer[0..];
 
-    try std.testing.expectEqualStrings(syll.printBuff(buff, false), "ngua|ws");
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngứa");
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng uaw s");
 
     syll.am_giua = .o;
-    try std.testing.expectEqualStrings(syll.printBuff(buff, false), "ngo|s");
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngó");
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng o s");
 
     syll.am_giua = .iez;
     syll.am_cuoi = .n;
-    try std.testing.expectEqualStrings(syll.printBuff(buff, false), "nghien|zs");
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "nghiến");
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng yez n s");
 
-    syll.am_giua = .o;
     syll.tone = ._none;
-    syll.am_cuoi = ._none;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng o");
-
     syll.am_giua = .oz;
     syll.am_cuoi = .n;
-    try std.testing.expectEqualStrings(syll.printBuff(buff, false), "ngon|z");
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngôn");
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng oz n");
-
-    syll.am_dau = .qu;
-    syll.am_giua = .a;
-    syll.am_cuoi = .n;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_c oa n");
-
-    syll.am_dau = .ng;
-    syll.am_giua = .oo;
-    syll.am_cuoi = .ng;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_ng oo ng");
-
-    syll.am_dau = .gh;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_gh oo ng");
-
-    syll.am_dau = ._none;
-    syll.am_giua = .iez;
-    syll.am_cuoi = .u;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "yez u");
-
-    syll.am_giua = .i;
-    syll.am_cuoi = ._none;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "y");
-
-    syll.am_dau = ._none;
-    syll.am_giua = .iez;
-    syll.am_cuoi = .u;
-    syll.tone = .s;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "yez u s");
-
-    syll.am_dau = .qu;
-    syll.am_giua = .iez;
-    syll.am_cuoi = .n;
-    syll.tone = .f;
-    try std.testing.expectEqualStrings(syll.printBuffParts(buff), "_c uyez n f");
-
-    syll.am_dau = ._none;
-    syll.am_giua = .a;
-    syll.am_cuoi = ._none;
-    syll.tone = ._none;
-    try std.testing.expectEqualStrings(syll.printBuff(buff, false), "a|");
 }
