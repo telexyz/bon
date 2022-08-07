@@ -29,7 +29,8 @@ pub const AmDau = enum {
     th,
     tr, // 23th
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
-    q, // => c; q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
+    q, // => c; q chỉ đi với + âm đệm u
+    // `qu` chắc chắn là 1 âm độc lập như trong, quốc vs cuốc và quơ vs cua (quơ tay)
     gh, // => g
     ngh, // ng
 
@@ -132,8 +133,7 @@ pub const AmGiua = enum {
     // - - - - - - - - - - - - - - - - - - - - - - -
     ue, // => `oe` với que => coe, `uez` với tue
     ui, // => `uy` với qui => cuy
-    // ưa => ươ
-    // uă => `oă' với quắt => coắt
+    u_ow, // uơ của quơ => cua
 
     _none, // none chỉ để đánh dấu chưa parse, sau bỏ đi
 
@@ -330,10 +330,6 @@ pub const Syllable = struct {
             .q => {
                 self.am_dau = .c;
                 switch (self.am_giua) {
-                    // NHẬP NHẰNG
-                    // q+ uơ & uơ = ua
-                    // => q+ uơ  = qua
-                    // TODO: Đẩy .qu là 1 âm đầu để chống nhập nhằng
                     .ua => { // => `oa` với qua => coa,
                         self.am_giua = .oa;
                     },
@@ -369,7 +365,10 @@ pub const Syllable = struct {
         }
 
         switch (self.am_giua) {
-            .ua => { // => `oa` với 'uaz' với huan (có âm cuối)
+            .u_ow => { // (q+) uơ => ua
+                self.am_giua = .ua;
+            },
+            .ua => { // => 'uaz' với huan (có âm cuối)
                 if (self.am_cuoi != ._none) self.am_giua = .uaz;
             },
             .ue => { // => `uez` với tue
