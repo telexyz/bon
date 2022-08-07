@@ -30,9 +30,11 @@ pub const AmDau = enum {
     tr, // 23th
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
     q, // => c; q chỉ đi với + âm đệm u
-    // `qu` chắc chắn là 1 âm độc lập như trong, quốc vs cuốc và quơ vs cua (quơ tay)
     gh, // => g
     ngh, // ng
+    // NOTE: `q` hoặc `qu` chắc chắn là 1 âm độc lập như trong, quốc vs cuốc và quơ vs cua (quơ tay)
+    // - Dùng `q` thì hợp với cách phiên âm
+    // - Dùng `qu` thì đỡ công phân tích
 
     pub fn len(self: AmDau) u8 {
         return switch (@enumToInt(self)) {
@@ -328,20 +330,23 @@ pub const Syllable = struct {
 
         switch (self.am_dau) {
             .q => {
-                self.am_dau = .c;
                 switch (self.am_giua) {
                     .ua => { // => `oa` với qua => coa,
+                        self.am_dau = .c;
                         self.am_giua = .oa;
                     },
                     .ue => { // => `oe` với que => coe
+                        self.am_dau = .c;
                         self.am_giua = .oe;
                     },
                     .ui => { // => `uy` với qui => cuy
+                        self.am_dau = .c;
                         self.am_giua = .uy;
                     },
 
                     .u => if (self.am_cuoi == .i) {
-                        // c u i => q u i
+                        // q u i =>  c u y
+                        self.am_dau = .c;
                         self.am_cuoi = ._none;
                         self.am_giua = .uy;
                     },
@@ -365,9 +370,6 @@ pub const Syllable = struct {
         }
 
         switch (self.am_giua) {
-            .u_ow => { // (q+) uơ => ua
-                self.am_giua = .ua;
-            },
             .ua => { // => 'uaz' với huan (có âm cuối)
                 if (self.am_cuoi != ._none) self.am_giua = .uaz;
             },
@@ -622,9 +624,11 @@ pub const Syllable = struct {
                 .oo => "oo",
                 .oa => if (self.am_dau == .c) "ua" else "oa",
                 .oe => if (self.am_dau == .c) "ue" else "oe",
+                .u_ow => "uơ",
                 else => @tagName(self.am_giua),
             },
             .s => switch (self.am_giua) {
+                .u_ow => "uớ",
                 ._none => blank,
                 .oaw => "oắ",
                 .aw => "ắ",
@@ -657,6 +661,7 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .f => switch (self.am_giua) {
+                .u_ow => "uờ",
                 ._none => blank,
                 .oaw => "oằ",
                 .aw => "ằ",
@@ -689,6 +694,7 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .r => switch (self.am_giua) {
+                .u_ow => "uở",
                 ._none => blank,
                 .oaw => "oẳ",
                 .aw => "ẳ",
@@ -721,6 +727,7 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .x => switch (self.am_giua) {
+                .u_ow => "uỡ",
                 ._none => blank,
                 .oaw => "oẵ",
                 .aw => "ẵ",
@@ -753,6 +760,7 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .j => switch (self.am_giua) {
+                .u_ow => "uợ",
                 ._none => blank,
                 .oaw => "oặ",
                 .aw => "ặ",

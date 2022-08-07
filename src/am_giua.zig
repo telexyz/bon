@@ -69,20 +69,25 @@ const middle32: []const AmGiua = &.{
     AmGiua.uaz, //  2: uâ (tuân)
     AmGiua.uez, //  3: uê (tuềnh toàng)
     AmGiua.uoz, //  4: uô
-    AmGiua.u_ow, //   5: uơ => ua
+    AmGiua.u_ow, // 5: huơ tay, thuở xưa
     AmGiua.uow, //  6: ươ
     AmGiua.uyez, // 7: uyê
     AmGiua.uyez, // 8: uya => uyê
     AmGiua.iez, //     ia  => iê
     AmGiua.uow, //     ưa  => ươ (ư'198:176)
     AmGiua.oaw, //     uă => `oă' với quắt => coắt
-    //
+
+    // TRẠNG THÁI CHUYỂN TIẾP
     AmGiua.ua, // => `oa` với qua => coa, `uoz` với hua
     AmGiua.ue, // => `oe` với que => coe, `uez` với tue
     AmGiua.ui, // => `uy` với qui => cuy
     //
     AmGiua._none,
 };
+
+// “UƠ” HAY “UA”
+// http://repository.ulis.vnu.edu.vn/handle/ULIS_123456789/164
+// “ua” và “uơ” đều có âm trị là [uo]. [uo] còn có cách viết là “uô” khi có âm cuối.
 
 pub inline fn getSingleMiddle(c0b0: u8, c0b1: u8) AmGiua {
     const b = (@intCast(u16, c0b1) << 8) + c0b0;

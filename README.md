@@ -46,6 +46,8 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ## [ DOING ]
 
+- Thêm .uo để handle `quọ:     q     u     o     j  true      qụo`
+
 - Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
 
 - Test bộ phân tích âm tiết với mọi âm tiết tiếng Việt, viết hoa và thường lẫn lộn
