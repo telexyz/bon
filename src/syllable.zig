@@ -7,7 +7,8 @@ pub const AmDau = enum {
     _none,
     b, // 1th
     c, // Viết thành k trước các nguyên âm e, ê, i (iê, ia)
-    // Cần kiểm tra từ vay mượn Bắc Kạn
+    //    Cần kiểm tra từ vay mượn Bắc Kạn
+    q, // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
     d,
     g,
     h,
@@ -27,7 +28,6 @@ pub const AmDau = enum {
     ng,
     nh, // 20th
     ph,
-    qu, // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
     th,
     tr, // 24th
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
@@ -37,7 +37,7 @@ pub const AmDau = enum {
     pub fn len(self: AmDau) u8 {
         return switch (@enumToInt(self)) {
             0 => 0,
-            1...14 => 1,
+            1...15 => 1,
             26 => 3,
             else => 2,
         };
@@ -602,7 +602,7 @@ pub const Syllable = struct {
                 .oz => "ô",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ia";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yê";
+                    if (self.am_dau == ._none) break :blk "yê";
                     break :blk "iê";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uya" else "uyê",
@@ -625,7 +625,7 @@ pub const Syllable = struct {
                 .oz => "ố",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ía";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yế";
+                    if (self.am_dau == ._none) break :blk "yế";
                     break :blk "iế";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uýa" else "uyế",
@@ -659,7 +659,7 @@ pub const Syllable = struct {
                 .oz => "ồ",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ìa";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yề";
+                    if (self.am_dau == ._none) break :blk "yề";
                     break :blk "iề";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uỳa" else "uyề",
@@ -693,7 +693,7 @@ pub const Syllable = struct {
                 .oz => "ổ",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ỉa";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yể";
+                    if (self.am_dau == ._none) break :blk "yể";
                     break :blk "iể";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uỷa" else "uyể",
@@ -727,7 +727,7 @@ pub const Syllable = struct {
                 .oz => "ỗ",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ĩa";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yễ";
+                    if (self.am_dau == ._none) break :blk "yễ";
                     break :blk "iễ";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uỹa" else "uyễ",
@@ -761,7 +761,7 @@ pub const Syllable = struct {
                 .oz => "ộ",
                 .iez => blk: {
                     if (self.am_cuoi == ._none) break :blk "ịa";
-                    if (self.am_dau == ._none or self.am_dau == .qu) break :blk "yệ";
+                    if (self.am_dau == ._none) break :blk "yệ";
                     break :blk "iệ";
                 },
                 .uyez => if (self.am_cuoi == ._none) "uỵa" else "uyệ",

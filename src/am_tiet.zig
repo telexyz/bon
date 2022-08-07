@@ -59,7 +59,7 @@ pub fn main() void {
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("quyên");
+    _parse("quyn");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -157,6 +157,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         syll.am_cuoi = ._none;
         syll.can_be_vietnamese = true;
         return syll; // DONE
+        //
     } else { // âm giữa có thể có 2 ký tự
 
         c1.parse(bytes, idx);
@@ -164,12 +165,6 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         if (cmn.DEBUGGING) {
             const str: []const u8 = &.{ c1.byte1, c1.byte0 };
             std.debug.print("\n(( MIDDLE: lấy thêm ký tự `{s}` ))", .{str});
-        }
-
-        if (syll.am_dau == .qu and c0.byte0 == 'y') {
-            syll.am_dau = .c;
-            c0.byte1 = 'u';
-            c0.byte0 = 'y';
         }
 
         if ((c0.byte0 == 'u' and c1.byte0 == 'y') or

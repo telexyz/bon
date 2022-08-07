@@ -11,13 +11,13 @@ const initials: []const AmDau = &.{
     AmDau.h, //     6
     AmDau.d, //     7
     AmDau.b, //     8
-    AmDau._none, // 9
+    AmDau.q, //     9
     AmDau.n, //    10
     AmDau.nh, //   11
     AmDau.g, //    12
     AmDau.gi, //   13
     AmDau._none, //14
-    AmDau.qu, //   15
+    AmDau._none, //15
     AmDau.t, //    16
     AmDau.tr, //   17
     AmDau.p, //    18
@@ -44,13 +44,13 @@ const u8x32 = std.meta.Vector(32, u8); // 8x32 = 32-bytes (vừa YMM registers)
 // Đó là 7 cặp âm: `t` và `th`, `c` và `ch`, `g` và `gh`, 'n' và `nh`,
 // 'p' và 'ph', `t` và `th`, `g` và `gi`.
 const lookup = u8x32{
-    'x', 'v', 's', 'r', 'm', 'l', 'h', 'd', 'b', ' ', 'n', 'h', //
-    'g', 'i', 'q', 'u', 't', 'r', 'p', 'h', 'k', 'h',
+    'x', 'v', 's', 'r', 'm', 'l', 'h', 'd', 'b', 'q', 'n', 'h', //
+    'g', 'i', ' ', ' ', 't', 'r', 'p', 'h', 'k', 'h',
     'g', 'h', 196, 145, 'n', 'g', 'c', 'h', 't', 'h', // 'đ'196:145
 };
 
 // Để xác định đâu là phụ âm 1-byte ta cần dùng bitmask để lọc
-const phu_am_don_mask = 0b01010101010101010101000111111111;
+const phu_am_don_mask = 0b01010101010101010101001111111111;
 
 pub inline fn getInitial(f: u8, s: u8) AmDau {
     const input = u8x32{
@@ -161,7 +161,7 @@ test "getInitial()" {
     try expectEqual(getInitial('v', 'u'), .v);
     try expectEqual(getInitial('x', 'i'), .x);
     try expectEqual(getInitial('q', 'i'), ._none);
-    try expectEqual(getInitial('q', 'u'), .qu);
+    try expectEqual(getInitial('q', 'u'), .q);
 }
 
 test "getInitial(khe giữa 2 âm đôi)" {
