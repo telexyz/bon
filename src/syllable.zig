@@ -8,7 +8,7 @@ pub const AmDau = enum {
     b, // 1th
     c, // Viết thành k trước các nguyên âm e, ê, i (iê, ia) => cần kiểm tra từ vay mượn Bắc Kạn
     d,
-    zd, // âm đ
+    q, // => c; q chỉ đi với + âm đệm u
     g,
     h,
     l,
@@ -28,8 +28,8 @@ pub const AmDau = enum {
     ph,
     th,
     tr, // 23th
+    zd, // âm đ
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
-    q, // => c; q chỉ đi với + âm đệm u
     gh, // => g
     ngh, // ng
     // NOTE: `q` hoặc `qu` chắc chắn là 1 âm độc lập như trong, quốc vs cuốc và quơ vs cua (quơ tay)
@@ -39,7 +39,7 @@ pub const AmDau = enum {
     pub fn len(self: AmDau) u8 {
         return switch (@enumToInt(self)) {
             0 => 0,
-            1...15, 24 => 1,
+            1...15 => 1,
             26 => 3, // ngh
             else => 2,
         };
@@ -121,33 +121,29 @@ pub const AmGiua = enum {
     oo, // boong
     uy, // 15th
     ua, // => `oa` với qua => coa, `uâ` với tuan, còn lại giữ nguyên
+    uo, // quọ
 
     iez, //  iê <= ie (tiên <= tien, tieen, tiezn)
     oaw, //  oă (loắt choắt)
     uaz, //  uâ (tuân <= tuan), ua mà có âm cuối chuyển thanh uaz
     uez, //  uê <= ue (tuê <= tue) tuềnh toàng, que => coe
     uoz, //  uô
-    uow, //  ươ // 22th
-
-    uyez, // uyê
+    uow, //  ươ
+    u_ow, // uơ <= quơ, huơ, thuở
+    uyez, // uyê // 25
 
     // Transit States
     // - - - - - - - - - - - - - - - - - - - - - - -
     ue, // => `oe` với que => coe, `uez` với tue
     ui, // => `uy` với qui => cuy
-    u_ow, // uơ của quơ => cua
 
     _none, // none chỉ để đánh dấu chưa parse, sau bỏ đi
-
-    // “thuở/thủa” => convert to "ủa" nếu muốn chuẩn hoá
-    // http://repository.ulis.vnu.edu.vn/handle/ULIS_123456789/164
-    // Về việc hiển thị và bộ gõ thì ko cần convert vì thuở sẽ ko đi cùng âm cuối,
-    // và ngược lại ươ ko đứng riêng mà cần âm cuối đi kèm.
 
     pub fn len(self: AmGiua) u8 {
         return switch (@enumToInt(self)) {
             0...11 => 1,
-            23 => 3,
+            25 => 3,
+            28 => 0,
             else => 2,
         };
     }
@@ -196,7 +192,7 @@ test "Enum AmGiua" {
     try expect(AmGiua.uow.len() == 2);
     try expect(AmGiua.uyez.len() == 3);
     // try expect(AmGiua.uya.len() == 3);
-    // try expect(AmGiua._none.len() == 0);
+    try expect(AmGiua._none.len() == 0);
 }
 
 /// * Âm cuối:
@@ -603,8 +599,10 @@ pub const Syllable = struct {
         };
         const giua = switch (self.tone) {
             ._none => switch (self.am_giua) {
+                .uo => "uo",
+                .u_ow => "uơ",
                 ._none => blank,
-                .oaw => "oă",
+                .oaw => if (self.am_dau == .q) "uă" else "oă",
                 .aw => "ă",
                 .uw => "ư",
                 .ow => "ơ",
@@ -624,17 +622,17 @@ pub const Syllable = struct {
                 .oo => "oo",
                 .oa => if (self.am_dau == .c) "ua" else "oa",
                 .oe => if (self.am_dau == .c) "ue" else "oe",
-                .u_ow => "uơ",
                 else => @tagName(self.am_giua),
             },
             .s => switch (self.am_giua) {
+                .uo => "uó",
                 .u_ow => "uớ",
                 ._none => blank,
-                .oaw => "oắ",
+                .oaw => if (self.am_dau == .q) "uắ" else "oắ",
                 .aw => "ắ",
                 .uw => "ứ",
                 .ow => "ớ",
-                .uoz => if (self.am_cuoi == ._none) "úa" else "uố",
+                .uoz => if (self.am_cuoi == ._none and self.am_dau != .q) "úa" else "uố",
                 .uow => if (self.am_cuoi == ._none) "ứa" else "ướ",
                 .uaz => "uấ",
                 .uez => "uế",
@@ -661,13 +659,14 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .f => switch (self.am_giua) {
+                .uo => "uò",
                 .u_ow => "uờ",
                 ._none => blank,
-                .oaw => "oằ",
+                .oaw => if (self.am_dau == .q) "uằ" else "oằ",
                 .aw => "ằ",
                 .uw => "ừ",
                 .ow => "ờ",
-                .uoz => if (self.am_cuoi == ._none) "ùa" else "uồ",
+                .uoz => if (self.am_cuoi == ._none and self.am_dau != .q) "ùa" else "uồ",
                 .uow => if (self.am_cuoi == ._none) "ừa" else "ườ",
                 .uaz => "uầ",
                 .uez => "uề",
@@ -694,13 +693,14 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .r => switch (self.am_giua) {
+                .uo => "uỏ",
                 .u_ow => "uở",
                 ._none => blank,
-                .oaw => "oẳ",
+                .oaw => if (self.am_dau == .q) "uẳ" else "oẳ",
                 .aw => "ẳ",
                 .uw => "ử",
                 .ow => "ở",
-                .uoz => if (self.am_cuoi == ._none) "ủa" else "uổ",
+                .uoz => if (self.am_cuoi == ._none and self.am_dau != .q) "ủa" else "uổ",
                 .uow => if (self.am_cuoi == ._none) "ửa" else "ưở",
                 .uaz => "uẩ",
                 .uez => "uể",
@@ -727,13 +727,14 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .x => switch (self.am_giua) {
+                .uo => "uõ",
                 .u_ow => "uỡ",
                 ._none => blank,
-                .oaw => "oẵ",
+                .oaw => if (self.am_dau == .q) "uẵ" else "oẵ",
                 .aw => "ẵ",
                 .uw => "ữ",
                 .ow => "ỡ",
-                .uoz => if (self.am_cuoi == ._none) "ũa" else "uỗ",
+                .uoz => if (self.am_cuoi == ._none and self.am_dau != .q) "ũa" else "uỗ",
                 .uow => if (self.am_cuoi == ._none) "ữa" else "ưỡ",
                 .uaz => "uẫ",
                 .uez => "uễ",
@@ -760,13 +761,14 @@ pub const Syllable = struct {
                 else => @tagName(self.am_giua),
             },
             .j => switch (self.am_giua) {
+                .uo => "uọ",
                 .u_ow => "uợ",
                 ._none => blank,
-                .oaw => "oặ",
+                .oaw => if (self.am_dau == .q) "uặ" else "oặ",
                 .aw => "ặ",
                 .uw => "ự",
                 .ow => "ợ",
-                .uoz => if (self.am_cuoi == ._none) "ụa" else "uộ",
+                .uoz => if (self.am_cuoi == ._none and self.am_dau != .q) "ụa" else "uộ",
                 .uow => if (self.am_cuoi == ._none) "ựa" else "ượ",
                 .uaz => "uậ",
                 .uez => "uệ",
