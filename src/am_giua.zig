@@ -43,8 +43,8 @@ const middle16: []const AmGiua = &.{
     AmGiua._none, // 17: none
 };
 
-const vec32 = std.meta.Vector(15, u32);
-const bitmap32 = u15;
+const vec32 = std.meta.Vector(16, u32);
+const bitmap32 = u16;
 const lookup32 = vec32{
     (@as(u32, 'i') << 16) + (@as(u32, 195) << 8) + 170, // i'ê'195:170
     (@as(u32, 'o') << 16) + (@as(u32, 196) << 8) + 131, // o'ă'196:131
@@ -58,7 +58,9 @@ const lookup32 = vec32{
     (@as(u32, 'i') << 16) + 'a', //                         ia  => iê
     (@as(u32, 198) << 24) + (176 << 16) + 'a', //           ưa  => ươ (ư'198:176)
     (@as(u32, 'u') << 16) + (@as(u32, 196) << 8) + 131, //  uă => `oă' với quắt => coắt
-    //
+    (@as(u32, 'u') << 16) + 'o', //                         uo
+
+    // TRẠNG THÁI CHUYỂN TIẾP
     (@as(u32, 'u') << 16) + 'a', //                         ua
     (@as(u32, 'u') << 16) + 'e', //                         ue
     (@as(u32, 'u') << 16) + 'i', //                         ui
@@ -75,7 +77,8 @@ const middle32: []const AmGiua = &.{
     AmGiua.uyez, // 8: uya => uyê
     AmGiua.iez, //     ia  => iê
     AmGiua.uow, //     ưa  => ươ (ư'198:176)
-    AmGiua.oaw, //     uă => `oă' với quắt => coắt
+    AmGiua.oaw, //     uă  => oă (quắt => coắt)
+    AmGiua.uo, //      uo  <= quọ
 
     // TRẠNG THÁI CHUYỂN TIẾP
     AmGiua.ua, // => `oa` với qua => coa, `uoz` với hua
@@ -106,7 +109,7 @@ pub inline fn getSingleMiddle(c0b0: u8, c0b1: u8) AmGiua {
 pub inline fn getMiddle(c0b0: u8, c0b1: u8, c1b0: u8, c1b1: u8) AmGiua {
     const a = (@intCast(u32, c0b1) << 24) + (@intCast(u32, c0b0) << 16) +
         (@intCast(u32, c1b1) << 8) + c1b0;
-    const input32 = vec32{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
+    const input32 = vec32{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
     const match32 = @ptrCast(*const bitmap32, &(input32 == lookup32)).*;
 
     if (cmn.DEBUGGING) {
