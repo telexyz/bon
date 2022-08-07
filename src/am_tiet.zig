@@ -54,12 +54,12 @@ pub fn main() void {
     // _parse("cua");
     // _parse("qua");
     // // q chỉ đi với + âm đệm u, có quan điểm `qu` là 1 âm độc lập, quốc vs cuốc
-    // _parse("quốc");
-    // _parse("cuốc");
+    _parse("quốc");
+    _parse("cuốc");
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("qui");
+    _parse("Thuở");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
