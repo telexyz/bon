@@ -20,8 +20,8 @@ const finals = [_]AmCuoi{
     AmCuoi._none,
 };
 
-const u16x12 = std.meta.Vector(16, u16);
-const lookup = u16x12{
+const u16x16 = std.meta.Vector(16, u16);
+const lookup = u16x16{
     'i' << 8,
     'u' << 8,
     'm' << 8,
@@ -34,13 +34,17 @@ const lookup = u16x12{
     (@as(u16, 'n') << 8) + 'h',
     'y' << 8,
     'o' << 8,
+    0,
+    0,
+    0,
+    0,
 };
 
 pub inline fn getFinal(x: u8, y: u8) AmCuoi {
     const a = (@intCast(u16, x) << 8) + y;
-    const input = u16x12{ a, a, a, a, a, a, a, a, a, a, a, a };
-    const match: u12 = @ptrCast(*const u12, &(input == lookup)).*;
-    const pos = if (match > 0) @ctz(u12, match) else 12;
+    const input = u16x16{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
+    const match = @ptrCast(*const u16, &(input == lookup)).*;
+    const pos = if (match > 0) @ctz(u16, match) else 12;
     return finals[pos];
 }
 

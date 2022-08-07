@@ -16,9 +16,10 @@ pub fn printSepLine() void {
     std.debug.print(SEP_LINE, .{});
 }
 
-pub fn printSyllParts(bytes: []const u8, syll: *sds.Syllable) void {
+pub fn printSyllParts(bytes: []const u8, syll: sds.Syllable) void {
     var buf: [12]u8 = undefined;
-    const str = if (syll.can_be_vietnamese) syll.printBuffUtf8(buf[0..]) else "";
+    var _syll = syll;
+    const str = if (syll.can_be_vietnamese) _syll.printBuffUtf8(buf[0..]) else "";
     std.debug.print("\n{s: >11}: {s: >5} {s: >5} {s: >5} {s: >5} {: >5} {s: >8}", .{ bytes, @tagName(syll.am_dau), @tagName(syll.am_giua), @tagName(syll.am_cuoi), @tagName(syll.tone), syll.can_be_vietnamese, str });
     if (DEBUGGING) printSepLine();
 }
