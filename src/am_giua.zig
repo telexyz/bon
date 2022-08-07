@@ -69,7 +69,7 @@ const middle32: []const AmGiua = &.{
     AmGiua.uaz, //  2: uâ (tuân)
     AmGiua.uez, //  3: uê (tuềnh toàng)
     AmGiua.uoz, //  4: uô
-    AmGiua.ua, //   5: uơ => ua
+    AmGiua.u_ow, //   5: uơ => ua
     AmGiua.uow, //  6: ươ
     AmGiua.uyez, // 7: uyê
     AmGiua.uyez, // 8: uya => uyê
