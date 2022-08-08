@@ -1,4 +1,6 @@
 const std = @import("std");
+const parseSyllable = @import("am_tiet.zig").parseSyllable;
+const cmn = @import("common.zig");
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
@@ -69,22 +71,39 @@ pub fn main() !void {
         // giữa đoạn cắt khi đọc dữ liệu theo từng BYTES_PROCESSED
         // => curr_bytes lưu nửa sau của utf8-char hoặc token
         //    prev_bytes lưu nửa đầu của utf8-char hoặc token
-        std.debug.print("\nbuf[{d}]: \"{s}\"\n", .{ count, curr_bytes[0..len] });
+        std.debug.print("\n\nbuf[{d}]: \"{s}\"", .{ count, curr_bytes[0..len] });
 
         vec = curr_bytes.*;
         const sp_bits = getIsNonAlphabetAsciiBits(vec);
         sp_idx = @ctz(BitType, sp_bits);
+        if (sp_idx > len) sp_idx = len;
 
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
-            std.debug.print("{d:0>2}-{d:0>2}: {s}{s}\n", .{
-                tk_idx,               sp_idx,
-                prev_bytes[tk_idx..], curr_bytes[0..sp_idx],
+
+            var bytes: [2 * BYTES_PROCESSED]u8 = undefined;
+            const prev_ = prev_bytes[tk_idx..];
+            const curr_ = curr_bytes[0..sp_idx];
+
+            std.mem.copy(u8, bytes[0..], prev_);
+            std.mem.copy(u8, bytes[prev_.len..], curr_);
+            const token = bytes[0..(prev_.len + curr_.len)];
+
+            std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
+                tk_idx, sp_idx, token,
+                // prev_bytes[tk_idx..], curr_bytes[0..sp_idx],
             });
+
+            const syll = parseSyllable(token);
+            if (syll.can_be_vietnamese) cmn.printSyllParts(syll);
+            //
         } else if (sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
             printToken(0, sp_idx, curr_bytes);
         }
+
+        //
+        if (sp_idx == len) tk_idx = len;
 
         while (sp_idx < len) {
             // Tìm next token index
@@ -110,9 +129,13 @@ pub fn main() !void {
 }
 
 inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8) void {
-    std.debug.print("{d:0>2}-{d:0>2}: {s}\n", .{
+    const bytes = curr_bytes[token_idx..space_idx];
+    std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
         token_idx,
         space_idx,
-        curr_bytes[token_idx..space_idx],
+        bytes,
     });
+
+    const syll = parseSyllable(bytes);
+    if (syll.can_be_vietnamese) cmn.printSyllParts(syll);
 }

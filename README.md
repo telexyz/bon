@@ -46,15 +46,13 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ## [ DOING ]
 
-- Thêm .uo để handle `quọ:     q     u     o     j  true      qụo`
-
-- Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
-
-- Test bộ phân tích âm tiết với mọi âm tiết tiếng Việt, viết hoa và thường lẫn lộn
+- char_stream: handle token lớn hơn buff.len
 
 ## [ DONE ]
 
-- SIMDify char stream to tokens: tìm vị trí của ascii nonalphabet bytes
+- Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
+
+- SIMDify `@import("am_tiet.zig").parseSyllable(bytes: []const u8)`
 
 - SIMDify char stream to tokens: tìm vị trí space
 

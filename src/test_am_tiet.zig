@@ -15,13 +15,13 @@ test "Các âm tiết hợp lệ" {
 
         std.testing.expect(syll.can_be_vietnamese) catch |err| {
             cmn.DEBUGGING = true;
-            cmn.printSyllParts(am_tiet, parseSyllable(am_tiet));
+            cmn.printSyll(am_tiet, parseSyllable(am_tiet));
             return err;
         };
 
         std.testing.expectEqualStrings(syll.printBuffUtf8(buff), am_tiet) catch |err| {
             cmn.DEBUGGING = true;
-            cmn.printSyllParts(am_tiet, parseSyllable(am_tiet));
+            cmn.printSyll(am_tiet, parseSyllable(am_tiet));
             cmn.printSepLine();
             return err;
         };
