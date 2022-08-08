@@ -18,7 +18,7 @@ pub fn printSepLine() void {
 
 pub fn printSyll(bytes: []const u8, _syll: sds.Syllable) void {
     std.debug.print("\n{s: >12}: ", .{bytes});
-    printSyllParts(bytes, _syll);
+    printSyllParts(_syll);
     if (DEBUGGING) printSepLine();
 }
 pub fn printSyllParts(_syll: sds.Syllable) void {
