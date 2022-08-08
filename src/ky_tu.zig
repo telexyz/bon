@@ -7,7 +7,7 @@ const cmn = @import("common.zig");
 const u8x6 = std.meta.Vector(6, u8);
 const lookup = u8x6{ 'e', 'y', 'u', 'i', 'o', 'a' };
 
-fn isAsciiVowel(b: u8) bool {
+inline fn isAsciiVowel(b: u8) bool {
     const input = u8x6{ b, b, b, b, b, b };
     const match = @ptrCast(*const u6, &(input == lookup)).*;
     return match > 0;

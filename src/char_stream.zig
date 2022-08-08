@@ -4,8 +4,8 @@ const cmn = @import("common.zig");
 
 // simple config
 const default_file = "utf8tv.txt";
-// const file_name = "../data/combined.txt"; // 944 MB
-const file_name = default_file;
+const file_name = "../data/combined.txt"; // 944 MB
+// const file_name = default_file;
 const show_info = std.mem.eql(u8, file_name, default_file);
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
@@ -89,6 +89,8 @@ pub fn main() !void {
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
 
+            // TODO: thay vì dùng buff mới thì mở rộng curr và prev để
+            // tiết kiệm 1 lần mem.copy
             var bytes: [2 * BYTES_PROCESSED]u8 = undefined;
             const prev_ = prev_bytes[tk_idx..];
             const curr_ = curr_bytes[0..sp_idx];

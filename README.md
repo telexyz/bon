@@ -46,6 +46,9 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ## [ DOING ]
 
+- Impl BPE (byte pair encoding)
+  https://gwenzek.github.io/fastBPE/analysis.html
+
 - char_stream: handle token lớn hơn buff.len
 
 ## [ DONE ]
