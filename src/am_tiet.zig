@@ -61,6 +61,8 @@ pub fn main() void {
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
     _parse("nh");
+    _parse("nz");
+    _parse("a");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -129,7 +131,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         }
     }
 
-    if (idx == bytes_len) { // ko có âm giữa
+    if (syll.am_dau.len() == bytes_len) { // ko có âm giữa
         // std.debug.print("\n>> {} <<\n", .{syll.am_dau});
         syll.can_be_vietnamese = false;
         return syll; // DONE
@@ -154,16 +156,19 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     var MIDDLE_HAS_oa_oe_oo_uy = false;
     if (idx == bytes_len) { // âm giữa một ký tự và ko có âm cuối
 
-        if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: âm giữa 1 ký tự và ko có âm cuối))", .{});
+        if (cmn.DEBUGGING) std.debug.print("\n(( MIDDLE: chỉ còn 1 ký tự để pt âm giữa ))", .{});
 
         syll.am_giua = if (c0.vowel) // kiểm tra c0 có là nguyên âm k trc khi parse
             getSingleMiddle(c0.byte0, c0.byte1)
         else
             ._none;
 
-        if (c0.tone != ._none) syll.tone = c0.tone;
-        syll.am_cuoi = ._none;
-        syll.can_be_vietnamese = true;
+        if (syll.am_giua != ._none) { // âm tiết phải có âm giữa
+            syll.can_be_vietnamese = true;
+            syll.tone = c0.tone;
+            syll.am_cuoi = ._none;
+        }
+
         return syll; // DONE
         //
     } else { // âm giữa có thể có 2 ký tự
@@ -278,4 +283,19 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     syll.can_be_vietnamese = syll.am_cuoi != ._none;
 
     return syll; // DONE
+}
+
+const expectEqual = std.testing.expectEqual;
+fn expectSyll(str: []const u8, i: sds.AmDau, m: sds.AmGiua, f: sds.AmCuoi, t: sds.Tone, cbvn: bool) !void {
+    const syll = parseSyllable(str);
+    try expectEqual(syll.am_dau, i);
+    try expectEqual(syll.am_giua, m);
+    try expectEqual(syll.am_cuoi, f);
+    try expectEqual(syll.tone, t);
+    try expectEqual(syll.can_be_vietnamese, cbvn);
+}
+
+test "k phải âm tiết" {
+    try expectSyll("nh", .nh, ._none, ._none, ._none, false);
+    try expectSyll("nz", .n, ._none, ._none, ._none, false);
 }
