@@ -60,7 +60,7 @@ pub fn main() void {
 
     // cmn.printSepLine();
     cmn.DEBUGGING = true;
-    _parse("đa");
+    _parse("nh");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -127,6 +127,12 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
                 return syll; // DONE
             }
         }
+    }
+
+    if (idx == bytes_len) { // ko có âm giữa
+        // std.debug.print("\n>> {} <<\n", .{syll.am_dau});
+        syll.can_be_vietnamese = false;
+        return syll; // DONE
     }
 
     // PHÂN TÍCH ÂM GIỮA
