@@ -1,8 +1,10 @@
-# SIMD và tối ưu phân tích âm tiết tiếng Việt
+# Tối ưu phân tích âm tiết tiếng Việt
 
 Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`
 
-Kỳ vọng tăng tốc  `~10x` so với scalar code
+Các kỹ thuật có thể áp dụng: SIMD (vectorized), branchless, multiple-thread
+
+Kỳ vọng tăng tốc `~10x-20x` so với scalar, single thread code
 
 ```
 
