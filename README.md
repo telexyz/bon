@@ -47,13 +47,18 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 ## [ DOING ]
 
 - Impl BPE (byte pair encoding)
+
   https://gwenzek.github.io/fastBPE/analysis.html
 
-- char_stream: handle token lớn hơn buff.len
+  https://github.com/VKCOM/YouTokenToMe
+
+  - Fast hashtable https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable
+
+- char_stream: handle unicode tổ hợp, và token lớn hơn buff.len (can skip)
 
 ## [ DONE ]
 
-- Đưa token phân tách được trong char_stream vào bộ phân tích âm tiết
+- Đưa token được phân tách trong char_stream vào bộ phân tích âm tiết
 
 - SIMDify `@import("am_tiet.zig").parseSyllable(bytes: []const u8)`
 
@@ -63,7 +68,7 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 - Dùng SIMD để gạn phụ âm đầu => làm tương tự cho âm giữa và âm cuối
 
-- Cài đặt SIM byte lookup algorithm
+- Cài đặt SIMD byte lookup algorithm (archived in `simdify` folder)
 
 
 ## Tham khảo
