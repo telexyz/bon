@@ -14,6 +14,12 @@ pub fn main() !void {
     try stdout.print("Run `zig build test` to run the tests.\n", .{});
 
     try bw.flush(); // don't forget to flush!
+
+    const u8x3 = std.meta.Vector(3, u8);
+    const a = u8x3{ 1, 2, 3 };
+    const b = u8x3{ 1, 2 };
+    const c = a == b;
+    std.debug.print("{}", .{c});
 }
 
 test "simple test" {
