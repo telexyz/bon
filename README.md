@@ -46,15 +46,7 @@ Kỳ vọng tăng tốc  `~10x` so với scalar code
 
 ## [ DOING ]
 
-- Impl BPE (byte pair encoding)
-
-  https://gwenzek.github.io/fastBPE/analysis.html
-
-  https://github.com/VKCOM/YouTokenToMe
-
-  - Fast hashtable https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable
-
-- char_stream: handle unicode tổ hợp, và token lớn hơn buff.len (can skip)
+Xem https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
