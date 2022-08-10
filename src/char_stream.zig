@@ -14,7 +14,7 @@ const show_info = std.mem.eql(u8, file_name, default_file);
 const VecType = std.meta.Vector(BYTES_PROCESSED, u8);
 const BitType = u64;
 
-const BYTES_PROCESSED = 64;
+const BYTES_PROCESSED = 2048; // bytes
 const TOKEN_PROCESSED = BYTES_PROCESSED;
 
 const A_byte: u8 = 'A';
