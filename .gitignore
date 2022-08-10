@@ -3,5 +3,4 @@ zig-out
 *.wasm
 data
 *.cdx
-run.sh
 yttm

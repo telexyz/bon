@@ -1,3 +1,4 @@
+// const ztracy = @import("ztracy");
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
 const getInitial = @import("am_dau.zig").getInitial;
@@ -68,6 +69,9 @@ pub fn main() void {
 const MAX_SYLL_BYTES_LEN = 12;
 
 pub fn parseSyllable(bytes: []const u8) sds.Syllable {
+    // const tracy_zone = ztracy.ZoneNC(@src(), "parseSyllable", 0x00_ff_00_00);
+    // defer tracy_zone.End();
+
     var syll = sds.Syllable.new();
     // chuỗi rỗng hoặc lớn hơn 12 bytes không phải âm tiết utf8
     if (bytes.len == 0 or bytes.len > MAX_SYLL_BYTES_LEN) return syll; // NOT SYLLABLE
