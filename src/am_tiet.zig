@@ -69,7 +69,7 @@ const MAX_SYLL_BYTES_LEN = 12;
 
 pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     var syll = sds.Syllable.new();
-    // chuỗi rỗng hoặc lớn hơn 10 bytes không phải âm tiết utf8
+    // chuỗi rỗng hoặc lớn hơn 12 bytes không phải âm tiết utf8
     if (bytes.len == 0 or bytes.len > MAX_SYLL_BYTES_LEN) return syll; // NOT SYLLABLE
 
     const bytes_len = bytes.len;
@@ -83,9 +83,9 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
     // PHÂN TÍCH PHỤ ÂM ĐẦU
     // - - - - - - - - - -
     if (!c0.vowel) { // ko phải nguyên âm
-        // VALIDATE: chỉ có phụ âm đầu
+        // VALIDATE: chỉ có phụ âm đầu => ko có nguyên âm
         if (idx == bytes_len) {
-            syll.can_be_vietnamese = false; // => vì ko có nguyên âm
+            syll.can_be_vietnamese = false; // vì ko có nguyên âm
             return syll; // NOT SYLLABLE
         }
 
@@ -115,7 +115,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             }
             if (isFinalConsonant(bytes[idx])) {
                 if (bytes_len > idx + 2) return syll; // NOT SYLLABLE
-                // không có final nào > 2-bytes
+                // vì không có final nào > 2-bytes
 
                 syll.am_dau = .g;
                 syll.am_giua = .i;
@@ -131,7 +131,8 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         }
     }
 
-    if (syll.am_dau.len() == bytes_len) { // ko có âm giữa
+    // VALIDATION
+    if (syll.am_dau.len() == bytes_len) { // => ko có âm giữa
         // std.debug.print("\n>> {} <<\n", .{syll.am_dau});
         syll.can_be_vietnamese = false;
         return syll; // DONE
