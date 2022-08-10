@@ -14,7 +14,7 @@ where applicable; variations due to C are described in [STYLE.md](./STYLE.md).
 
 ## Getting It
 
-> TL;DR: run `./unified.py cwisstable/*.h`, grab `cwisstable.h`, and
+> TL;DR: run `./unify.py cwisstable/*.h`, grab `cwisstable.h`, and
 > get cwissing.
 
 There are two options for using this library: Bazel, or single-header.
