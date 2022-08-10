@@ -44,10 +44,14 @@ fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
 
 const idx_bits: []const u64 = &.{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30, 1 << 31, 1 << 32, 1 << 33, 1 << 34, 1 << 35, 1 << 36, 1 << 37, 1 << 38, 1 << 39, 1 << 40, 1 << 41, 1 << 42, 1 << 43, 1 << 44, 1 << 45, 1 << 46, 1 << 47, 1 << 48, 1 << 49, 1 << 50, 1 << 51, 1 << 52, 1 << 53, 1 << 54, 1 << 55, 1 << 56, 1 << 57, 1 << 58, 1 << 59, 1 << 60, 1 << 61, 1 << 62, 1 << 63 };
 
-inline fn inSet(bits: *const BitType, idx: usize) bool {
-    var _u64s = @ptrCast(*const [BYTES_PROCESSED / 64]u64, bits).*;
-    return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
+inline fn inSet(bits: BitType, idx: usize) bool {
+    std.debug.assert(BitType == u64);
+    return (idx_bits[idx] & bits) != 0;
 }
+// inline fn inSet(bits: *const BitType, idx: usize) bool {
+//     const _u64s = @ptrCast(*const [BYTES_PROCESSED / 64]u64, bits).*;
+//     return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
+// }
 
 pub fn main() !void {
     // cwd(): curr_bytesent working directory
@@ -120,11 +124,11 @@ pub fn main() !void {
 
         while (sp_idx < len) {
             // Tìm next token index
-            while (sp_idx < len and inSet(&sp_bits, sp_idx)) sp_idx += 1;
+            while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
             tk_idx = sp_idx;
 
             // Tìm next space index
-            while (sp_idx < len and !inSet(&sp_bits, sp_idx)) sp_idx += 1;
+            while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
 
             if (sp_idx < len)
                 printToken(tk_idx, sp_idx, curr_bytes);
