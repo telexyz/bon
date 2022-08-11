@@ -1,3 +1,7 @@
+In practice, cuckoo hashing is about 20–30% slower than linear probing, which is the fastest of the common approaches.[1] The reason is that cuckoo hashing often causes two cache misses per search, to check the two locations where a key might be stored, while linear probing usually causes only one cache miss per search. However, because of its worst case guarantees on search time, cuckoo hashing can still be valuable when real-time response rates are required. One advantage of cuckoo hashing is its link-list free property, which fits GPU processing well.
+
+- - -
+
 https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable
 
 ## Open addressing

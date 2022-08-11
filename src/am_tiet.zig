@@ -65,7 +65,7 @@ pub fn main() void {
     _parse("nz");
     _parse("a");
     _parse("giêng");
-    _parse("giênh");
+    _parse("gịu");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;

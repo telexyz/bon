@@ -307,7 +307,7 @@ pub const Syllable = struct {
     pub const max_am_dau: UniqueId = 25;
     pub const max_am_giua: UniqueId = 28;
     pub const max_am_cuoi_tone: UniqueId = 42;
-    pub const MAXX_ID: UniqueId = max_am_dau * max_am_giua * max_am_cuoi_tone;
+    pub const MAXX_ID: UniqueId = max_am_dau * max_am_giua * max_am_cuoi_tone; // 29400
 
     pub inline fn hasMark(self: Syllable) bool {
         return self.am_dau == .zd or self.am_giua.hasMark();
@@ -489,10 +489,10 @@ pub const Syllable = struct {
             },
             else => return syllable,
         };
-        //  a o <= aw u
-        //  e o <=  e u
+        //  a o <=  aw u
+        //  e o <=   e u
         // oa o <= oaw u
-        // oe o <= oe u
+        // oe o <=  oe u
         if (syllable.am_cuoi == .u) switch (syllable.am_giua) {
             .aw => {
                 syllable.am_cuoi = .o;
@@ -851,4 +851,44 @@ test "Syllable's printBuff" {
     syll.am_giua = .oz;
     syll.am_cuoi = .n;
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngôn");
+}
+
+const parseSyllable = @import("am_tiet.zig").parseSyllable;
+const cmn = @import("common.zig");
+pub fn main() void {
+    var buffer: [12]u8 = undefined;
+    const buf1 = buffer[0..];
+
+    var buffer2: [12]u8 = undefined;
+    const buf2 = buffer2[0..];
+
+    var i: Syllable.UniqueId = 0;
+    while (i < Syllable.MAXX_ID) : (i += 1) {
+        var syll = Syllable.newFromId(i);
+        // bỏ qua 2 âm hỗ trợ
+        if (syll.am_giua == .ah or syll.am_giua == .oah) continue;
+        if (syll.am_giua == .i and syll.am_cuoi == .i) continue;
+        if (syll.am_giua == .o and syll.am_cuoi == .o) continue;
+
+        if (syll.am_dau == .q and (syll.am_giua != .uez or syll.am_giua != .uy or syll.am_giua != .uyez or syll.am_giua != .uaz or syll.am_giua != .ua)) continue;
+
+        const a = syll.printBuffUtf8(buf1);
+        var reve = parseSyllable(a);
+        const b = reve.printBuffUtf8(buf2);
+
+        if (std.mem.eql(u8, a, b)) continue;
+
+        if ( //syll.am_dau != reve.am_dau or
+        syll.am_giua != reve.am_giua or
+            syll.am_cuoi != reve.am_cuoi or
+            syll.tone != reve.tone)
+        {
+            // if (syll.am_dau != reve.am_dau) std.debug.print(" {}!={}", .{ syll.am_dau, reve.am_dau });
+            if (syll.am_giua != reve.am_giua) std.debug.print(" {}!={}", .{ syll.am_giua, reve.am_giua });
+            std.debug.print("[{s} {s}]   ", .{ a, b });
+            // std.debug.print("{s} ", .{a});
+            // break;
+            // cmn.printSyllParts(reve);
+        }
+    }
 }
