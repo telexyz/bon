@@ -104,7 +104,12 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
         } else { // lấy thêm 1 ký tự nữa để kiểm tra phụ âm đôi
             c1.parse(bytes, idx);
             idx += c1.len;
-            syll.am_dau = getInitial(c0.byte0, c1.byte0);
+            syll.am_dau = if (c1.tone != ._none)
+                // nếu char có thanh điệu thì thuộc về nguyên âm
+                // => phân tích phụ âm đầu bằng char đầu tiên thôi
+                getInitial(c0.byte0, c0.byte1)
+            else
+                getInitial(c0.byte0, c1.byte0);
         }
 
         // bỏ qua h của ngh
