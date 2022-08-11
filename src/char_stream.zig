@@ -152,12 +152,14 @@ pub fn main() !void {
         len = try in_stream.read(curr_bytes);
         count += 1;
     }
+
+    counters.list();
 }
 
 inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8) void {
     const token = curr_bytes[token_idx..space_idx];
 
-    // _ = counters.put(token);
+    _ = counters.put(token);
 
     if (show_info)
         std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
