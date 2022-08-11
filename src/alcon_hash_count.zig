@@ -28,37 +28,40 @@
 // Modified from https://raw.githubusercontent.com/telexyz/engine/main/.save/hash_count.zig
 
 const std = @import("std");
+
 const Wyhash = std.hash.Wyhash;
+const Allocator = std.mem.Allocator;
 
-const math = std.math;
-const mem = std.mem;
-const Allocator = mem.Allocator;
+pub const HashType = u64;
+pub const CountType = u32;
+pub const IndexType = u32;
+pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
 
-pub fn HashCount(comptime capacity: u32) type {
-    std.debug.assert(math.isPowerOfTwo(capacity));
+pub const MAX_KEY_LEN: IndexType = 2 * AVG_KEY_LEN;
+pub const AVG_KEY_LEN: IndexType = 32;
 
-    const shift = 63 - math.log2_int(u64, capacity) + 1;
-    const overflow = capacity / 10 + math.log2_int(u64, capacity) << 1;
+const maxx_hash = std.math.maxInt(HashType);
+const maxx_index = std.math.maxInt(IndexType);
+
+pub const Entry = packed struct {
+    hash: HashType = maxx_hash,
+    count: CountType = 0,
+    key_offset: IndexType = maxx_index,
+
+    pub inline fn key(self: Entry, key_bytes: []const u8, len: usize) []const u8 {
+        return key_bytes[self.key_offset .. self.key_offset + len];
+    }
+};
+
+pub fn HashCount(comptime capacity: IndexType) type {
+    std.debug.assert(std.math.isPowerOfTwo(capacity));
+    std.debug.assert(capacity < MAX_CAPACITY);
+
+    const shift = 63 - std.math.log2_int(u64, capacity) + 1;
+    const overflow = capacity / 10 + std.math.log2_int(u64, capacity) << 1;
     const size: usize = capacity + overflow;
 
     return struct {
-        pub const HashType = u64;
-        pub const CountType = u32;
-        const maxx_hash = math.maxInt(HashType);
-        const maxx_index = math.maxInt(usize);
-
-        pub const MAX_KEY_LEN: usize = 32;
-
-        pub const Entry = struct {
-            hash: HashType = maxx_hash,
-            count: CountType = 0,
-            key_offset: usize = maxx_index,
-
-            pub inline fn key(self: Entry, key_bytes: []const u8, len: usize) []const u8 {
-                return key_bytes[self.key_offset .. self.key_offset + len];
-            }
-        };
-
         const Self = @This();
 
         allocator: Allocator = undefined,
@@ -66,23 +69,24 @@ pub fn HashCount(comptime capacity: u32) type {
         len: usize = 0,
 
         key_bytes: []u8 = undefined,
-        key_index: usize = 0,
+        key_index: IndexType = 0,
 
         pub fn init(self: *Self, init_allocator: Allocator) !void {
             self.allocator = init_allocator;
             self.len = 0;
             self.key_index = 0;
 
-            self.key_bytes = try self.allocator.alloc(u8, size * MAX_KEY_LEN);
+            self.key_bytes = try self.allocator.alloc(u8, size * AVG_KEY_LEN);
             std.mem.set(u8, self.key_bytes, 0);
 
             self.entries = try self.allocator.alloc(Entry, size);
             const entry = Entry{ .hash = maxx_hash, .count = 0, .key_offset = maxx_index };
-            mem.set(Entry, self.entries, entry);
+            std.mem.set(Entry, self.entries, entry);
         }
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
+            self.allocator.free(self.key_bytes);
         }
 
         pub fn slice(self: Self) []Self.Entry {
@@ -92,7 +96,7 @@ pub fn HashCount(comptime capacity: u32) type {
         pub fn put(self: *Self, key: []const u8) CountType {
             if (key.len > MAX_KEY_LEN) return 0;
 
-            var it: Self.Entry = .{
+            var it: Entry = .{
                 .hash = Wyhash.hash(key[0], key),
                 .count = 1,
             };
@@ -129,7 +133,7 @@ pub fn HashCount(comptime capacity: u32) type {
                     if (entry.count == 0) {
                         // gán giá trị key cho entries[first_swap_at]
                         self.entries[first_swap_at].key_offset = self.key_index;
-                        mem.copy(u8, self.key_bytes[self.key_index .. self.key_index + key.len], key);
+                        std.mem.copy(u8, self.key_bytes[self.key_index .. self.key_index + key.len], key);
                         self.key_index += MAX_KEY_LEN;
 
                         self.len += 1;
@@ -153,13 +157,11 @@ pub fn HashCount(comptime capacity: u32) type {
             while (true) : (i += 1) {
                 const entry = self.entries[i];
                 if (entry.hash < hash) continue;
-                if (entry.hash == hash and
-                    mem.eql(u8, entry.key(self.key_bytes, key.len), key))
-                {
-                    return entry.count;
-                } else {
-                    return 0;
-                }
+
+                const equal = (entry.hash == hash) and
+                    std.mem.eql(u8, entry.key(self.key_bytes, key.len), key);
+
+                return if (equal) entry.count else 0;
             }
         }
 
@@ -179,14 +181,6 @@ pub fn HashCount(comptime capacity: u32) type {
             }
             std.debug.print("\nTOTAL {d}.\n{s}\n", .{ self.len, self.key_bytes[0..2048] });
         }
-
-        // pub inline fn equal(a: KeyType, b: KeyType) bool {
-        //     const v1: VecType = a;
-        //     const v2: VecType = b;
-        //     const match = @ptrCast(*const u32, &(v1 == v2)).*;
-        //     return !(match < std.math.maxInt(u32));
-        // }
-        //
     };
 }
 
@@ -195,9 +189,9 @@ test "HashCount" {
     var counters: HC1024 = undefined;
     try counters.init(std.heap.page_allocator);
     defer counters.deinit();
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put("a"));
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.get("a"));
-    try std.testing.expectEqual(@as(HC1024.CountType, 0), counters.get("b"));
-    try std.testing.expectEqual(@as(HC1024.CountType, 2), counters.put("a"));
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put("b"));
+    try std.testing.expectEqual(@as(CountType, 1), counters.put("a"));
+    try std.testing.expectEqual(@as(CountType, 1), counters.get("a"));
+    try std.testing.expectEqual(@as(CountType, 0), counters.get("b"));
+    try std.testing.expectEqual(@as(CountType, 2), counters.put("a"));
+    try std.testing.expectEqual(@as(CountType, 1), counters.put("b"));
 }
