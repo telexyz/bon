@@ -1,3 +1,29 @@
+Hashtable lý tưởng được dùng bởi nhiều threads mà ko conflict, cache friendly (flat_map), tận dụng SIMD intrinsics cho các thao tác comparing, hashing, probing ...
+
+NGUỒN: https://github.com/search?q=simd+hash+table
+
+https://github.com/matmuher/hash_table_optimize thử nghiệm nhiều hàm hash và nhiều cách optimize hashtable bao gồm SIMD
+
+https://github.com/michaelvlach/ADbHash
+The ADbHash is a hash table inspired by google's "Swiss table" presented at CppCon 2017 by Matt Kulukundis. It is based on open-addressing hash table storing extra byte per element (key-value pair). In this byte there are stored a control bit (controlling whether the element is empty or full) and the rest of the byte is taken from the hash of the key. When searching through the table 16 of these control bytes are loaded from the position the element we look for is supposed to be. Then they are compared to a byte constructed from the hash we search for. This is achieved by using Single Instruction Multiple Data (SIMD) and thus a typical search in this hash table will take exactly two instructions:
+
+Compare 16 bytes with 1 byte. - and Jump to the matching element.
+
+https://github.com/telekons/42nd-at-threadmill a nearly lock-free* hash table based on Cliff Click's NonBlockingHashMap, and Abseil's flat_hash_map. use SSE2 intrinsics for fast probing, and optionally use AVX2 for faster byte broadcasting.
+
+https://github.com/efficient/libcuckoo
+
+
+https://www.youtube.com/watch?v=ncHmEUmJZf4
+CppCon 2017: Matt Kulukundis “Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step”
+
+https://www.youtube.com/watch?v=JZE3_0qvrMg
+Abseil's Open Source Hashtables: 2 Years In - Matt Kulukundis - CppCon 2019.
+
+
+- - -
+
+
 In practice, cuckoo hashing is about 20–30% slower than linear probing, which is the fastest of the common approaches.[1] The reason is that cuckoo hashing often causes two cache misses per search, to check the two locations where a key might be stored, while linear probing usually causes only one cache miss per search. However, because of its worst case guarantees on search time, cuckoo hashing can still be valuable when real-time response rates are required. One advantage of cuckoo hashing is its link-list free property, which fits GPU processing well.
 
 - - -
