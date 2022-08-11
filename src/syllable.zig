@@ -356,14 +356,16 @@ pub const Syllable = struct {
             },
             .ngh => self.am_dau = .ng, // ngh => ng
             .gh => self.am_dau = .g, // gh => g
-            else => {
-                if (self.am_dau == .g and self.am_giua == .i) self.am_dau = .gi;
-                // phân biệt gì ghì, gìm ghìm
-                // gì => gi+ì (dì), gìm => gi+ìm (dìm), `gi` đọc là `d`
-                // ghìm, `gh` đọc là `g`
-                // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-gìm
-                // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-ghìm
+            .g => {
+                if (self.am_giua == .i and self.am_cuoi == ._none)
+                    self.am_dau = .gi;
             },
+            // phân biệt gì ghì, gìm ghìm
+            // gì => gi+ì (dì), gìm => gi+ìm (dìm), `gi` đọc là `d`
+            // ghìm, `gh` đọc là `g`
+            // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-gìm
+            // https://vtudien.com/viet-viet/dictionary/nghia-cua-tu-ghìm
+            else => {},
         }
 
         self.normalized = true;

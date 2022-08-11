@@ -65,6 +65,7 @@ pub fn main() void {
     _parse("nz");
     _parse("a");
     _parse("quẹc");
+    _parse("ghịu");
     _parse("gịu");
 }
 
@@ -119,7 +120,6 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
         // gi nhưng i là âm giữa vì âm sau là phụ âm cuối
         if (syll.am_dau == .gi) {
             syll.tone = c1.tone;
-            // if (syll.tone != ._none) std.debug.print("\n>> {} <<\n", .{syll.tone});
 
             if (idx == bytes_len) { // => `gi`, `gì`, `gỉ`, `gĩ`, `gị`
                 syll.am_giua = .i;
@@ -147,7 +147,6 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
 
     // VALIDATION
     if (syll.am_dau.len() == bytes_len) { // => ko có âm giữa
-        // std.debug.print("\n>> {} <<\n", .{syll.am_dau});
         syll.can_be_vietnamese = false;
         return syll; // DONE
     }
@@ -313,4 +312,12 @@ fn expectSyll(str: []const u8, i: sds.AmDau, m: sds.AmGiua, f: sds.AmCuoi, t: sd
 test "k phải âm tiết" {
     try expectSyll("nh", .nh, ._none, ._none, ._none, false);
     try expectSyll("nz", .n, ._none, ._none, ._none, false);
+}
+
+test "gịu" {
+    const syll = parseSyllable("gịu");
+    try expectEqual(syll.am_dau, .g);
+    try expectEqual(syll.am_giua, .i);
+    try expectEqual(syll.am_cuoi, .u);
+    try expectEqual(syll.tone, .j);
 }
