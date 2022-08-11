@@ -4,8 +4,8 @@ const cmn = @import("common.zig");
 
 // simple config
 const default_file = "utf8tv.txt";
-const file_name = "../data/combined.txt"; // 944 MB
-// const file_name = default_file;
+// const file_name = "../data/combined.txt"; // 944 MB
+const file_name = default_file;
 const show_info = std.mem.eql(u8, file_name, default_file);
 // const show_info = true;
 

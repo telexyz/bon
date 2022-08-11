@@ -15,11 +15,11 @@ pub const AmDau = enum {
     m,
     n,
     p,
-    r, // 10th
+    r,
     s,
     t,
     v,
-    x, // 15th
+    x,
     ch,
     gi, // dùng như âm d, `gì` viết đúng, đủ là `giì`, đọc là `dì`
     kh,
@@ -102,7 +102,7 @@ test "Enum AmDau" {
 //   - Ghi bằng ua khi sau nó không có âm cuối (VD: mua,...)
 
 pub const AmGiua = enum {
-    // 23 âm giữa (âm đệm + nguyên âm)
+    // 26 âm giữa (âm đệm_nguyên âm) + 2 âm hỗ trợ rút gọn = 28
     a, // 0th
     e,
     i,
@@ -132,10 +132,15 @@ pub const AmGiua = enum {
     u_ow, // uơ <= quơ, huơ, thuở
     uyez, // uyê // 25
 
+    // Hỗ trợ
+    // - - - - - - - - - - - - -
+    ah, // giúp rút gọn âm cuối
+    oah, // giúp rút gọn âm cuối // 27
+
     // Transit States
-    // - - - - - - - - - - - - - - - - - - - - - - -
+    // - - - - - - - - - - - - - - - - - - - - -
     ue, // => `oe` với que => coe, `uez` với tue
-    ui, // => `uy` với qui => cuy
+    ui, // => `uy` với qui => cuy // 29
 
     _none, // none chỉ để đánh dấu chưa parse, sau bỏ đi
 
@@ -143,7 +148,7 @@ pub const AmGiua = enum {
         return switch (@enumToInt(self)) {
             0...11 => 1,
             25 => 3,
-            28 => 0,
+            30 => 0,
             else => 2,
         };
     }
@@ -176,7 +181,7 @@ pub const AmGiua = enum {
     }
     pub fn hasAmDem(self: AmGiua) bool {
         return switch (self) {
-            .uaz, .uez, .uy, .uyez, .uya => true,
+            .uaz, .uez, .uy, .uyez => true,
             .oa, .oaw, .oe, .oo => true,
             else => false,
         };
@@ -191,7 +196,6 @@ test "Enum AmGiua" {
     try expect(AmGiua.iez.len() == 2);
     try expect(AmGiua.uow.len() == 2);
     try expect(AmGiua.uyez.len() == 3);
-    // try expect(AmGiua.uya.len() == 3);
     try expect(AmGiua._none.len() == 0);
 }
 
@@ -299,14 +303,11 @@ pub const Syllable = struct {
     can_be_vietnamese: bool,
     normalized: bool = false,
 
-    // Chỉ cần 15-bits là đủ để định danh âm tiết viết thường
-    // và còn dư 6_516 slots có id theo thứ tự tăng dần.
-    // Với valid syllable_id từ 0 -> 26_249, kiểm tra thấy
-    // 8_370 slot không thỏa mãn luật kết hợp âm tiết. (17_880 valid syllable ids)
-    // => Total: 14_886 free slot to lưu OOV
-    pub const UniqueId = u16;
-    pub const MAXX_ID: UniqueId = 25 * 25 * 42; // 26_251..32_766 => dư 6_515 slots liền kề
-    pub const NONE_ID: UniqueId = std.math.maxInt(u15);
+    pub const UniqueId = u15;
+    pub const max_am_dau: UniqueId = 25;
+    pub const max_am_giua: UniqueId = 28;
+    pub const max_am_cuoi_tone: UniqueId = 42;
+    pub const MAXX_ID: UniqueId = max_am_dau * max_am_giua * max_am_cuoi_tone;
 
     pub inline fn hasMark(self: Syllable) bool {
         return self.am_dau == .zd or self.am_giua.hasMark();
@@ -395,11 +396,12 @@ pub const Syllable = struct {
             },
             //  a o => aw u
             //  e o =>  e u
-            // oa o => oa u
+            // oa o => oaw u
             // oe o => oe u
             .o => {
                 am_cuoi = .u;
                 if (am_giua == .a) am_giua = .aw;
+                if (am_giua == .oa) am_giua = .oaw;
             },
             //  ez nh =>  ez ng
             //  i  nh =>  i  ng
@@ -433,30 +435,30 @@ pub const Syllable = struct {
         else // am_cuoi `c, ch, p, t` only 2 tone s, j allowed
             36 + (am_cuoi_id - 6) * 2 + (tone - 1);
         // Validate act
-        std.debug.assert(act < 42);
+        std.debug.assert(act < max_am_cuoi_tone);
 
         const am_dau_id = @enumToInt(self.am_dau);
         const am_giua_id = @enumToInt(am_giua);
         // Validate am_dau and am_giua
-        std.debug.assert(@enumToInt(self.am_dau) < 25);
-        std.debug.assert(@enumToInt(am_giua) < 25);
-        // am_dau 25, am_giua 25, am_cuoi+tone 42
-        return (@intCast(UniqueId, am_dau_id) * 1050) + // 1050 = 42 * 25
-            (@intCast(UniqueId, am_giua_id) * 42) + act;
+        std.debug.assert(@enumToInt(self.am_dau) < max_am_dau);
+        std.debug.assert(@enumToInt(am_giua) < max_am_giua);
+
+        return (@intCast(UniqueId, am_dau_id) * max_am_cuoi_tone * max_am_giua) +
+            (@intCast(UniqueId, am_giua_id) * max_am_cuoi_tone) + act;
     }
 
     pub fn newFromId(id: UniqueId) Syllable {
         std.debug.assert(id < Syllable.MAXX_ID);
-        // am_dau 25, am_giua 25, am_cuoi+tone 42
-        var x = id / 42; // get rid of am_cuoi+tone
+
+        var x = id / max_am_cuoi_tone; // get rid of am_cuoi+tone
         var syllable = Syllable{
-            .am_dau = @intToEnum(AmDau, @truncate(u5, x / 25)),
-            .am_giua = @intToEnum(AmGiua, @truncate(u5, @rem(x, 25))),
+            .am_dau = @intToEnum(AmDau, @truncate(u5, x / max_am_giua)),
+            .am_giua = @intToEnum(AmGiua, @truncate(u5, @rem(x, max_am_giua))),
             .can_be_vietnamese = true,
             .am_cuoi = ._none,
             .tone = ._none,
         };
-        x = @rem(id, 42); // am_cuoi+tone
+        x = @rem(id, max_am_cuoi_tone); // am_cuoi+tone
         if (x < 36) {
             syllable.am_cuoi = @intToEnum(AmCuoi, @truncate(u4, x / 6));
             syllable.tone = @intToEnum(Tone, @truncate(u3, @rem(x, 6)));
@@ -489,7 +491,7 @@ pub const Syllable = struct {
         };
         //  a o <= aw u
         //  e o <=  e u
-        // oa o <= oa u
+        // oa o <= oaw u
         // oe o <= oe u
         if (syllable.am_cuoi == .u) switch (syllable.am_giua) {
             .aw => {
@@ -497,7 +499,12 @@ pub const Syllable = struct {
                 syllable.am_giua = .a;
                 return syllable;
             },
-            .e, .oa, .oe => {
+            .oaw => {
+                syllable.am_cuoi = .o;
+                syllable.am_giua = .oa;
+                return syllable;
+            },
+            .e, .oe => {
                 syllable.am_cuoi = .o;
                 return syllable;
             },
@@ -510,10 +517,6 @@ pub const Syllable = struct {
         //  a  nh <=  ah ng
         // oa  nh <= oah ng
         if (syllable.am_cuoi == .ng) switch (syllable.am_giua) {
-            .y => if (syllable.am_dau == .qu) {
-                syllable.am_cuoi = .nh;
-                return syllable;
-            },
             .ez, .i, .uez, .uy => {
                 syllable.am_cuoi = .nh;
                 return syllable;
