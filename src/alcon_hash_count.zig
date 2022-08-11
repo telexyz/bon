@@ -34,7 +34,7 @@ const math = std.math;
 const mem = std.mem;
 const Allocator = mem.Allocator;
 
-fn HashCount(comptime capacity: u32) type {
+pub fn HashCount(comptime capacity: u32) type {
     std.debug.assert(math.isPowerOfTwo(capacity));
 
     const shift = 63 - math.log2_int(u64, capacity) + 1;
@@ -80,28 +80,19 @@ fn HashCount(comptime capacity: u32) type {
             return self.entries[0..size];
         }
 
-        pub inline fn equal(a: KeyType, b: KeyType) bool {
-            const v1: VecType = a;
-            const v2: VecType = b;
-            // std.debug.print("\nv1: `{s}`", .{@as(KeyType, v1)});
-            // std.debug.print("\nv2: `{s}`", .{@as(KeyType, v2)});
-            const match = @ptrCast(*const u32, &(v1 == v2)).*;
-            // std.debug.print("\nmatch: {b}\n", .{match});
-            return !(match < std.math.maxInt(u32));
-        }
+        pub fn put(self: *Self, key: []const u8) CountType {
+            if (key.len > 31) return 0;
 
-        pub fn put(self: *Self, _key: *KeyType) CountType {
-            const key = _key.*;
             var it: Self.Entry = .{
-                .hash = Wyhash.hash(key[0], key[0..]),
+                .hash = Wyhash.hash(0, key),
                 .count = 1,
             };
 
-            // unroll loop gán copy giá trị cho entry.key
-            comptime var x: usize = 0;
-            comptime while (x < KEY_BYTE_LEN) : (x += 1) {
-                it.key[x] = key[x];
-            };
+            // std.debug.print("\nhash: {x}", .{it.hash});
+            // gán giá trị cho entry.key
+            var x: usize = 0;
+            while (x < key.len) : (x += 1) it.key[x] = key[x];
+            it.key[x] = 0;
 
             // Sử dụng capacity isPowerOfTwo và dùng hàm shift để băm hash vào index.
             // Nhờ dùng right-shift nên giữ được bit cao của hash value trong index
@@ -116,7 +107,7 @@ fn HashCount(comptime capacity: u32) type {
                 // có hash value >= hash đang xem xét (clever trick 2)
                 if (entry.hash >= it.hash) {
                     // Tìm dc slot
-                    if (equal(entry.key, key)) {
+                    if (equal(entry.key, it.key)) {
                         // Tìm được đúng ô chứa, tăng count lên 1 and return :)
                         self.entries[i].count += 1;
                         return entry.count + 1;
@@ -140,20 +131,33 @@ fn HashCount(comptime capacity: u32) type {
             } // while
         }
 
-        pub fn get(self: *Self, _key: *KeyType) CountType {
-            const key = _key.*;
-            const hash = Wyhash.hash(key[0], key[0..]);
+        pub fn get(self: *Self, key: []const u8) CountType {
+            if (key.len > 31) return 0;
+
+            const hash = Wyhash.hash(0, key);
+            // std.debug.print("\nhash: {x}", .{hash});
 
             var i = hash >> shift;
             // Vì hash value luôn tăng nên khi entry.hash > hash nghĩa là key chưa dc đếm
             while (true) : (i += 1) {
                 const entry = self.entries[i];
                 if (entry.hash >= hash) {
-                    if (equal(entry.key, key))
+                    // std.debug.print("\nentry.key: {s}", .{entry.key[0..key.len]});
+                    if (entry.key[key.len] == 0 and
+                        std.mem.eql(u8, entry.key[0..key.len], key))
+                    {
                         return entry.count;
+                    }
                     return 0;
                 }
             }
+        }
+
+        pub inline fn equal(a: KeyType, b: KeyType) bool {
+            const v1: VecType = a;
+            const v2: VecType = b;
+            const match = @ptrCast(*const u32, &(v1 == v2)).*;
+            return !(match < std.math.maxInt(u32));
         }
     };
 }
@@ -163,17 +167,9 @@ test "HashCount" {
     var counters: HC1024 = undefined;
     try counters.init(std.heap.page_allocator);
     defer counters.deinit();
-    var buf1: HC1024.KeyType = undefined;
-    var buf2: HC1024.KeyType = undefined;
-    buf1[0] = 'a';
-    buf2[0] = 'b';
-    // std.debug.print("\nbuf1: `{s}`", .{buf1[0..]});
-    // std.debug.print("\nbuf2: `{s}`", .{buf2[0..]});
-    try std.testing.expect(HC1024.equal(buf1, buf1));
-    try std.testing.expect(!HC1024.equal(buf1, buf2));
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put(&buf1));
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.get(&buf1));
-    try std.testing.expectEqual(@as(HC1024.CountType, 0), counters.get(&buf2));
-    try std.testing.expectEqual(@as(HC1024.CountType, 2), counters.put(&buf1));
-    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put(&buf2));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put("a"));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.get("a"));
+    try std.testing.expectEqual(@as(HC1024.CountType, 0), counters.get("b"));
+    try std.testing.expectEqual(@as(HC1024.CountType, 2), counters.put("a"));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put("b"));
 }
