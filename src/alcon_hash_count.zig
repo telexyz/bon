@@ -37,14 +37,14 @@ const Allocator = mem.Allocator;
 fn HashCount(comptime capacity: u32) type {
     std.debug.assert(math.isPowerOfTwo(capacity));
 
-    const shift = 31 - math.log2_int(u32, capacity) + 1;
-    const overflow = capacity / 10 + math.log2_int(u32, capacity) << 1;
+    const shift = 63 - math.log2_int(u64, capacity) + 1;
+    const overflow = capacity / 10 + math.log2_int(u64, capacity) << 1;
     const size: usize = capacity + overflow;
 
     return struct {
         pub const HashType = u64;
         pub const CountType = u32;
-        const VecType = std.meta.Vector(KEY_BYTE_LEN, u8);
+        const VecType = @Vector(KEY_BYTE_LEN, u8);
 
         pub const KEY_BYTE_LEN: usize = 32;
         pub const KeyType = [KEY_BYTE_LEN]u8;
@@ -80,11 +80,14 @@ fn HashCount(comptime capacity: u32) type {
             return self.entries[0..size];
         }
 
-        inline fn equal(a: KeyType, b: KeyType) bool {
+        pub inline fn equal(a: KeyType, b: KeyType) bool {
             const v1: VecType = a;
             const v2: VecType = b;
+            // std.debug.print("\nv1: `{s}`", .{@as(KeyType, v1)});
+            // std.debug.print("\nv2: `{s}`", .{@as(KeyType, v2)});
             const match = @ptrCast(*const u32, &(v1 == v2)).*;
-            return match > 0;
+            // std.debug.print("\nmatch: {b}\n", .{match});
+            return !(match < std.math.maxInt(u32));
         }
 
         pub fn put(self: *Self, _key: *KeyType) CountType {
@@ -106,6 +109,7 @@ fn HashCount(comptime capacity: u32) type {
             var i = it.hash >> shift;
 
             while (true) : (i += 1) {
+                // std.debug.print("{d}-", .{i});
                 const entry = self.entries[i];
 
                 // Vì hash được khởi tạo = maxx_hash nên đảm bảo slot trống
@@ -154,13 +158,22 @@ fn HashCount(comptime capacity: u32) type {
     };
 }
 
-const testing = std.testing;
-
 test "HashCount" {
     const HC1024 = HashCount(1024);
     var counters: HC1024 = undefined;
     try counters.init(std.heap.page_allocator);
     defer counters.deinit();
-    var buf: HC1024.KeyType = undefined;
-    _ = counters.put(&buf);
+    var buf1: HC1024.KeyType = undefined;
+    var buf2: HC1024.KeyType = undefined;
+    buf1[0] = 'a';
+    buf2[0] = 'b';
+    // std.debug.print("\nbuf1: `{s}`", .{buf1[0..]});
+    // std.debug.print("\nbuf2: `{s}`", .{buf2[0..]});
+    try std.testing.expect(HC1024.equal(buf1, buf1));
+    try std.testing.expect(!HC1024.equal(buf1, buf2));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put(&buf1));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.get(&buf1));
+    try std.testing.expectEqual(@as(HC1024.CountType, 0), counters.get(&buf2));
+    try std.testing.expectEqual(@as(HC1024.CountType, 2), counters.put(&buf1));
+    try std.testing.expectEqual(@as(HC1024.CountType, 1), counters.put(&buf2));
 }
