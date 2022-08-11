@@ -1,11 +1,12 @@
 const std = @import("std");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
+const HashCount = @import("alcon_hash_count.zig").HashCount;
 
 // simple config
 const default_file = "utf8tv.txt";
-// const file_name = "../data/combined.txt"; // 944 MB
-const file_name = default_file;
+const file_name = "../data/combined.txt"; // 944 MB
+// const file_name = default_file;
 const show_info = std.mem.eql(u8, file_name, default_file);
 // const show_info = true;
 
@@ -53,7 +54,13 @@ inline fn inSet(bits: BitType, idx: usize) bool {
 //     return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
 // }
 
+const HashCount1M = HashCount(1 << 20);
+var counters: HashCount1M = undefined;
+
 pub fn main() !void {
+    try counters.init(std.heap.page_allocator);
+    defer counters.deinit();
+
     // cwd(): curr_bytesent working directory
     var file = try std.fs.cwd().openFile(file_name, .{});
     defer file.close();
@@ -105,6 +112,8 @@ pub fn main() !void {
             std.mem.copy(u8, bytes[prev_.len..], curr_);
             const token = bytes[0..(prev_.len + curr_.len)];
 
+            // _ = counters.put(token);
+
             if (show_info)
                 std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
                     tk_idx, sp_idx, token,
@@ -146,15 +155,17 @@ pub fn main() !void {
 }
 
 inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8) void {
-    const bytes = curr_bytes[token_idx..space_idx];
+    const token = curr_bytes[token_idx..space_idx];
+
+    // _ = counters.put(token);
 
     if (show_info)
         std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
             token_idx,
             space_idx,
-            bytes,
+            token,
         });
 
-    const syll = parseSyllable(bytes);
+    const syll = parseSyllable(token);
     if (show_info and syll.can_be_vietnamese) cmn.printSyllParts(syll);
 }
