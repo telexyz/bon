@@ -35,8 +35,10 @@ const Allocator = std.mem.Allocator;
 pub const HashType = u64;
 pub const CountType = u32;
 pub const IndexType = u32;
-pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
 
+pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
+
+pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
 pub const MAX_KEY_LEN: IndexType = 2 * AVG_KEY_LEN;
 pub const AVG_KEY_LEN: IndexType = 32;
 
@@ -69,7 +71,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
         len: usize = 0,
 
         key_bytes: []u8 = undefined,
-        key_index: IndexType = 0,
+        key_index: usize = 0,
 
         pub fn init(self: *Self, init_allocator: Allocator) !void {
             self.allocator = init_allocator;
@@ -77,7 +79,6 @@ pub fn HashCount(comptime capacity: IndexType) type {
             self.key_index = 0;
 
             self.key_bytes = try self.allocator.alloc(u8, size * AVG_KEY_LEN);
-            std.mem.set(u8, self.key_bytes, 0);
 
             self.entries = try self.allocator.alloc(Entry, size);
             const entry = Entry{ .hash = maxx_hash, .count = 0, .key_offset = maxx_index };
@@ -98,7 +99,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
 
             var it: Entry = .{
                 .hash = Wyhash.hash(key[0], key),
-                .count = 1,
+                .count = 1, // phần tử nếu được thêm sẽ có count = 1
             };
 
             // Sử dụng capacity isPowerOfTwo và dùng hàm shift để băm hash vào index.
@@ -132,12 +133,19 @@ pub fn HashCount(comptime capacity: IndexType) type {
                     // key đầu vào lần đầu xuất hiện, ta tăng len và return
                     if (entry.count == 0) {
                         // gán giá trị key cho entries[first_swap_at]
-                        self.entries[first_swap_at].key_offset = self.key_index;
-                        std.mem.copy(u8, self.key_bytes[self.key_index .. self.key_index + key.len], key);
-                        self.key_index += MAX_KEY_LEN;
+                        self.entries[first_swap_at].key_offset = @intCast(IndexType, self.key_index);
+                        var ending = self.key_index;
+                        @setRuntimeSafety(false);
+                        for (key) |k| {
+                            self.key_bytes[ending] = k;
+                            ending += 1;
+                        }
+                        self.key_bytes[ending] = GUARD_BYTE;
+                        self.key_index = ending + 1;
 
+                        // tăng số lượng phần tử được đếm
                         self.len += 1;
-                        return 1;
+                        return 1; // phần tử vừa được thêm nên count = 1
                     }
 
                     // Tráo giá trị it và entries[i]
@@ -158,7 +166,8 @@ pub fn HashCount(comptime capacity: IndexType) type {
                 const entry = self.entries[i];
                 if (entry.hash < hash) continue;
 
-                const equal = (entry.hash == hash) and
+                const equal = (entry.hash == hash) and // check hash first
+                    self.key_bytes[entry.key_offset + key.len] == GUARD_BYTE and // len eql
                     std.mem.eql(u8, entry.key(self.key_bytes, key.len), key);
 
                 return if (equal) entry.count else 0;
