@@ -12,7 +12,6 @@ test "Các âm tiết hợp lệ" {
     while (it.next()) |am_tiet| {
         // std.debug.print("`{s}` ", .{am_tiet});
         var syll = parseSyllable(am_tiet);
-        syll.normalize();
 
         std.testing.expect(syll.can_be_vietnamese) catch |err| {
             cmn.DEBUGGING = true;

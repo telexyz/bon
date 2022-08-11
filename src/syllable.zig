@@ -14,7 +14,7 @@ pub const AmDau = enum {
     l,
     m,
     n,
-    p,
+    p, // 10
     r,
     s,
     t,
@@ -120,7 +120,7 @@ pub const AmGiua = enum {
     oe,
     oo, // boong
     uy, // 15th
-    ua, // => `oa` với qua => coa, `uâ` với tuan, còn lại giữ nguyên
+    ua, // => `oa` với qua => coa, xử lý ở am_tiet.zig
     uo, // quọ
 
     iez, //  iê <= ie (tiên <= tien, tieen, tiezn)
@@ -139,7 +139,7 @@ pub const AmGiua = enum {
 
     // Transit States
     // - - - - - - - - - - - - - - - - - - - - -
-    ue, // => `oe` với que => coe, `uez` với tue
+    ue, // => `oe` với que => coe
     ui, // => `uy` với qui => cuy // 29
 
     _none, // none chỉ để đánh dấu chưa parse, sau bỏ đi
@@ -321,9 +321,9 @@ pub const Syllable = struct {
         return self.hasMark() or self.hasTone();
     }
 
-    pub fn normalize(self: *Syllable) void {
+    pub fn normalize(self: *Syllable) Syllable {
         // std.debug.print("\n!!!! normalizing !!!!\n", .{});
-        if (self.normalized) return;
+        if (self.normalized) return self.*;
 
         switch (self.am_dau) {
             .q => {
@@ -366,17 +366,8 @@ pub const Syllable = struct {
             },
         }
 
-        switch (self.am_giua) {
-            .ua => { // => 'uaz' với huan (có âm cuối)
-                if (self.am_cuoi != ._none) self.am_giua = .uaz;
-            },
-            .ue => { // => `uez` với tue
-                self.am_giua = .uez;
-            },
-            else => {},
-        }
-
         self.normalized = true;
+        return self.*;
     }
 
     pub fn toId(self: *Syllable) UniqueId {
@@ -876,19 +867,18 @@ pub fn main() void {
         var reve = parseSyllable(a);
         const b = reve.printBuffUtf8(buf2);
 
-        if (std.mem.eql(u8, a, b)) continue;
+        if (std.mem.eql(u8, a, b)) continue; // bỏ qua uoz!=ua[bụa bụa]
 
         if ( //syll.am_dau != reve.am_dau or
         syll.am_giua != reve.am_giua or
             syll.am_cuoi != reve.am_cuoi or
             syll.tone != reve.tone)
         {
-            // if (syll.am_dau != reve.am_dau) std.debug.print(" {}!={}", .{ syll.am_dau, reve.am_dau });
-            if (syll.am_giua != reve.am_giua) std.debug.print(" {}!={}", .{ syll.am_giua, reve.am_giua });
+            if (syll.am_dau != reve.am_dau) std.debug.print(" {s}!={s}", .{ @tagName(syll.am_dau), @tagName(reve.am_dau) });
+            if (syll.am_giua != reve.am_giua) std.debug.print(" {s}!={s}", .{ @tagName(syll.am_giua), @tagName(reve.am_giua) });
+            if (syll.am_cuoi != reve.am_cuoi) std.debug.print(" {s}!={s}", .{ @tagName(syll.am_cuoi), @tagName(reve.am_cuoi) });
+            if (syll.tone != reve.tone) std.debug.print(" {s}!={s}", .{ @tagName(syll.tone), @tagName(reve.tone) });
             std.debug.print("[{s} {s}]   ", .{ a, b });
-            // std.debug.print("{s} ", .{a});
-            // break;
-            // cmn.printSyllParts(reve);
         }
     }
 }

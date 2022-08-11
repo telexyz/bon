@@ -64,13 +64,17 @@ pub fn main() void {
     _parse("nh");
     _parse("nz");
     _parse("a");
-    _parse("giêng");
+    _parse("quẹc");
     _parse("gịu");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
 
-pub fn parseSyllable(bytes: []const u8) sds.Syllable {
+pub inline fn parseSyllable(bytes: []const u8) sds.Syllable {
+    return _parseSyllable(bytes).normalize();
+}
+
+pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
     // const tracy_zone = ztracy.ZoneNC(@src(), "parseSyllable", 0x00_ff_00_00);
     // defer tracy_zone.End();
 
@@ -110,10 +114,9 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
         // gi nhưng i là âm giữa vì âm sau là phụ âm cuối
         if (syll.am_dau == .gi) {
             syll.tone = c1.tone;
-            // std.debug.print("\n>> {} <<\n", .{syll.tone});
+            // if (syll.tone != ._none) std.debug.print("\n>> {} <<\n", .{syll.tone});
 
             if (idx == bytes_len) { // => `gi`, `gì`, `gỉ`, `gĩ`, `gị`
-                syll.am_dau = .g;
                 syll.am_giua = .i;
                 syll.am_cuoi = ._none;
                 syll.can_be_vietnamese = true;
@@ -204,7 +207,7 @@ pub fn parseSyllable(bytes: []const u8) sds.Syllable {
             c0.byte0 = c1.byte0;
 
             // Gán thanh điệu
-            syll.tone = c1.tone;
+            if (syll.tone == ._none) syll.tone = c1.tone;
             if (syll.tone == ._none) syll.tone = c0.tone;
 
             if (idx == bytes_len) { // không có ký tự tiếp theo
