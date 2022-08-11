@@ -328,6 +328,9 @@ pub const Syllable = struct {
         switch (self.am_dau) {
             .q => {
                 switch (self.am_giua) {
+                    .uoz => {
+                        if (self.am_cuoi == ._none) self.can_be_vietnamese = false;
+                    },
                     .ua => { // => `oa` với qua => coa,
                         self.am_dau = .c;
                         self.am_giua = .oa;

@@ -65,8 +65,9 @@ pub fn main() void {
     _parse("nz");
     _parse("a");
     _parse("quẹc");
-    _parse("ghịu");
-    _parse("gịu");
+    _parse("cuyễn");
+    _parse("quô");
+    _parse("quyêm");
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -105,8 +106,8 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
         } else { // lấy thêm 1 ký tự nữa để kiểm tra phụ âm đôi
             c1.parse(bytes, idx);
             idx += c1.len;
-            syll.am_dau = if (c1.tone != ._none)
-                // nếu char có thanh điệu thì thuộc về nguyên âm
+            syll.am_dau = if (c1.tone != ._none and c0.byte0 != 'q')
+                // nếu char có thanh điệu thì thuộc về nguyên âm, ko áp dụng với qù
                 // => phân tích phụ âm đầu bằng char đầu tiên thôi
                 getInitial(c0.byte0, c0.byte1)
             else
@@ -297,27 +298,4 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
     syll.can_be_vietnamese = syll.am_cuoi != ._none;
 
     return syll; // DONE
-}
-
-const expectEqual = std.testing.expectEqual;
-fn expectSyll(str: []const u8, i: sds.AmDau, m: sds.AmGiua, f: sds.AmCuoi, t: sds.Tone, cbvn: bool) !void {
-    const syll = parseSyllable(str);
-    try expectEqual(syll.am_dau, i);
-    try expectEqual(syll.am_giua, m);
-    try expectEqual(syll.am_cuoi, f);
-    try expectEqual(syll.tone, t);
-    try expectEqual(syll.can_be_vietnamese, cbvn);
-}
-
-test "k phải âm tiết" {
-    try expectSyll("nh", .nh, ._none, ._none, ._none, false);
-    try expectSyll("nz", .n, ._none, ._none, ._none, false);
-}
-
-test "gịu" {
-    const syll = parseSyllable("gịu");
-    try expectEqual(syll.am_dau, .g);
-    try expectEqual(syll.am_giua, .i);
-    try expectEqual(syll.am_cuoi, .u);
-    try expectEqual(syll.tone, .j);
 }
