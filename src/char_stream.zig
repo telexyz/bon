@@ -47,7 +47,7 @@ inline fn inSet(bits: BitType, idx: usize) bool {
 //     return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
 // }
 
-const HashCount1M = HashCount(1 << 20);
+const HashCount1M = HashCount(1 << 22);
 var counters: HashCount1M = undefined;
 
 fn scanFile(file_name: []const u8) !void {
@@ -174,14 +174,13 @@ pub fn main() !void {
     // try scanFile("../data/vietai_sat.txt");
     // try scanFile("../data/vi_wiki_all.txt");
 
-    // TODO: bị hang khi scan nhiều files 1 lúc
-    // - - - - - - - - - - - - - - - - - - - -
+    // Chạy 4 threads giúp tăng tốc gấp đôi
     var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
     var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
     try scanFile("../data/fb_comments.txt");
     thread1.join();
-    // thread2.join();
+    thread2.join();
     thread3.join();
 
     counters.list(0);
