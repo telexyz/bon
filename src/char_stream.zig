@@ -3,8 +3,8 @@ const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 
 const HashCount = @import("alcon_hash_count.zig").HashCount;
-const HashCount4M = HashCount(4_194_304);
-var counters: HashCount4M = undefined; // dùng chung cho nhiều threads
+const HashCount2M5 = HashCount(2_200_000);
+var counters: HashCount2M5 = undefined; // dùng chung cho nhiều threads
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)

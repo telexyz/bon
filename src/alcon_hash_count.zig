@@ -36,8 +36,8 @@ pub const IndexType = u32;
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
 pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: IndexType = AVG_KEY_LEN * 2;
-pub const AVG_KEY_LEN: IndexType = 32;
+pub const MAX_KEY_LEN: IndexType = 50;
+pub const AVG_KEY_LEN: IndexType = 20;
 
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
@@ -59,12 +59,10 @@ pub const Entry = packed struct {
 };
 
 pub fn HashCount(comptime capacity: IndexType) type {
-    std.debug.assert(std.math.isPowerOfTwo(capacity));
-    std.debug.assert(capacity < MAX_CAPACITY);
-
-    const shift = 63 - std.math.log2_int(u64, capacity) + 1;
-    const overflow = capacity / 10 + std.math.log2_int(u64, capacity) << 1;
-    const size: usize = capacity + overflow;
+    const bits = std.math.log2_int(u64, capacity);
+    const shift = 63 - bits;
+    const size = @as(usize, 2) << bits;
+    std.debug.assert(size < MAX_CAPACITY);
 
     return struct {
         const Self = @This();
@@ -81,7 +79,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
             self.len = 0;
             self.key_index = 0;
 
-            self.key_bytes = try self.allocator.alloc(u8, size * AVG_KEY_LEN);
+            self.key_bytes = try self.allocator.alloc(u8, capacity * AVG_KEY_LEN);
             self.entries = try self.allocator.alloc(Entry, size);
 
             const entry = Entry{ .hash = maxx_hash, .count = 0, .key_offset = maxx_index };
