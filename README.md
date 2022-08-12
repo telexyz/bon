@@ -3,9 +3,9 @@
 Mục tiêu phân tách âm tiết utf-8 thành `âm đầu + âm giữa + âm cuối + thanh điệu`.
 Các `tokens` ko phải âm tiết được phân tách bằng BPE (Byte-Pair Encoding).
 
-Các kỹ thuật có thể áp dụng: SIMD (vectorized), branchless, multiple-thread
+Các kỹ thuật có thể áp dụng: SIMD (vectorized), branchless, multi-threading
 
-Kỳ vọng tăng tốc `~10x-20x` so với scalar, single thread code
+Kỳ vọng tăng tốc `~10x` so với scalar, single thread code
 
 ```
 
