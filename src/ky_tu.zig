@@ -42,11 +42,20 @@ pub const Char = struct {
         return self.len == 0;
     }
 
+    inline fn setEndOfStr(self: *Char) void {
+        self.setInvalid();
+        self.byte0 = 255;
+    }
+
+    inline fn isEndOfStr(self: Char) bool {
+        return self.byte0 == 255;
+    }
+
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
         // std.debug.assert(idx < bytes.len);
-        if (bytes.len <= idx) {
-            if (cmn.DEBUGGING) std.debug.print("\n\n>> {s}\n", .{bytes});
-            self.byte0 = 0;
+        if (idx >= bytes.len) {
+            if (cmn.DEBUGGING) std.debug.print("\n\n>> {s} <<\n", .{bytes});
+            self.setEndOfStr();
             return;
         }
 

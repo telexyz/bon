@@ -83,7 +83,8 @@ pub fn main() void {
 const MAX_SYLL_BYTES_LEN = 12;
 
 pub inline fn parseSyllable(bytes: []const u8) sds.Syllable {
-    return _parseSyllable(bytes).normalize();
+    var syll = _parseSyllable(bytes);
+    return syll.normalize();
 }
 
 pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
