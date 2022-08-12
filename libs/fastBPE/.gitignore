@@ -1,0 +1,12 @@
+/data/
+/output/
+/zig-cache/
+/bin_cpp
+/test/valgrind/
+
+*.o
+*.dylib
+
+# python
+__pycache__/
+/venv/
