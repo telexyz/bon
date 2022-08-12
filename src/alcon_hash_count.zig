@@ -29,9 +29,6 @@
 
 const std = @import("std");
 
-const Wyhash = std.hash.Wyhash;
-const Allocator = std.mem.Allocator;
-
 pub const HashType = u64;
 pub const CountType = u32;
 pub const IndexType = u32;
@@ -66,21 +63,21 @@ pub fn HashCount(comptime capacity: IndexType) type {
     return struct {
         const Self = @This();
 
-        allocator: Allocator = undefined,
+        allocator: std.mem.Allocator = undefined,
         entries: []Entry = undefined,
         len: usize = 0,
 
         key_bytes: []u8 = undefined,
         key_index: usize = 0,
 
-        pub fn init(self: *Self, init_allocator: Allocator) !void {
+        pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.allocator = init_allocator;
             self.len = 0;
             self.key_index = 0;
 
             self.key_bytes = try self.allocator.alloc(u8, size * AVG_KEY_LEN);
-
             self.entries = try self.allocator.alloc(Entry, size);
+
             const entry = Entry{ .hash = maxx_hash, .count = 0, .key_offset = maxx_index };
             std.mem.set(Entry, self.entries, entry);
         }
@@ -94,11 +91,15 @@ pub fn HashCount(comptime capacity: IndexType) type {
             return self.entries[0..size];
         }
 
+        inline fn _hash(key: []const u8) u64 {
+            return std.hash.Wyhash.hash(key[0], key);
+        }
+
         pub fn put(self: *Self, key: []const u8) CountType {
             if (key.len > MAX_KEY_LEN) return 0;
 
             var it: Entry = .{
-                .hash = Wyhash.hash(key[0], key),
+                .hash = _hash(key),
                 .count = 1, // phần tử nếu được thêm sẽ có count = 1
             };
 
@@ -109,7 +110,6 @@ pub fn HashCount(comptime capacity: IndexType) type {
             var first_swap_at: usize = maxx_index;
 
             while (true) : (i += 1) {
-                // std.debug.print("{d}-", .{i});
                 const entry = self.entries[i];
 
                 // Vì hash được khởi tạo = maxx_hash nên đảm bảo slot trống
@@ -158,7 +158,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
         pub fn get(self: *Self, key: []const u8) CountType {
             if (key.len > MAX_KEY_LEN) return 0;
 
-            const hash = Wyhash.hash(key[0], key);
+            const hash = _hash(key);
 
             var i = hash >> shift;
             // Vì hash value luôn tăng nên khi entry.hash > hash nghĩa là key chưa dc đếm
