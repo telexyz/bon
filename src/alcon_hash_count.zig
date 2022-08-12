@@ -36,7 +36,7 @@ pub const IndexType = u32;
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
 pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: IndexType = 32;
+pub const MAX_KEY_LEN: IndexType = AVG_KEY_LEN * 2;
 pub const AVG_KEY_LEN: IndexType = 32;
 
 const maxx_hash = std.math.maxInt(HashType);
