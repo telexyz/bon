@@ -127,10 +127,12 @@ pub fn HashCount(capacity: usize) type {
                     self.entries[i].count += 1;
                     return entry.count + 1;
                     //
-                } else {
-                    // Không đúng ô chứa mà hash của ô lại lớn hơn
-                    // thì ta ghi đè giá trị của it vào đó
+                } else { // => entry.hash > it.hash
+                    // Tráo giá trị it và entries[i]
+                    // để đảm bảo tính tăng dần của hash value (clever trick 3)
                     self.entries[i] = it;
+                    it = entry;
+
                     if (first_swap_at == maxx_index) {
                         first_swap_at = i;
                     }
@@ -152,11 +154,7 @@ pub fn HashCount(capacity: usize) type {
                         // tăng số lượng phần tử được đếm
                         self.len += 1;
                         return 1; // phần tử vừa được thêm nên count = 1
-                    }
-
-                    // Tráo giá trị it và entries[i]
-                    // để đảm bảo tính tăng dần của hash value (clever trick 3)
-                    it = entry;
+                    } // entry.count == 0
                 } // else
             } // while
         }
