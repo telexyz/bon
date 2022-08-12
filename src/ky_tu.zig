@@ -43,6 +43,13 @@ pub const Char = struct {
     }
 
     pub inline fn parse(self: *Char, bytes: []const u8, idx: usize) void {
+        // std.debug.assert(idx < bytes.len);
+        if (bytes.len <= idx) {
+            if (cmn.DEBUGGING) std.debug.print("\n\n>> {s}\n", .{bytes});
+            self.byte0 = 0;
+            return;
+        }
+
         const curr_byte = bytes[idx];
 
         if (cmn.DEBUGGING) cmn.showChatAt(bytes, idx);
@@ -108,6 +115,17 @@ pub const Char = struct {
                             self.vowel = !(next_byte == 145); // not 'đ'196:145
                         }
                     },
+                }
+            },
+
+            204 => {
+                const next_byte = bytes[idx + 1];
+                switch (next_byte) {
+                    137 => { // ̉ 204:137
+                        self.byte0 = 0;
+                        self.tone = .r;
+                    },
+                    else => {},
                 }
             },
 
@@ -402,4 +420,10 @@ test "char.parse(D/)" {
     try charEqual(_parse(&char, "Ỵ"), 0, 'y', .j, 3, true, true);
     try charEqual(_parse(&char, "Ỷ"), 0, 'y', .r, 3, true, true);
     try charEqual(_parse(&char, "Ỹ"), 0, 'y', .x, 3, true, true);
+}
+
+test "Unicode tổ hợp" {
+    // "́ hệ của cái gia đình này và chắc chắn ră�"
+    var char: Char = undefined;
+    _ = char.parse("ủ", 1);
 }

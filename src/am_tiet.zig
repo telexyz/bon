@@ -63,11 +63,21 @@ pub fn main() void {
     cmn.DEBUGGING = true;
     _parse("nh");
     _parse("nz");
-    _parse("a");
-    _parse("quẹc");
-    _parse("cuyễn");
-    _parse("quô");
-    _parse("quyêm");
+    _parse("ai");
+    _parse(" ̣");
+    _parse(" ̣ ");
+    // _parse("quẹc");
+    // _parse("cuyễn");
+    // _parse("quô");
+    // _parse("quyêm");
+
+    // unicode tổ hợp
+    // "́ hệ của cái gia đình này và chắc chắn ră�"
+    // const token = "của";
+    // _parse(token);
+    // for (token) |c, i| {
+    //     std.debug.print("\n{d}-{d} {b}", .{ i, c, c });
+    // }
 }
 
 const MAX_SYLL_BYTES_LEN = 12;
@@ -116,7 +126,15 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
 
         // bỏ qua h của ngh
         if (syll.am_dau == .ng and idx < bytes_len and
-            (bytes[idx] == 'h' or bytes[idx] == 'H')) idx += 1;
+            (bytes[idx] == 'h' or bytes[idx] == 'H'))
+        {
+            idx += 1;
+            if (idx == bytes_len) {
+                // ko có nguyên âm nên ko phải âm tiết
+                syll.can_be_vietnamese = false;
+                return syll; // DONE
+            }
+        }
 
         // gi nhưng i là âm giữa vì âm sau là phụ âm cuối
         if (syll.am_dau == .gi) {
@@ -188,8 +206,10 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
         //
     } else { // âm giữa có thể có 2 ký tự
 
-        c1.parse(bytes, idx);
-        idx += c1.len;
+        if (c0.vowel and idx < bytes_len) {
+            c1.parse(bytes, idx);
+            idx += c1.len;
+        }
 
         if (cmn.DEBUGGING) {
             const str: []const u8 = &.{ c1.byte1, c1.byte0 };

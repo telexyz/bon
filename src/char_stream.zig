@@ -167,36 +167,22 @@ pub fn main() !void {
     try counters.init(std.heap.page_allocator);
     defer counters.deinit();
 
-    try scanFile("utf8tv.txt");
+    // try scanFile("utf8tv.txt");
 
-    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-    try scanFile("../data/fb_comments.txt");
-    thread1.join();
-
-    // TODO: panic: index out of bounds khi scan files
-    // => có thể là do chưa handle utf tổ hợp
-    // - - - - - - - - - - - - - - - -
     // try scanFile("../data/fb_comments.txt");
     // try scanFile("../data/news_titles.txt");
     // try scanFile("../data/vietai_sat.txt");
-    // try scanFile("../data/combined.txt");
-    // try scanFile("../data/big01.txt");
+    // try scanFile("../data/vi_wiki_all.txt");
 
     // TODO: bị hang khi scan files
     // - - - - - - - - - - - - - - - -
-    // try scanFile("../data/vi_wiki_all.txt");
-    // try scanFile("../data/big02.txt");
-
-    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/big01.txt"});
-    // try scanFile("../data/combined.txt");
-    // thread1.join();
 
     // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-    // try scanFile("../data/combined.txt");
-    // thread1.join();
-    // thread2.join();
+    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+    try scanFile("../data/fb_comments.txt");
+    thread1.join();
+    thread2.join();
     // thread3.join();
 
     counters.list(0);
@@ -204,3 +190,4 @@ pub fn main() !void {
 
 // simple config
 const show_info = false;
+// const show_info = true;
