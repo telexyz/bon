@@ -174,16 +174,15 @@ pub fn main() !void {
     // try scanFile("../data/vietai_sat.txt");
     // try scanFile("../data/vi_wiki_all.txt");
 
-    // TODO: bị hang khi scan files
-    // - - - - - - - - - - - - - - - -
-
-    // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    // TODO: bị hang khi scan nhiều files 1 lúc
+    // - - - - - - - - - - - - - - - - - - - -
+    var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
     var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
     try scanFile("../data/fb_comments.txt");
     thread1.join();
-    thread2.join();
-    // thread3.join();
+    // thread2.join();
+    thread3.join();
 
     counters.list(0);
 }
