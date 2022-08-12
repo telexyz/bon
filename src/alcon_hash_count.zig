@@ -35,9 +35,9 @@ pub const IndexType = u32;
 
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
-pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: IndexType = 50;
-pub const AVG_KEY_LEN: IndexType = 20;
+pub const MAX_CAPACITY: usize = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
+pub const MAX_KEY_LEN: usize = 50;
+pub const AVG_KEY_LEN: usize = 20;
 
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
@@ -58,11 +58,13 @@ pub const Entry = packed struct {
     }
 };
 
-pub fn HashCount(comptime capacity: IndexType) type {
+pub fn HashCount(capacity: usize) type {
     const bits = std.math.log2_int(u64, capacity);
     const shift = 63 - bits;
     const size = @as(usize, 2) << bits;
+
     std.debug.assert(size < MAX_CAPACITY);
+    std.debug.assert(size > capacity);
 
     return struct {
         const Self = @This();
