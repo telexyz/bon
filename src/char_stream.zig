@@ -1,7 +1,10 @@
 const std = @import("std");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
+
 const HashCount = @import("alcon_hash_count.zig").HashCount;
+const HashCount4M = HashCount(4_194_304);
+var counters: HashCount4M = undefined; // dùng chung cho nhiều threads
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
@@ -46,9 +49,6 @@ inline fn inSet(bits: BitType, idx: usize) bool {
 //     const _u64s = @ptrCast(*const [BYTES_PROCESSED / 64]u64, bits).*;
 //     return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
 // }
-
-const HashCount1M = HashCount(1 << 22);
-var counters: HashCount1M = undefined;
 
 fn scanFile(file_name: []const u8) !void {
     // cwd(): curr_bytesent working directory
@@ -174,7 +174,8 @@ pub fn main() !void {
     // try scanFile("../data/vietai_sat.txt");
     // try scanFile("../data/vi_wiki_all.txt");
 
-    // Chạy 4 threads giúp tăng tốc gấp đôi
+    // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
+    // - - - - - - - - - - - - - - - - - -
     var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
     var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
     var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
