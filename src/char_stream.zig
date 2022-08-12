@@ -3,13 +3,6 @@ const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 const HashCount = @import("alcon_hash_count.zig").HashCount;
 
-// simple config
-const default_file = "utf8tv.txt";
-const file_name = "../data/combined.txt"; // 944 MB
-// const file_name = default_file;
-const show_info = std.mem.eql(u8, file_name, default_file);
-// const show_info = true;
-
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
 
@@ -57,10 +50,7 @@ inline fn inSet(bits: BitType, idx: usize) bool {
 const HashCount1M = HashCount(1 << 20);
 var counters: HashCount1M = undefined;
 
-pub fn main() !void {
-    try counters.init(std.heap.page_allocator);
-    defer counters.deinit();
-
+fn scanFile(file_name: []const u8) !void {
     // cwd(): curr_bytesent working directory
     var file = try std.fs.cwd().openFile(file_name, .{});
     defer file.close();
@@ -153,7 +143,8 @@ pub fn main() !void {
         count += 1;
     }
 
-    counters.list();
+    counters.list(10);
+    std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
 
 inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8) void {
@@ -171,3 +162,40 @@ inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8)
     const syll = parseSyllable(token);
     if (show_info and syll.can_be_vietnamese) cmn.printSyllParts(syll);
 }
+
+pub fn main() !void {
+    try counters.init(std.heap.page_allocator);
+    defer counters.deinit();
+
+    // try scanFile("utf8tv.txt");
+    // try scanFile("../data/fb_comments.txt");
+    // try scanFile("../data/news_titles.txt");
+    // try scanFile("../data/vietai_sat.txt");
+    // try scanFile("../data/combined.txt");
+    // try scanFile("../data/big01.txt");
+
+    // TODO: bị hang khi scan những file này
+    // try scanFile("../data/vi_wiki_all.txt");
+    // try scanFile("../data/big02.txt");
+
+    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/big01.txt"});
+    // try scanFile("../data/combined.txt");
+    // thread1.join();
+
+    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+    try scanFile("../data/fb_comments.txt");
+    thread1.join();
+
+    // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+    // try scanFile("../data/combined.txt");
+    // thread1.join();
+    // thread2.join();
+    // thread3.join();
+
+    counters.list(0);
+}
+
+// simple config
+const show_info = false;

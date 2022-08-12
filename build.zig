@@ -1,5 +1,5 @@
 const std = @import("std");
-const ztracy = @import("libs/ztracy/build.zig");
+// const ztracy = @import("libs/ztracy/build.zig");
 
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
@@ -18,11 +18,11 @@ pub fn build(b: *std.build.Builder) void {
     const exe = b.addExecutable("char_stream", "src/char_stream.zig");
     // const exe = b.addExecutable("turbo", "src/main.zig");
 
-    const ztracy_enable = b.option(bool, "ztracy-enable", "Enable Tracy profiler") orelse false;
-    const ztracy_options = ztracy.BuildOptionsStep.init(b, .{ .enable_ztracy = ztracy_enable });
-    const ztracy_pkg = ztracy.getPkg(&.{ztracy_options.getPkg()});
-    exe.addPackage(ztracy_pkg);
-    ztracy.link(exe, ztracy_options);
+    // const ztracy_enable = b.option(bool, "ztracy-enable", "Enable Tracy profiler") orelse false;
+    // const ztracy_options = ztracy.BuildOptionsStep.init(b, .{ .enable_ztracy = ztracy_enable });
+    // const ztracy_pkg = ztracy.getPkg(&.{ztracy_options.getPkg()});
+    // exe.addPackage(ztracy_pkg);
+    // ztracy.link(exe, ztracy_options);
 
     exe.setTarget(target);
     exe.setBuildMode(mode);

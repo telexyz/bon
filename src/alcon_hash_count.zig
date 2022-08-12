@@ -25,7 +25,7 @@
 // 32-bytes + u32 + u64 = 44-bytes
 // unique tokens gọi là types. Giả sử có 1 triệu (2^20) types => 1M * 36-bytes = 44 Mb
 
-// Modified from https://raw.githubusercontent.com/telexyz/engine/main/.save/hash_count.zig
+// Algorithm from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
 
 const std = @import("std");
 
@@ -36,7 +36,7 @@ pub const IndexType = u32;
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
 pub const MAX_CAPACITY: IndexType = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: IndexType = 2 * AVG_KEY_LEN;
+pub const MAX_KEY_LEN: IndexType = 32;
 pub const AVG_KEY_LEN: IndexType = 32;
 
 const maxx_hash = std.math.maxInt(HashType);
@@ -49,6 +49,12 @@ pub const Entry = packed struct {
 
     pub inline fn key(self: Entry, key_bytes: []const u8, len: usize) []const u8 {
         return key_bytes[self.key_offset .. self.key_offset + len];
+    }
+
+    pub inline fn key_str(self: Entry, key_bytes: []const u8) []const u8 {
+        var ending: usize = self.key_offset + 1;
+        while (key_bytes[ending] != GUARD_BYTE) ending += 1;
+        return key_bytes[self.key_offset..ending];
     }
 };
 
@@ -174,21 +180,23 @@ pub fn HashCount(comptime capacity: IndexType) type {
             }
         }
 
-        pub fn list(self: *Self) void {
+        pub fn list(self: *Self, max: usize) void {
             var i: usize = 0;
             var n: usize = 0;
             while (i < size) : (i += 1) {
                 const entry = self.entries[i];
                 if (entry.count > 0) {
                     std.debug.print("\ncount[{s}]: {d}", .{
-                        entry.key(self.key_bytes, MAX_KEY_LEN),
+                        entry.key_str(self.key_bytes),
                         entry.count,
                     });
                     n += 1;
-                    if (n > 50) break;
+                    if (n > max) break;
                 }
             }
-            std.debug.print("\nTOTAL {d}.\n{s}\n", .{ self.len, self.key_bytes[0..2048] });
+
+            if (max == 0)
+                std.debug.print("\nTOTAL {d}.\n{s}\n", .{ self.len, self.key_bytes[0..2048] });
         }
     };
 }
