@@ -104,6 +104,8 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub fn put(self: *Self, key: []const u8) CountType {
+            // if (key.len < 3) return 0; // skip 1-2 char's strings (count using array later)
+            // => Ko cải tiến rõ rệt => BỎ QUA.
             if (key.len > MAX_KEY_LEN) return 0;
 
             var it: Entry = .{
