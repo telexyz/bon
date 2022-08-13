@@ -181,9 +181,12 @@ pub fn HashCount(capacity: usize) type {
                 const entry = self.entries[i];
                 if (entry.hash < hash) continue;
 
+                const offset = self.key_offsets[i];
+                const ending = offset + key.len;
+
                 const equal = (entry.hash == hash) and // check hash first
-                    self.key_bytes[entry.key_offset + key.len] == GUARD_BYTE and // len eql
-                    std.mem.eql(u8, entry.key(self.key_bytes, key.len), key);
+                    self.key_bytes[ending] == GUARD_BYTE and // len eql
+                    std.mem.eql(u8, self.key_bytes[offset..ending], key);
 
                 return if (equal) entry.count else 0;
             }
