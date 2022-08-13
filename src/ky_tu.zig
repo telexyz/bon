@@ -65,6 +65,8 @@ pub const Char = struct {
         if (cmn.DEBUGGING) cmn.showChatAt(bytes, idx);
 
         self.vowel = true;
+        self.len = 0;
+        self.setInvalid();
 
         switch (curr_byte) {
             // 1-byte chars
@@ -121,6 +123,7 @@ pub const Char = struct {
                 }
             },
 
+            // TODO: Handle unicode tổ hợp
             204 => {
                 const next_byte = bytes[idx + 1];
                 switch (next_byte) {
@@ -161,15 +164,13 @@ pub const Char = struct {
                         const tone = @intToEnum(sds.Tone, tone_int);
                         self.setb1b0t(b1, b0, tone);
                     },
-                    else => self.setInvalid(),
+                    else => {},
                 }
             }, // switch (curr_byte)
             else => if (curr_byte < 128) {
                 self.len = 1; // 1-byte chars
                 self.vowel = false;
                 self.setb1b0t(0, curr_byte, ._none);
-            } else {
-                self.setInvalid();
             },
         }
 
