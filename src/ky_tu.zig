@@ -91,7 +91,7 @@ pub const Char = struct {
                 self.len = 2;
 
                 // LOOKUP TABLE TO AVOID BRANCHING
-                const result = lookup_tables.A[next_byte - 160];
+                const result = lookup_tables.utf8tv_A[next_byte - 160];
                 if (result != 0) {
                     const ascii = @intCast(u8, result >> 8);
                     const tone_int = result & 0b00000000_11111111;
@@ -146,7 +146,7 @@ pub const Char = struct {
                     // 3-byte chars C/
                     186 => {
                         // LOOKUP TABLE TO AVOID BRANCHING
-                        const result = lookup_tables.C[next_byte - 161];
+                        const result = lookup_tables.utf8tv_C[next_byte - 161];
                         const b1 = @intCast(u8, result >> 16);
                         const b0 = @intCast(u8, (result & 0x00FF00) >> 8);
                         const tone_int = result & 0x0000FF;
@@ -157,7 +157,7 @@ pub const Char = struct {
                     // 3-byte chars D/
                     187 => {
                         // LOOKUP TABLE TO AVOID BRANCHING
-                        const result = lookup_tables.D[next_byte - 129];
+                        const result = lookup_tables.utf8tv_D[next_byte - 129];
                         const b1 = @intCast(u8, result >> 16);
                         const b0 = @intCast(u8, (result & 0x00FF00) >> 8);
                         const tone_int = result & 0x0000FF;
