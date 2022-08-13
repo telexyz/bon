@@ -9,8 +9,8 @@ const getSingleMiddle = @import("am_giua.zig").getSingleMiddle;
 const getFinal = @import("am_cuoi.zig").getFinal;
 const isFinalConsonant = @import("am_cuoi.zig").isFinalConsonant;
 
-const Char = @import("ky_tu.zig").Char;
 const cmn = @import("common.zig");
+const Char = cmn.Char;
 
 fn _parse(bytes: []const u8) void {
     cmn.printSyll(bytes, parseSyllable(bytes));

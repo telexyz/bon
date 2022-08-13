@@ -1,9 +1,12 @@
 pub var DEBUGGING = false;
 // pub var DEBUGGING = true;
 
+pub const USE_LOOKUP = true;
+// pub const USE_LOOKUP = false;
+
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
-const Char = @import("ky_tu.zig").Char;
+pub const Char = if (USE_LOOKUP) @import("ky_tu_lookup.zig").Char else @import("ky_tu.zig").Char;
 
 const SEP_LINE = "\n - - - - - - - - - - - - - - - - - - - - -";
 
