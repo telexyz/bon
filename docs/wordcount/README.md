@@ -58,9 +58,12 @@ Optimization
 
 
 Hiện tại quá nửa thời gian nằm ở HashCount => Thử nghiệm:
-* Hybrid Hashing
-* SSO
-* Hash prefetch
+
+* Hybrid Hashing (ko có cải thiện)
+
+* Short-String-Optimization (hiện ko dùng string compare nên tạm bỏ qua)
+
+* Hash prefetch (hashtable hiện tại rất nhỏ, và avg probs < 2 nên có lẽ ko cần)
 
 - - -
 
