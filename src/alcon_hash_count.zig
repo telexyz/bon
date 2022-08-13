@@ -76,6 +76,10 @@ pub fn HashCount(capacity: usize) type {
         key_bytes: []u8 = undefined,
         key_index: usize = 0,
 
+        // Stats
+        max_probs: usize = 0,
+        total_probs: usize = 0,
+
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.allocator = init_allocator;
             self.len = 0;
@@ -112,7 +116,8 @@ pub fn HashCount(capacity: usize) type {
             // Sử dụng capacity isPowerOfTwo và dùng hàm shift để băm hash vào index.
             // Nhờ dùng right-shift nên giữ được bit cao của hash value trong index
             // Vậy nên đảm bảo tính tăng dần của hash value (clever trick 1)
-            var i = it.hash >> shift;
+            var i: usize = it.hash >> shift;
+            const _i = i;
             var first_swap_at: usize = maxx_index;
 
             while (true) : (i += 1) {
@@ -151,11 +156,17 @@ pub fn HashCount(capacity: usize) type {
                         self.key_bytes[ending] = GUARD_BYTE;
                         self.key_index = ending + 1;
 
+                        // Record Stats
+                        const probs = i - _i + 1;
+                        self.total_probs += probs;
+                        if (probs > self.max_probs) self.max_probs = probs;
+                        // std.debug.print(">> probs = {d}; ", .{probs});
+
                         // tăng số lượng phần tử được đếm
                         self.len += 1;
                         return 1; // phần tử vừa được thêm nên count = 1
-                    } // entry.count == 0
-                } // else
+                    } // if (entry.count == 0)
+                } // else => entry.hash > it.hash
             } // while
         }
 
@@ -184,17 +195,22 @@ pub fn HashCount(capacity: usize) type {
             while (i < size) : (i += 1) {
                 const entry = self.entries[i];
                 if (entry.count > 0) {
+                    n += 1;
+                    if (n > max) break;
+
                     std.debug.print("\ncount[{s}]: {d}", .{
                         entry.key_str(self.key_bytes),
                         entry.count,
                     });
-                    n += 1;
-                    if (n > max) break;
                 }
             }
 
-            if (max == 0)
-                std.debug.print("\nTOTAL {d}.\n{s}\n", .{ self.len, self.key_bytes[0..2048] });
+            if (max == 0) {
+                std.debug.print(
+                    "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n\n{s}\n",
+                    .{ self.len, self.max_probs, self.total_probs / self.len, self.total_probs, self.len, self.key_bytes[0..2048] },
+                );
+            }
         }
     };
 }
