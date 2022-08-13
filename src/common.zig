@@ -6,7 +6,7 @@ pub const USE_LOOKUP = true;
 
 const std = @import("std");
 const sds = @import("syllable.zig"); // sds: Syllable Data Structures
-pub const Char = if (USE_LOOKUP) @import("ky_tu_lookup.zig").Char else @import("ky_tu.zig").Char;
+const Char = @import("ky_tu.zig").Char;
 
 const SEP_LINE = "\n - - - - - - - - - - - - - - - - - - - - -";
 
