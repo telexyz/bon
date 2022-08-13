@@ -61,3 +61,15 @@ Hiện tại quá nửa thời gian nằm ở HashCount => Thử nghiệm:
 * Hybrid Hashing
 * SSO
 * Hash prefetch
+
+- - -
+
+Full video https://www.youtube.com/watch?v=R_yX0XjdSBY
+
+Observations https://youtube.com/clip/UgkxB1qZMc_JCwH_VUcHABvs7WgIgmpUiWD1
+
+Text parsing speedup AVX vector intrinsics 2.5x https://youtube.com/clip/Ugkxx7P2nwS00aC0aoLLiWRdYXHyot80yODG
+
+vpshufb trick speedup (viz fstream) 10x https://youtube.com/clip/Ugkxbsd00soNTKEZLlQIM8pypO4SVE28Fdxx
+
+Large pages speedup to reduce translation cache dTLB misses viz hash tables 1.5x https://youtube.com/clip/UgkxGitLr5lTH7z3BIylYshB6jdgK0lCLRSL

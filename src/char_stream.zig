@@ -102,7 +102,7 @@ fn scanFile(file_name: []const u8) !void {
             std.mem.copy(u8, bytes[prev_.len..], curr_);
             const token = bytes[0..(prev_.len + curr_.len)];
 
-            // _ = counters.put(token);
+            _ = counters.put(token);
 
             if (show_info)
                 std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
