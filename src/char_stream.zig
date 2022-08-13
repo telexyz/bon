@@ -3,8 +3,8 @@ const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 
 const HashCount = @import("alcon_hash_count.zig").HashCount;
-const HashCount2M5 = HashCount(2_200_000);
-var counters: HashCount2M5 = undefined; // dùng chung cho nhiều threads
+// Init HashCount 1M entries để count các tokens ko phải âm tiết tiếng Việt
+var counters: HashCount(1_000_000) = undefined; // dùng chung cho nhiều threads
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
@@ -102,20 +102,11 @@ fn scanFile(file_name: []const u8) !void {
             std.mem.copy(u8, bytes[prev_.len..], curr_);
             const token = bytes[0..(prev_.len + curr_.len)];
 
-            _ = counters.put(token);
-
-            if (show_info)
-                std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
-                    tk_idx, sp_idx, token,
-                    // prev_bytes[tk_idx..], curr_bytes[0..sp_idx],
-                });
-
-            const syll = parseSyllable(token);
-            if (show_info and syll.can_be_vietnamese) cmn.printSyllParts(syll);
+            processToken(tk_idx, sp_idx, token);
             //
         } else if (sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
-            printToken(0, sp_idx, curr_bytes);
+            processToken(0, sp_idx, curr_bytes);
         }
 
         //
@@ -129,8 +120,7 @@ fn scanFile(file_name: []const u8) !void {
             // Tìm next space index
             while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
 
-            if (sp_idx < len)
-                printToken(tk_idx, sp_idx, curr_bytes);
+            if (sp_idx < len) processToken(tk_idx, sp_idx, curr_bytes);
         }
 
         // swap curr_bytes and prev_bytes
@@ -147,11 +137,7 @@ fn scanFile(file_name: []const u8) !void {
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
 
-inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8) void {
-    const token = curr_bytes[token_idx..space_idx];
-
-    _ = counters.put(token);
-
+inline fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
     if (show_info)
         std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
             token_idx,
@@ -160,7 +146,10 @@ inline fn printToken(token_idx: usize, space_idx: usize, curr_bytes: []const u8)
         });
 
     const syll = parseSyllable(token);
-    if (show_info and syll.can_be_vietnamese) cmn.printSyllParts(syll);
+
+    if (!syll.can_be_vietnamese) _ = counters.put(token);
+
+    if (show_info) cmn.printSyllParts(syll);
 }
 
 pub fn main() !void {

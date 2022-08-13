@@ -45,17 +45,6 @@ const maxx_index = std.math.maxInt(IndexType);
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
-    key_offset: IndexType = maxx_index,
-
-    pub inline fn key(self: Entry, key_bytes: []const u8, len: usize) []const u8 {
-        return key_bytes[self.key_offset .. self.key_offset + len];
-    }
-
-    pub inline fn key_str(self: Entry, key_bytes: []const u8) []const u8 {
-        var ending: usize = self.key_offset + 1;
-        while (key_bytes[ending] != GUARD_BYTE) ending += 1;
-        return key_bytes[self.key_offset..ending];
-    }
 };
 
 pub fn HashCount(capacity: usize) type {
@@ -67,7 +56,9 @@ pub fn HashCount(capacity: usize) type {
     std.debug.assert(size > capacity);
 
     return struct {
-        const Self = @This();
+        // Stats
+        max_probs: usize = 0,
+        total_probs: usize = 0,
 
         allocator: std.mem.Allocator = undefined,
         entries: []Entry = undefined,
@@ -76,9 +67,20 @@ pub fn HashCount(capacity: usize) type {
         key_bytes: []u8 = undefined,
         key_index: usize = 0,
 
-        // Stats
-        max_probs: usize = 0,
-        total_probs: usize = 0,
+        key_offsets: []IndexType = undefined,
+        const Self = @This();
+
+        pub inline fn key_by_len(self: *Self, idx: usize, len: usize) []const u8 {
+            const offset = self.key_offsets[idx];
+            return self.key_bytes[offset .. offset + len];
+        }
+
+        pub inline fn key_by_guard(self: *Self, idx: usize) []const u8 {
+            const offset = self.key_offsets[idx];
+            var ending: usize = offset + 1;
+            while (self.key_bytes[ending] != GUARD_BYTE) ending += 1;
+            return self.key_bytes[offset..ending];
+        }
 
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.allocator = init_allocator;
@@ -87,8 +89,9 @@ pub fn HashCount(capacity: usize) type {
 
             self.key_bytes = try self.allocator.alloc(u8, capacity * AVG_KEY_LEN);
             self.entries = try self.allocator.alloc(Entry, size);
+            self.key_offsets = try self.allocator.alloc(IndexType, size);
 
-            const entry = Entry{ .hash = maxx_hash, .count = 0, .key_offset = maxx_index };
+            const entry = Entry{ .hash = maxx_hash, .count = 0 };
             std.mem.set(Entry, self.entries, entry);
         }
 
@@ -146,7 +149,7 @@ pub fn HashCount(capacity: usize) type {
                     // key đầu vào lần đầu xuất hiện, ta tăng len và return
                     if (entry.count == 0) {
                         // gán giá trị key cho entries[first_swap_at]
-                        self.entries[first_swap_at].key_offset = @intCast(IndexType, self.key_index);
+                        self.key_offsets[first_swap_at] = @intCast(IndexType, self.key_index);
                         var ending = self.key_index;
                         @setRuntimeSafety(false);
                         for (key) |k| {
@@ -199,7 +202,7 @@ pub fn HashCount(capacity: usize) type {
                     if (n > max) break;
 
                     std.debug.print("\ncount[{s}]: {d}", .{
-                        entry.key_str(self.key_bytes),
+                        self.key_by_guard(i),
                         entry.count,
                     });
                 }
