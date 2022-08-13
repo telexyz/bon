@@ -5,7 +5,7 @@ pub const CountType = u24;
 pub const KeyType = Syllable.UniqueId;
 pub const MAXX_KEY = Syllable.MAXX_ID; // maxx: value < maxx (maxx = max + 1)
 
-const SyllableCount = struct {
+pub const SyllableCount = struct {
     allocator: std.mem.Allocator = undefined,
     counts: []CountType,
 
@@ -33,6 +33,24 @@ const SyllableCount = struct {
 
     pub fn key_str(key: KeyType, buf: []u8) []const u8 {
         return Syllable.newFromId(key).printBuffUtf8(buf);
+    }
+
+    pub fn list(self: *Self, max: usize) void {
+        var i: KeyType = 0;
+        var n: usize = 0;
+        var buffer: [12]u8 = undefined;
+        while (i < MAXX_KEY) : (i += 1) {
+            const count = self.counts[i];
+            if (count > 0) {
+                n += 1;
+                if (n > max) break;
+
+                std.debug.print("\ncount[{s}]: {d}", .{
+                    SyllableCount.key_str(i, buffer[0..]),
+                    count,
+                });
+            }
+        }
     }
 };
 

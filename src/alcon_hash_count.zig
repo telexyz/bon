@@ -70,12 +70,7 @@ pub fn HashCount(capacity: usize) type {
         key_offsets: []IndexType = undefined,
         const Self = @This();
 
-        pub inline fn key_by_len(self: *Self, idx: usize, len: usize) []const u8 {
-            const offset = self.key_offsets[idx];
-            return self.key_bytes[offset .. offset + len];
-        }
-
-        pub inline fn key_by_guard(self: *Self, idx: usize) []const u8 {
+        pub inline fn key_str(self: *Self, idx: usize) []const u8 {
             const offset = self.key_offsets[idx];
             var ending: usize = offset + 1;
             while (self.key_bytes[ending] != GUARD_BYTE) ending += 1;
@@ -202,7 +197,7 @@ pub fn HashCount(capacity: usize) type {
                     if (n > max) break;
 
                     std.debug.print("\ncount[{s}]: {d}", .{
-                        self.key_by_guard(i),
+                        self.key_str(i),
                         entry.count,
                     });
                 }
