@@ -5,7 +5,7 @@ const ahc = @import("alcon_hash_count.zig");
 
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 
-var token_counters: ahc.HashCount1M = undefined; // dùng chung cho nhiều threads
+var type_counters: ahc.HashCount1M = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
@@ -135,7 +135,6 @@ fn scanFile(file_name: []const u8) !void {
         count += 1;
     }
 
-    token_counters.list(10);
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
 
@@ -152,14 +151,14 @@ inline fn processToken(token_idx: usize, space_idx: usize, token: []const u8) vo
     if (syll.can_be_vietnamese)
         _ = syll_counters.put(syll.toId())
     else
-        _ = token_counters.put(token);
+        _ = type_counters.put(token);
 
     if (show_info) cmn.printSyllParts(syll);
 }
 
 pub fn main() !void {
-    try token_counters.init(std.heap.page_allocator);
-    defer token_counters.deinit();
+    try type_counters.init(std.heap.page_allocator);
+    defer type_counters.deinit();
 
     try syll_counters.init(std.heap.page_allocator);
     defer syll_counters.deinit();
@@ -181,8 +180,10 @@ pub fn main() !void {
     thread2.join();
     thread3.join();
 
-    token_counters.list(0);
     syll_counters.list(20);
+
+    type_counters.list(20);
+    type_counters.showStats();
 }
 
 // simple config

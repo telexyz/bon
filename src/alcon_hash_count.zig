@@ -28,6 +28,7 @@
 // !! WARING: khi sử dụng mult-threads, thao tác hoán vị trị trong hashtable có thể bị nhiều threads
 // cùng tác động vào 1 điểm chứa dữ liệu khiến không đảm bảo tính tăng liên tục (sorted asc) của
 // hash value !! => Khắc phục bằng cách mỗi thread có 1 HashCount riêng và sau đó merge.
+// => Thực nghiệm cho thấy HashCount.validate() vẫn OK !!
 //
 // Algorithm from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
 
@@ -125,7 +126,7 @@ pub fn HashCount(capacity: usize) type {
             // Nhờ dùng right-shift nên giữ được bit cao của hash value trong index
             // Vậy nên đảm bảo tính tăng dần của hash value (clever trick 1)
             var i: usize = it.hash >> shift;
-            // const _i = i;
+            const _i = i;
             var first_swap_at: usize = maxx_index;
 
             while (true) : (i += 1) {
@@ -171,10 +172,9 @@ pub fn HashCount(capacity: usize) type {
                         self.keys_bytes_len = ending + 1;
 
                         // Record Stats
-                        // const probs = i - _i + 1;
-                        // self.total_probs += probs;
-                        // if (probs > self.max_probs) self.max_probs = probs;
-                        // std.debug.print(">> probs = {d}; ", .{probs});
+                        const probs = i - _i + 1;
+                        self.total_probs += probs;
+                        if (probs > self.max_probs) self.max_probs = probs;
 
                         // tăng số lượng phần tử được đếm
                         self.len += 1;
@@ -206,6 +206,20 @@ pub fn HashCount(capacity: usize) type {
             }
         }
 
+        pub fn validate(self: Self) bool {
+            var a: HashType = 0;
+            for (self.entries[0..]) |entry| {
+                const h = entry.hash;
+                if (h < maxx_hash) {
+                    if (a > h) {
+                        return false;
+                    }
+                    a = h;
+                }
+            }
+            return true;
+        }
+
         pub fn list(self: *Self, max: usize) void {
             var i: usize = 0;
             var n: usize = 0;
@@ -221,13 +235,23 @@ pub fn HashCount(capacity: usize) type {
                     });
                 }
             }
+        }
 
-            if (max == 0) {
-                const len = self.keys_bytes_len;
-                const begin = self.keys_bytes[0..2048];
-                const end = self.keys_bytes[(len - 2048)..len];
-                std.debug.print("\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n\n{s}\n\n{s}\n\n{d}\n", .{ self.len, self.max_probs, self.total_probs / self.len, self.total_probs, self.len, begin, end, len });
-            }
+        pub fn showStats(self: Self) void {
+            std.debug.print("\n\nHASH COUNT STATS\n", .{});
+
+            const len = self.keys_bytes_len;
+            const begin = self.keys_bytes[0..2048];
+            const end = self.keys_bytes[(len - 2048)..len];
+            std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
+
+            const avg_probs = self.total_probs / self.len;
+            std.debug.print(
+                "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n",
+                .{ self.len, self.max_probs, avg_probs, self.total_probs, self.len },
+            );
+
+            std.debug.print("\nIs Hash Count Validate? {}\n", .{self.validate()});
         }
     };
 }
