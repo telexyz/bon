@@ -7,7 +7,7 @@ pub const MAXX_KEY = Syllable.MAXX_ID; // maxx: value < maxx (maxx = max + 1)
 
 pub const SyllableCount = struct {
     allocator: std.mem.Allocator = undefined,
-    counts: []CountType,
+    counts: []CountType = undefined,
 
     const Self = @This();
 
@@ -56,7 +56,7 @@ pub const SyllableCount = struct {
 
 test "SyllableCount" {
     var sc: SyllableCount = undefined;
-    try sc.init(std.heap.page_allocator);
+    try sc.init(std.testing.allocator);
     defer sc.deinit();
 
     var syll = Syllable{ .normalized = true, .am_dau = .ng, .am_giua = .uoz, .am_cuoi = .m, .tone = .s, .can_be_vietnamese = true };

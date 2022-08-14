@@ -118,7 +118,7 @@ pub fn readWords(fp: str, word_count: *Vocab) !void {
         // const realpath = try std.fs.realpath(fp, &realpath_buff);
         const file = try std.fs.openFileAbsolute(fp, .{ .mode = .read_only });
 
-        log.info("Loading vocabulary from {} ...\n", .{fp});
+        log.info("Loading vocabulary from {s} ...\n", .{fp});
 
         const stat = try file.stat();
         const buffer: []u8 = try std.os.mmap(null, stat.size, clib.PROT_READ, clib.MAP_PRIVATE, file.handle, 0);
@@ -179,7 +179,7 @@ pub fn getVocab(inputFile1: str, inputFile2: str, base_allocator: Allocator) !vo
     const stdout_file = std.io.getStdOut().writer();
     // print sorted vocab
     for (entries) |entry| {
-        try stdout_file.print("{} {}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
+        try stdout_file.print("{s} {d}\n", .{ entry.key_ptr.*, entry.value_ptr.* });
     }
 }
 
@@ -202,9 +202,9 @@ pub const WordIndex = struct {
         self.tokens.deinit();
     }
 
-    pub fn ensureCapacity(self: *WordIndex, capacity: u32) !void {
-        try self.ids.ensureCapacity(capacity);
-        try self.tokens.ensureCapacity(capacity);
+    pub fn ensureTotalCapacity(self: *WordIndex, capacity: u32) !void {
+        try self.ids.ensureTotalCapacity(capacity);
+        try self.tokens.ensureTotalCapacity(capacity);
     }
 
     pub fn getOrPut(self: *WordIndex, word: str, end_of_word: bool) !u32 {
@@ -216,11 +216,11 @@ pub const WordIndex = struct {
         }
 
         var new_id = @intCast(u32, self.tokens.items.len);
-        try self.ensureCapacity(new_id + 1);
+        try self.ensureTotalCapacity(new_id + 1);
         var res = try self.ids.getOrPut(_word);
         if (res.found_existing) {
-            var id = res.entry.value;
-            // debug("get token: {} -> {}", .{ _word, id });
+            var id = res.value_ptr.*;
+            // debug(0, "get token: {s} -> {d}", .{ _word, id }); // DEBUG
             return id;
         } else {
             debug(PUT_WORD, "add new token: {} -> {}", .{ new_id, _word });
@@ -229,8 +229,8 @@ pub const WordIndex = struct {
             std.mem.copy(u8, new_word, _word);
             // We update the key so that we point to the newly allocated string
             // instead of the buffer.
-            res.entry.key = new_word;
-            res.entry.value = new_id;
+            res.key_ptr.* = new_word;
+            res.value_ptr.* = new_id;
             self.tokens.appendAssumeCapacity(new_word);
             return new_id;
         }
@@ -290,13 +290,13 @@ const LearnBpeState = struct {
 
     pub fn ensureExtraCapacity(self: *LearnBpeState, capacity: usize) !void {
         var len = self.contiguous_counts.items.len;
-        try self.contiguous_counts.ensureCapacity(len + capacity);
+        try self.contiguous_counts.ensureTotalCapacity(len + capacity);
         var full_len = @intCast(u32, len + capacity);
-        try self.contiguous_counts.ensureCapacity(full_len);
-        try self.pair_loc.ensureCapacity(full_len);
-        try self.pairs.ensureCapacity(full_len);
+        try self.contiguous_counts.ensureTotalCapacity(full_len);
+        try self.pair_loc.ensureTotalCapacity(full_len);
+        try self.pairs.ensureTotalCapacity(full_len);
         // TODO: do we need to increase the index size here ?
-        try self.index.ensureCapacity(full_len);
+        try self.index.ensureTotalCapacity(full_len);
     }
 
     /// Pop the pair with the highest count and merge the two tokens.
@@ -489,17 +489,17 @@ fn printSortedBytePairs(state: *LearnBpeState, n_pairs: i32, file: std.fs.File) 
 }
 
 fn initSingleChars(word_count: *Vocab, state: *LearnBpeState) !void {
-    try state.word_parts.ensureCapacity(word_count.count());
+    try state.word_parts.ensureTotalCapacity(word_count.count());
     var idx = &state.index;
     var word_counts = &state.word_counts;
-    try word_counts.ensureCapacity(word_count.count());
+    try word_counts.ensureTotalCapacity(word_count.count());
     var wc_it = word_count.iterator();
     while (wc_it.next()) |wc| {
         var realLength: i32 = 0;
-        var word: str = wc.key;
+        var word: str = wc.key_ptr.*;
         var current_word = std.ArrayList(u32).init(state.allocator);
-        try current_word.ensureCapacity(word.len);
-        word_counts.appendAssumeCapacity(wc.value);
+        try current_word.ensureTotalCapacity(word.len);
+        word_counts.appendAssumeCapacity(wc.value_ptr.*);
 
         var lastStart: usize = 0;
         // TODO: try std.unicode.Utf8Iterator
@@ -616,7 +616,7 @@ fn countPairsOfCharFromWord(word: std.ArrayList(u32), wi: u32, count: i32, state
     var pair_loc = &state.pair_loc;
     var contiguous_counts = &state.contiguous_counts;
     debug(COUNT_PAIRS_OF_CHARS, "Counting from @{} (len: {}, count: {})", .{ wi, word.items.len, count });
-    try contiguous_counts.ensureCapacity(contiguous_counts.items.len + word.items.len);
+    try contiguous_counts.ensureTotalCapacity(contiguous_counts.items.len + word.items.len);
     for (word.items) |token, i| {
         cur_pair.w1 = cur_pair.w2;
         cur_pair.w2 = token;

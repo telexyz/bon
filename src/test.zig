@@ -8,6 +8,7 @@ test "all" {
     _ = @import("am_tiet.zig");
     _ = @import("char_stream.zig");
 
+    _ = @import("lookup_tables.zig");
     _ = @import("alcon_hash_count.zig");
     _ = @import("test_am_tiet.zig");
 }

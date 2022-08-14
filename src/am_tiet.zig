@@ -65,7 +65,7 @@ pub fn main() void {
     _parse("nz");
     _parse("ai");
     _parse(" ̣");
-    _parse(" ̣ ");
+    _parse("cuốp");
     // _parse("quẹc");
     // _parse("cuyễn");
     // _parse("quô");
@@ -84,7 +84,17 @@ const MAX_SYLL_BYTES_LEN = 12;
 
 pub inline fn parseSyllable(bytes: []const u8) sds.Syllable {
     var syll = _parseSyllable(bytes);
-    return syll.normalize();
+
+    // am_cuoi `c, ch, p, t` only 2 tone s, j allowed
+    const ac_id = @enumToInt(syll.am_cuoi);
+    // std.debug.print("\n>> {d} {} <<\n", .{ ac_id, syll.tone }); // DEBUG
+    if (ac_id > 5 and ac_id < 10 and (syll.tone != .s and syll.tone != .j)) {
+        syll.can_be_vietnamese = false;
+        return syll;
+    }
+
+    syll.normalize();
+    return syll;
 }
 
 pub fn _parseSyllable(bytes: []const u8) sds.Syllable {

@@ -91,12 +91,11 @@ pub const Char = struct {
                 self.len = 2;
 
                 // LOOKUP TABLE TO AVOID BRANCHING
-                const result = lookup_tables.utf8tv_A[next_byte - 160];
+                const result = lookup_tables.utf8tv_A[next_byte];
                 if (result != 0) {
-                    const ascii = @intCast(u8, result >> 8);
-                    const tone_int = result & 0b00000000_11111111;
-                    const tone = @intToEnum(sds.Tone, tone_int);
-                    self.setb1b0t(0, ascii, tone);
+                    const b0 = @intCast(u8, result >> 8);
+                    const tone = @intToEnum(sds.Tone, result & 0x00ff);
+                    self.setb1b0t(0, b0, tone);
                 } else {
                     self.setb1b0t(curr_byte, next_byte, ._none);
                 }
@@ -146,22 +145,20 @@ pub const Char = struct {
                     // 3-byte chars C/
                     186 => {
                         // LOOKUP TABLE TO AVOID BRANCHING
-                        const result = lookup_tables.utf8tv_C[next_byte - 161];
+                        const result = lookup_tables.utf8tv_C[next_byte];
                         const b1 = @intCast(u8, result >> 16);
                         const b0 = @intCast(u8, (result & 0x00FF00) >> 8);
-                        const tone_int = result & 0x0000FF;
-                        const tone = @intToEnum(sds.Tone, tone_int);
+                        const tone = @intToEnum(sds.Tone, result & 0x0000FF);
                         self.setb1b0t(b1, b0, tone);
                     },
 
                     // 3-byte chars D/
                     187 => {
                         // LOOKUP TABLE TO AVOID BRANCHING
-                        const result = lookup_tables.utf8tv_D[next_byte - 129];
+                        const result = lookup_tables.utf8tv_D[next_byte];
                         const b1 = @intCast(u8, result >> 16);
                         const b0 = @intCast(u8, (result & 0x00FF00) >> 8);
-                        const tone_int = result & 0x0000FF;
-                        const tone = @intToEnum(sds.Tone, tone_int);
+                        const tone = @intToEnum(sds.Tone, result & 0x0000FF);
                         self.setb1b0t(b1, b0, tone);
                     },
                     else => {},

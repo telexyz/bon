@@ -321,9 +321,21 @@ pub const Syllable = struct {
         return self.hasMark() or self.hasTone();
     }
 
-    pub fn normalize(self: *Syllable) Syllable {
+    pub fn normalize(self: *Syllable) void {
         // std.debug.print("\n!!!! normalizing !!!!\n", .{});
-        if (self.normalized) return self.*;
+        if (self.normalized) return;
+
+        switch (self.am_giua) {
+            .ui => if (self.am_dau != .q) {
+                self.can_be_vietnamese = false;
+                return;
+            },
+            .ue => if (self.am_dau != .q) {
+                self.can_be_vietnamese = false;
+                return;
+            },
+            else => {},
+        }
 
         switch (self.am_dau) {
             .q => {
@@ -372,7 +384,6 @@ pub const Syllable = struct {
         }
 
         self.normalized = true;
-        return self.*;
     }
 
     pub fn toId(self: *Syllable) UniqueId {
@@ -426,6 +437,8 @@ pub const Syllable = struct {
         const am_cuoi_id = @intCast(UniqueId, @enumToInt(am_cuoi));
         const tone = @intCast(UniqueId, @enumToInt(self.tone));
         // act: am_cuoi + tone
+        // Vì các âm cuối ch, nh đã được chuyển thành c và ng nên
+        // am_cuoi_id > 5 thì chắc chắn đó là âm đóng `c, ch, p, t`
         const act = if (am_cuoi_id < 6)
             am_cuoi_id * 6 + tone
         else // am_cuoi `c, ch, p, t` only 2 tone s, j allowed
@@ -435,8 +448,10 @@ pub const Syllable = struct {
 
         const am_dau_id = @enumToInt(self.am_dau);
         const am_giua_id = @enumToInt(am_giua);
+
         // Validate am_dau and am_giua
         std.debug.assert(@enumToInt(self.am_dau) < max_am_dau);
+        if (@enumToInt(am_giua) >= max_am_giua) std.debug.print("\n >> {} <<\n", .{self}); // DEBUG
         std.debug.assert(@enumToInt(am_giua) < max_am_giua);
 
         return (@intCast(UniqueId, am_dau_id) * max_am_cuoi_tone * max_am_giua) +
@@ -859,6 +874,7 @@ pub fn main() void {
     const buf2 = buffer2[0..];
 
     var i: Syllable.UniqueId = 0;
+    var n: usize = 0;
     while (i < Syllable.MAXX_ID) : (i += 1) {
         var syll = Syllable.newFromId(i);
         // bỏ qua 2 âm hỗ trợ
@@ -871,6 +887,12 @@ pub fn main() void {
         const a = syll.printBuffUtf8(buf1);
         var reve = parseSyllable(a);
         const b = reve.printBuffUtf8(buf2);
+
+        n += 1;
+        if (n < 200) {
+            std.debug.print("{s: >13}  ", .{a});
+            if ((n + 1) % 8 == 0) std.debug.print("\n", .{});
+        }
 
         if (std.mem.eql(u8, a, b)) continue; // bỏ qua uoz!=ua[bụa bụa]
 

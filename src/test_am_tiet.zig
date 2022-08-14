@@ -16,6 +16,7 @@ test "Các âm tiết hợp lệ" {
         std.testing.expect(syll.can_be_vietnamese) catch |err| {
             cmn.DEBUGGING = true;
             cmn.printSyll(am_tiet, parseSyllable(am_tiet));
+            cmn.DEBUGGING = false;
             return err;
         };
 
@@ -23,6 +24,7 @@ test "Các âm tiết hợp lệ" {
             cmn.DEBUGGING = true;
             cmn.printSyll(am_tiet, parseSyllable(am_tiet));
             cmn.printSepLine();
+            cmn.DEBUGGING = false;
             return err;
         };
 
@@ -82,8 +84,8 @@ test "gịu qùa quô gìa gía gíu" {
     try expectSyll("qua", .c, .oa, ._none, ._none, true);
     try expectSyll("coa", .c, .oa, ._none, ._none, true);
     try expectSyll("quô", .q, .uoz, ._none, ._none, false); // quố quồ quổ quỗ quộ
-    try expectSyll("quôc", .q, .uoz, .c, ._none, true);
-    try expectSyll("cuôc", .c, .uoz, .c, ._none, true);
+    try expectSyll("quôc", .q, .uoz, .c, ._none, false);
+    try expectSyll("cuôc", .c, .uoz, .c, ._none, false);
 }
 
 // TODO: Test nốt chỗ dưới này và test các tokens ko phải syllable (tự sinh)

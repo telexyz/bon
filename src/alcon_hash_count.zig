@@ -16,7 +16,7 @@
 //
 // - - -
 //
-// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và `libs/swisstable`
+// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và `cswisstable`
 // có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
 //
 // => * Làm cách 1/ trước để thử nghiệm tốc độ!
@@ -93,6 +93,7 @@ pub fn HashCount(capacity: usize) type {
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
             self.allocator.free(self.key_bytes);
+            self.allocator.free(self.key_offsets);
         }
 
         pub fn slice(self: Self) []Self.Entry {
@@ -103,7 +104,7 @@ pub fn HashCount(capacity: usize) type {
             return std.hash.Wyhash.hash(key[0], key);
         }
 
-        pub fn put(self: *Self, key: []const u8) CountType {
+        pub inline fn put(self: *Self, key: []const u8) CountType {
             // if (key.len < 3) return 0; // skip 1-2 char's strings (count using array later)
             // => Ko cải tiến rõ rệt => BỎ QUA.
             if (key.len > MAX_KEY_LEN) return 0;
@@ -117,7 +118,7 @@ pub fn HashCount(capacity: usize) type {
             // Nhờ dùng right-shift nên giữ được bit cao của hash value trong index
             // Vậy nên đảm bảo tính tăng dần của hash value (clever trick 1)
             var i: usize = it.hash >> shift;
-            const _i = i;
+            // const _i = i;
             var first_swap_at: usize = maxx_index;
 
             while (true) : (i += 1) {
@@ -157,9 +158,9 @@ pub fn HashCount(capacity: usize) type {
                         self.key_index = ending + 1;
 
                         // Record Stats
-                        const probs = i - _i + 1;
-                        self.total_probs += probs;
-                        if (probs > self.max_probs) self.max_probs = probs;
+                        // const probs = i - _i + 1;
+                        // self.total_probs += probs;
+                        // if (probs > self.max_probs) self.max_probs = probs;
                         // std.debug.print(">> probs = {d}; ", .{probs});
 
                         // tăng số lượng phần tử được đếm
@@ -221,7 +222,7 @@ pub fn HashCount(capacity: usize) type {
 test "HashCount" {
     const HC1024 = HashCount(1024);
     var counters: HC1024 = undefined;
-    try counters.init(std.heap.page_allocator);
+    try counters.init(std.testing.allocator);
     defer counters.deinit();
     try std.testing.expectEqual(@as(CountType, 1), counters.put("a"));
     try std.testing.expectEqual(@as(CountType, 1), counters.get("a"));
