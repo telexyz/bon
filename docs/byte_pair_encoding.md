@@ -3,11 +3,9 @@ Fastest BPE + DropOut https://github.com/telexyz/turbo/tree/main/libs/youtokento
 Zig Impl https://gwenzek.github.io/fastBPE/analysis.html
 https://github.com/gwenzek/fastBPE/blob/master/fastBPE/learnBPE.zig
 
-Blog https://leimao.github.io/blog/Byte-Pair-Encoding
-
 Original code https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
 
-Video https://www.youtube.com/watch?v=tOMjTCO0htA
+Lecture video https://www.youtube.com/watch?v=tOMjTCO0htA
 
 
 Coi tokens là tập hợp bytes (đơn vị nhỏ nhất có thể)
@@ -27,9 +25,12 @@ counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (un
 * 0x20 GUARD_BYTE
 * 0x010203 `key_count` (3-bytes)
 
+
 - - -
 
+
 ## Thuật toán tìm sub-string hiệu quả
+
 http://0x80.pl/articles/simd-strfind.html#algorithm
 
 Basically these algorithms could be split into two major categories: (1) based on Deterministic Finite Automaton, like Knuth-Morris-Pratt, Boyer Moore, etc., and (2) based on a simple comparison, like the Karp-Rabin algorithm.
@@ -51,3 +52,4 @@ But current desktop CPUs do not meet this assumption, in particular:
 
 https://github.com/ashvardanian/CppBenchSubstrSearch
 
+https://github.com/cloudflare/sliceslice-rs (based on 0x80.pl/articles/simd-strfind)
