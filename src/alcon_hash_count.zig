@@ -118,7 +118,7 @@ pub fn HashCount(capacity: usize) type {
             // Nhờ dùng right-shift nên giữ được bit cao của hash value trong index
             // Vậy nên đảm bảo tính tăng dần của hash value (clever trick 1)
             var i: usize = it.hash >> shift;
-            const _i = i;
+            // const _i = i;
             var first_swap_at: usize = maxx_index;
 
             while (true) : (i += 1) {
@@ -158,9 +158,9 @@ pub fn HashCount(capacity: usize) type {
                         self.key_index = ending + 1;
 
                         // Record Stats
-                        const probs = i - _i + 1;
-                        self.total_probs += probs;
-                        if (probs > self.max_probs) self.max_probs = probs;
+                        // const probs = i - _i + 1;
+                        // self.total_probs += probs;
+                        // if (probs > self.max_probs) self.max_probs = probs;
                         // std.debug.print(">> probs = {d}; ", .{probs});
 
                         // tăng số lượng phần tử được đếm
