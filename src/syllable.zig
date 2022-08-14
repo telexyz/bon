@@ -872,6 +872,7 @@ pub fn main() void {
     const buf2 = buffer2[0..];
 
     var i: Syllable.UniqueId = 0;
+    var n: usize = 0;
     while (i < Syllable.MAXX_ID) : (i += 1) {
         var syll = Syllable.newFromId(i);
         // bỏ qua 2 âm hỗ trợ
@@ -884,6 +885,12 @@ pub fn main() void {
         const a = syll.printBuffUtf8(buf1);
         var reve = parseSyllable(a);
         const b = reve.printBuffUtf8(buf2);
+
+        n += 1;
+        if (n < 200) {
+            std.debug.print("{s: >13}  ", .{a});
+            if ((n + 1) % 8 == 0) std.debug.print("\n", .{});
+        }
 
         if (std.mem.eql(u8, a, b)) continue; // bỏ qua uoz!=ua[bụa bụa]
 
