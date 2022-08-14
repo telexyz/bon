@@ -18,8 +18,6 @@ const Pair = struct {
 // counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
 // Để xác định count của `pair` ta search pair's value trong keys_bytes,
 // để xác định keys có chứa pair's value, cộng dồn counts của các keys đó được count của pair
-// * http://0x80.pl/articles/simd-strfind.html#algorithm
-// * https://cp-algorithms.com/string/rabin-karp.html
 //
 // => Cần 1 bước đệm là map key's ending vào key's count (u24)
 // => Để dành 3-bytes sau key's ending để lưu key's count

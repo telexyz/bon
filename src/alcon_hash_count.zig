@@ -16,8 +16,8 @@
 //
 // - - -
 //
-// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và `cswisstable`
-// có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
+// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và
+// `cswisstable`; có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
 //
 // => * Làm cách 1/ trước để thử nghiệm tốc độ!
 //    * Dùng lại code của `telexyz/engine`
@@ -25,6 +25,10 @@
 // 32-bytes + u32 + u64 = 44-bytes
 // unique tokens gọi là types. Giả sử có 1 triệu (2^20) types => 1M * 36-bytes = 44 Mb
 
+// !! WARING: khi sử dụng mult-threads, thao tác hoán vị trị trong hashtable có thể bị nhiều threads
+// cùng tác động vào 1 điểm chứa dữ liệu khiến không đảm bảo tính tăng liên tục (sorted asc) của
+// hash value !! => Khắc phục bằng cách mỗi thread có 1 HashCount riêng và sau đó merge.
+//
 // Algorithm from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
 
 const std = @import("std");
