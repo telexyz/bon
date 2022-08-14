@@ -321,9 +321,21 @@ pub const Syllable = struct {
         return self.hasMark() or self.hasTone();
     }
 
-    pub fn normalize(self: *Syllable) Syllable {
+    pub fn normalize(self: *Syllable) void {
         // std.debug.print("\n!!!! normalizing !!!!\n", .{});
-        if (self.normalized) return self.*;
+        if (self.normalized) return;
+
+        switch (self.am_giua) {
+            .ui => if (self.am_dau != .q) {
+                self.can_be_vietnamese = false;
+                return;
+            },
+            .ue => if (self.am_dau != .q) {
+                self.can_be_vietnamese = false;
+                return;
+            },
+            else => {},
+        }
 
         switch (self.am_dau) {
             .q => {
@@ -372,7 +384,6 @@ pub const Syllable = struct {
         }
 
         self.normalized = true;
-        return self.*;
     }
 
     pub fn toId(self: *Syllable) UniqueId {
@@ -435,8 +446,10 @@ pub const Syllable = struct {
 
         const am_dau_id = @enumToInt(self.am_dau);
         const am_giua_id = @enumToInt(am_giua);
+
         // Validate am_dau and am_giua
         std.debug.assert(@enumToInt(self.am_dau) < max_am_dau);
+        if (@enumToInt(am_giua) >= max_am_giua) std.debug.print("\n >> {} <<\n", .{self}); // DEBUG
         std.debug.assert(@enumToInt(am_giua) < max_am_giua);
 
         return (@intCast(UniqueId, am_dau_id) * max_am_cuoi_tone * max_am_giua) +
