@@ -21,7 +21,16 @@ Coi tokens là tập hợp bytes. Có thể giả sử symbol dài nhất <= 32-
 * Rất nhiều types có count <= 3
 * Các type có strlen dài thường là unique (count = 1)
 
+=> Tập trung tìm best pair candidates ở các type có count lớn và strlen ngắn
 
+=> Lưu riêng các types có count < 256 (chỉ cần 1 byte để lưu count)
+
+=> Lưu riêng các types có count = 1
+
+Dùng heristic để bỏ qua việc phải scan các types có count < 256 càng nhiều càng tốt
+
+
+![](bpe_learn.png)
 
 - - -
 
