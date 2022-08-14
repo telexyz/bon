@@ -437,6 +437,8 @@ pub const Syllable = struct {
         const am_cuoi_id = @intCast(UniqueId, @enumToInt(am_cuoi));
         const tone = @intCast(UniqueId, @enumToInt(self.tone));
         // act: am_cuoi + tone
+        // Vì các âm cuối ch, nh đã được chuyển thành c và ng nên
+        // am_cuoi_id > 5 thì chắc chắn đó là âm đóng `c, ch, p, t`
         const act = if (am_cuoi_id < 6)
             am_cuoi_id * 6 + tone
         else // am_cuoi `c, ch, p, t` only 2 tone s, j allowed
