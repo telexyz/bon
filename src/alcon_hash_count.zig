@@ -245,7 +245,7 @@ pub fn HashCount(capacity: usize) type {
                 .{ self.len, self.max_probs, avg_probs, self.total_probs, self.len },
             );
 
-            std.debug.print("\nIs Hash Count Validate? {}\n", .{self.validate()});
+            std.debug.print("\nHash Count Validation: {}\n", .{self.validate()});
         }
     };
 }
