@@ -56,7 +56,7 @@ pub const SyllableCount = struct {
 
 test "SyllableCount" {
     var sc: SyllableCount = undefined;
-    try sc.init(std.heap.page_allocator);
+    try sc.init(std.testing.allocator);
     defer sc.deinit();
 
     var syll = Syllable{ .normalized = true, .am_dau = .ng, .am_giua = .uoz, .am_cuoi = .m, .tone = .s, .can_be_vietnamese = true };

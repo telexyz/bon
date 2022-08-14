@@ -93,6 +93,7 @@ pub fn HashCount(capacity: usize) type {
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
             self.allocator.free(self.key_bytes);
+            self.allocator.free(self.key_offsets);
         }
 
         pub fn slice(self: Self) []Self.Entry {
@@ -221,7 +222,7 @@ pub fn HashCount(capacity: usize) type {
 test "HashCount" {
     const HC1024 = HashCount(1024);
     var counters: HC1024 = undefined;
-    try counters.init(std.heap.page_allocator);
+    try counters.init(std.testing.allocator);
     defer counters.deinit();
     try std.testing.expectEqual(@as(CountType, 1), counters.put("a"));
     try std.testing.expectEqual(@as(CountType, 1), counters.get("a"));
