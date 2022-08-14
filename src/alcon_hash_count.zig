@@ -163,12 +163,6 @@ pub fn HashCount(capacity: usize) type {
                             ending += 1;
                         }
                         self.keys_bytes[ending] = GUARD_BYTE;
-                        ending += 1;
-                        self.keys_bytes[ending] = GUARD_BYTE;
-                        ending += 1;
-                        self.keys_bytes[ending] = GUARD_BYTE;
-                        ending += 1;
-                        self.keys_bytes[ending] = GUARD_BYTE;
                         self.keys_bytes_len = ending + 1;
 
                         // Record Stats

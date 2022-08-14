@@ -1,22 +1,12 @@
-Fastest BPE + DropOut https://github.com/telexyz/turbo/tree/main/libs/youtokentome
+Lecture video https://youtu.be/tOMjTCO0htA?t=69
 
-Zig Impl https://gwenzek.github.io/fastBPE/analysis.html
-https://github.com/gwenzek/fastBPE/blob/master/fastBPE/learnBPE.zig
+Coi tokens là tập hợp bytes. Có thể giả sử symbol dài nhất <= 32-bytes
 
-Original code https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+Đầu tiên cần tính count của mọi utf-8 chars (1-4 bytes) trong alco_hash_count của các token ko phải âm tiết tiếng Việt.
 
-Lecture video https://www.youtube.com/watch?v=tOMjTCO0htA
+Đầu vào các tokens đã được count sẵn trong `types_counters: ahc.HashCount1M` từ `char_stream.zig` counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
 
-
-Coi tokens là tập hợp bytes (đơn vị nhỏ nhất có thể)
-Có thể giả sử encode dài nhất <= 32-bytes
-Đầu tiên cần tính count của mọi utf-8 chars trong alco_hash_count
-của các token ko phải âm tiết tiếng Việt.
-
-Đầu vào các tokens đã được count sẵn trong `counters: ahc.HashCount1M` từ `char_stream.zig`
-counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
-Để xác định count của `pair` ta search pair's value trong keys_bytes,
-để xác định keys có chứa pair's value, cộng dồn counts của các keys đó được count của pair
+Để xác định count của `pair` ta xác định pair's value trong keys_bytes để tìm ra keys có chứa pair's value, rồi cộng dồn counts của các keys đó.
 
 => Cần 1 bước đệm là map key's ending vào key's count (u24)
 => Để dành 3-bytes sau key's ending để lưu key's count
@@ -26,10 +16,26 @@ counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (un
 * 0x010203 `key_count` (3-bytes)
 
 
+Để chọn được next `pair` là pair có count lớn nhất ta xem xét việc `phân loại types`:
+* Các types có count phân bổ không đều, một lượng count lớn tập trung ở một vài type có strlen ngắn
+* Rất nhiều types có count <= 3
+* Các type có strlen dài thường là unique (count = 1)
+
+
+
 - - -
 
 
-## Thuật toán tìm sub-string hiệu quả
+## REFs
+
+Fastest BPE + DropOut https://github.com/telexyz/turbo/tree/main/libs/youtokentome
+
+Zig Impl https://gwenzek.github.io/fastBPE/analysis.html
+https://github.com/gwenzek/fastBPE/blob/master/fastBPE/learnBPE.zig
+
+Original code https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+
+### Thuật toán tìm sub-string hiệu quả
 
 http://0x80.pl/articles/simd-strfind.html#algorithm
 
