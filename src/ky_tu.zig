@@ -93,10 +93,9 @@ pub const Char = struct {
                 // LOOKUP TABLE TO AVOID BRANCHING
                 const result = lookup_tables.utf8tv_A[next_byte];
                 if (result != 0) {
-                    const ascii = @intCast(u8, result >> 8);
-                    const tone_int = result & 0b00000000_11111111;
-                    const tone = @intToEnum(sds.Tone, tone_int);
-                    self.setb1b0t(0, ascii, tone);
+                    const b0 = @intCast(u8, result >> 8);
+                    const tone = @intToEnum(sds.Tone, result & 0x00ff);
+                    self.setb1b0t(0, b0, tone);
                 } else {
                     self.setb1b0t(curr_byte, next_byte, ._none);
                 }
