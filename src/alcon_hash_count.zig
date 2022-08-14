@@ -16,7 +16,7 @@
 //
 // - - -
 //
-// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và `swisstable`
+// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và `cswisstable`
 // có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
 //
 // => * Làm cách 1/ trước để thử nghiệm tốc độ!
