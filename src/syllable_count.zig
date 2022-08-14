@@ -7,7 +7,7 @@ pub const MAXX_KEY = Syllable.MAXX_ID; // maxx: value < maxx (maxx = max + 1)
 
 pub const SyllableCount = struct {
     allocator: std.mem.Allocator = undefined,
-    counts: []CountType,
+    counts: []CountType = undefined,
 
     const Self = @This();
 
