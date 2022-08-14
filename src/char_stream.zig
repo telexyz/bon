@@ -1,12 +1,11 @@
 const std = @import("std");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
+const ahc = @import("alcon_hash_count.zig");
 
-const HashCount = @import("alcon_hash_count.zig").HashCount;
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 
-// Init HashCount 1M entries để count các tokens ko phải âm tiết tiếng Việt
-var token_counters: HashCount(1_000_000) = undefined; // dùng chung cho nhiều threads
+var token_counters: ahc.HashCount1M = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang

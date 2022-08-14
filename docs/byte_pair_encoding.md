@@ -6,3 +6,5 @@ https://github.com/gwenzek/fastBPE/blob/master/fastBPE/learnBPE.zig
 Blog https://leimao.github.io/blog/Byte-Pair-Encoding
 
 Original code https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+
+Video https://www.youtube.com/watch?v=tOMjTCO0htA

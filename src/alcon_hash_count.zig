@@ -29,6 +29,9 @@
 
 const std = @import("std");
 
+// Init HashCount 1M entries để count các tokens ko phải âm tiết tiếng Việt
+pub const HashCount1M = HashCount(1_000_000);
+
 pub const HashType = u64;
 pub const CountType = u32;
 pub const IndexType = u32;
@@ -36,8 +39,8 @@ pub const IndexType = u32;
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
 pub const MAX_CAPACITY: usize = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: usize = 50;
-pub const AVG_KEY_LEN: usize = 20;
+pub const MAX_KEY_LEN: usize = 60;
+pub const AVG_KEY_LEN: usize = 15;
 
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
@@ -64,8 +67,8 @@ pub fn HashCount(capacity: usize) type {
         entries: []Entry = undefined,
         len: usize = 0,
 
-        key_bytes: []u8 = undefined,
-        key_index: usize = 0,
+        keys_bytes: []u8 = undefined,
+        keys_bytes_len: usize = 0,
 
         key_offsets: []IndexType = undefined,
         const Self = @This();
@@ -73,16 +76,16 @@ pub fn HashCount(capacity: usize) type {
         pub inline fn key_str(self: *Self, idx: usize) []const u8 {
             const offset = self.key_offsets[idx];
             var ending: usize = offset + 1;
-            while (self.key_bytes[ending] != GUARD_BYTE) ending += 1;
-            return self.key_bytes[offset..ending];
+            while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
+            return self.keys_bytes[offset..ending];
         }
 
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.allocator = init_allocator;
             self.len = 0;
-            self.key_index = 0;
+            self.keys_bytes_len = 0;
 
-            self.key_bytes = try self.allocator.alloc(u8, capacity * AVG_KEY_LEN);
+            self.keys_bytes = try self.allocator.alloc(u8, capacity * AVG_KEY_LEN);
             self.entries = try self.allocator.alloc(Entry, size);
             self.key_offsets = try self.allocator.alloc(IndexType, size);
 
@@ -92,7 +95,7 @@ pub fn HashCount(capacity: usize) type {
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
-            self.allocator.free(self.key_bytes);
+            self.allocator.free(self.keys_bytes);
             self.allocator.free(self.key_offsets);
         }
 
@@ -147,15 +150,21 @@ pub fn HashCount(capacity: usize) type {
                     // key đầu vào lần đầu xuất hiện, ta tăng len và return
                     if (entry.count == 0) {
                         // gán giá trị key cho entries[first_swap_at]
-                        self.key_offsets[first_swap_at] = @intCast(IndexType, self.key_index);
-                        var ending = self.key_index;
+                        self.key_offsets[first_swap_at] = @intCast(IndexType, self.keys_bytes_len);
+                        var ending = self.keys_bytes_len;
                         @setRuntimeSafety(false);
                         for (key) |k| {
-                            self.key_bytes[ending] = k;
+                            self.keys_bytes[ending] = k;
                             ending += 1;
                         }
-                        self.key_bytes[ending] = GUARD_BYTE;
-                        self.key_index = ending + 1;
+                        self.keys_bytes[ending] = GUARD_BYTE;
+                        ending += 1;
+                        self.keys_bytes[ending] = GUARD_BYTE;
+                        ending += 1;
+                        self.keys_bytes[ending] = GUARD_BYTE;
+                        ending += 1;
+                        self.keys_bytes[ending] = GUARD_BYTE;
+                        self.keys_bytes_len = ending + 1;
 
                         // Record Stats
                         // const probs = i - _i + 1;
@@ -186,8 +195,8 @@ pub fn HashCount(capacity: usize) type {
                 const ending = offset + key.len;
 
                 const equal = (entry.hash == hash) and // check hash first
-                    self.key_bytes[ending] == GUARD_BYTE and // len eql
-                    std.mem.eql(u8, self.key_bytes[offset..ending], key);
+                    self.keys_bytes[ending] == GUARD_BYTE and // len eql
+                    std.mem.eql(u8, self.keys_bytes[offset..ending], key);
 
                 return if (equal) entry.count else 0;
             }
@@ -210,10 +219,10 @@ pub fn HashCount(capacity: usize) type {
             }
 
             if (max == 0) {
-                std.debug.print(
-                    "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n\n{s}\n",
-                    .{ self.len, self.max_probs, self.total_probs / self.len, self.total_probs, self.len, self.key_bytes[0..2048] },
-                );
+                const len = self.keys_bytes_len;
+                const begin = self.keys_bytes[0..2048];
+                const end = self.keys_bytes[(len - 2048)..len];
+                std.debug.print("\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n\n{s}\n\n{s}\n\n{d}\n", .{ self.len, self.max_probs, self.total_probs / self.len, self.total_probs, self.len, begin, end, len });
             }
         }
     };
