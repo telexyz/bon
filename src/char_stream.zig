@@ -184,6 +184,12 @@ pub fn main() !void {
 
     type_counters.list(20);
     type_counters.showStats();
+
+    var count_desc: ahc.CountDesc = undefined;
+    try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.key_offsets);
+    defer count_desc.deinit();
+
+    count_desc.list(20);
 }
 
 // simple config

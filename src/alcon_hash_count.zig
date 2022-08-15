@@ -78,7 +78,7 @@ pub fn HashCount(capacity: usize) type {
         key_offsets: []IndexType = undefined,
         const Self = @This();
 
-        pub inline fn key_str(self: *Self, idx: usize) []const u8 {
+        pub fn key_str(self: *Self, idx: usize) []const u8 {
             const offset = self.key_offsets[idx];
             var ending: usize = offset + 1;
             while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
@@ -244,18 +244,84 @@ pub fn HashCount(capacity: usize) type {
             std.debug.print("\nHash Count Validation: {}\n", .{self.validate()});
         }
 
-        pub fn sort() void {}
+        fn slice(self: Self) []Entry {
+            return self.entries[0..];
+        }
     };
 }
+
+pub const CountDesc = struct {
+    allocator: std.mem.Allocator = undefined,
+    len: usize = undefined,
+    keys_counts: []KeyCount = undefined,
+    keys_bytes: []const u8 = undefined,
+
+    const Self = @This();
+
+    const KeyCount = struct {
+        offset: IndexType,
+        count: CountType,
+    };
+
+    pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, offsets: []const IndexType) !void {
+        self.allocator = allocator;
+        self.len = len;
+        self.keys_bytes = keys_bytes;
+
+        self.keys_counts = try self.allocator.alloc(KeyCount, self.len);
+
+        var i: IndexType = 0;
+        for (self.keys_counts) |*kc| {
+            while (entries[i].hash == maxx_hash) i += 1;
+            kc.count = entries[i].count;
+            kc.offset = offsets[i];
+            i += 1;
+        }
+
+        std.sort.sort(KeyCount, self.keys_counts, {}, count_desc);
+    }
+
+    pub fn list(self: Self, n: usize) void {
+        var i: usize = 0;
+        while (i < n) : (i += 1) {
+            const kc = self.keys_counts[i];
+            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), kc.count });
+        }
+        i = 1;
+        while (i <= n) : (i += 1) {
+            const kc = self.keys_counts[self.len - i];
+            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), kc.count });
+        }
+    }
+
+    pub fn key_str(self: Self, idx: usize) []const u8 {
+        const offset = self.keys_counts[idx].offset;
+        var ending: usize = offset + 1;
+        while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
+        return self.keys_bytes[offset..ending];
+    }
+
+    pub fn deinit(self: *Self) void {
+        self.allocator.free(self.keys_counts);
+    }
+
+    fn count_desc(context: void, a: KeyCount, b: KeyCount) bool {
+        _ = context;
+        return a.count > b.count;
+    }
+};
 
 test "HashCount" {
     const HC1024 = HashCount(1024);
     var counters: HC1024 = undefined;
     try counters.init(std.testing.allocator);
     defer counters.deinit();
-    try std.testing.expectEqual(@as(CountType, 1), counters.put("a"));
+    counters.put("a");
+    try std.testing.expectEqual(@as(CountType, 1), counters.get("a"));
     try std.testing.expectEqual(@as(CountType, 1), counters.get("a"));
     try std.testing.expectEqual(@as(CountType, 0), counters.get("b"));
-    try std.testing.expectEqual(@as(CountType, 2), counters.put("a"));
-    try std.testing.expectEqual(@as(CountType, 1), counters.put("b"));
+    counters.put("a");
+    try std.testing.expectEqual(@as(CountType, 2), counters.get("a"));
+    counters.put("b");
+    try std.testing.expectEqual(@as(CountType, 1), counters.get("b"));
 }
