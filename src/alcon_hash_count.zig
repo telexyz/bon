@@ -100,8 +100,7 @@ pub fn HashCount(capacity: usize) type {
 
         pub fn key_str(self: *Self, idx: usize) []const u8 {
             const offset = self.entries[idx].offset;
-            var ending: usize = offset + 1;
-            while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
+            var ending: usize = offset + self.keys_bytes[offset - 1];
             return self.keys_bytes[offset..ending];
         }
 
@@ -132,6 +131,7 @@ pub fn HashCount(capacity: usize) type {
                 return;
             }
 
+            // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
             self.mutex.lock();
             defer self.mutex.unlock();
 
@@ -139,6 +139,8 @@ pub fn HashCount(capacity: usize) type {
                 if (never_swap) { // key lần đầu xuất hiện, ghi lại offset
                     never_swap = false;
                     var ending = self.keys_bytes_len;
+                    self.keys_bytes[ending] = @intCast(u8, key.len);
+                    ending += 1;
                     it.offset = @intCast(IndexType, ending);
                     for (key) |k| {
                         self.keys_bytes[ending] = k;
@@ -207,12 +209,12 @@ pub fn HashCount(capacity: usize) type {
         pub fn showStats(self: *Self) void {
             std.debug.print("\n\n(( HASH COUNT STATS ))\n", .{});
 
-            const len = self.keys_bytes_len;
-            const x = if (len < 2048) len else 2048;
-            const begin = self.keys_bytes[0..x];
-            const y = if (len < 2048) 0 else len - 2048;
-            const end = self.keys_bytes[y..len];
-            std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
+            // const len = self.keys_bytes_len;
+            // const x = if (len < 2048) len else 2048;
+            // const begin = self.keys_bytes[0..x];
+            // const y = if (len < 2048) 0 else len - 2048;
+            // const end = self.keys_bytes[y..len];
+            // std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
 
             const avg_probs = self.total_probs / self.total_puts;
             std.debug.print(
@@ -230,13 +232,22 @@ pub const CountDesc = struct {
     len: usize,
     entries: []Entry,
     keys_bytes: []const u8,
+    count_desc_keys: []const u8,
 
     const Self = @This();
 
-    pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8) !void {
+    pub fn deinit(self: *Self) void {
+        self.allocator.free(self.entries);
+        self.allocator.free(self.count_desc_keys);
+    }
+
+    pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         self.allocator = allocator;
         self.len = len;
         self.keys_bytes = keys_bytes;
+
+        self.count_desc_keys = try self.allocator.alloc(u8, keys_bytes_len + len * 3); // 3-first-bytes for count value
+
         self.entries = try self.allocator.alloc(Entry, self.len);
         std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_offset });
 
@@ -248,6 +259,8 @@ pub const CountDesc = struct {
         }
 
         std.sort.sort(Entry, self.entries, {}, count_desc);
+        // var x: usize = 0;
+        // for (self.entries) |entry| {}
     }
 
     const SPACES = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
@@ -267,13 +280,8 @@ pub const CountDesc = struct {
 
     pub fn key_str(self: Self, idx: usize) []const u8 {
         const offset = self.entries[idx].offset;
-        var ending: usize = offset + 1;
-        while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
+        var ending: usize = offset + self.keys_bytes[offset - 1];
         return self.keys_bytes[offset..ending];
-    }
-
-    pub fn deinit(self: *Self) void {
-        self.allocator.free(self.entries);
     }
 
     fn count_desc(context: void, a: Entry, b: Entry) bool {
