@@ -145,10 +145,9 @@ pub fn HashCount(capacity: usize) type {
                 }
 
                 // entry.hash > it.hash
-
                 if (never_swap) {
                     never_swap = false;
-                    // gán giá trị key cho entries[i]
+                    // key lần đầu xuất hiện => ghi lại giá trị
                     var ending = self.keys_bytes_len;
                     it.offset = @intCast(IndexType, ending);
                     for (key) |k| {
@@ -157,17 +156,16 @@ pub fn HashCount(capacity: usize) type {
                     }
                     self.keys_bytes[ending] = GUARD_BYTE;
                     self.keys_bytes_len = ending + 1;
+                    self.len += 1; // tăng số lượng phần tử được đếm
                 }
 
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash (trick 3)
                 self.entries[i] = it;
                 it = entry;
 
-                // Nếu ô đó là ô rỗng, count == 0 nghĩa là chưa lưu gì cả,
-                // thì key lần đầu xuất hiện, ta tăng len và return
-                if (entry.count == 0) {
+                if (it.count == 0) {
+                    // ô rỗng, ko cần phải tráo nữa
                     self.recordStats(i - _i);
-                    self.len += 1; // tăng số lượng phần tử được đếm
                     return;
                 }
             } // while
