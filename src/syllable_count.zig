@@ -8,11 +8,13 @@ pub const MAXX_KEY = Syllable.MAXX_ID; // maxx: value < maxx (maxx = max + 1)
 pub const SyllableCount = struct {
     allocator: std.mem.Allocator = undefined,
     counts: []CountType = undefined,
+    mutex: std.Thread.Mutex,
 
     const Self = @This();
 
     pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
         self.allocator = init_allocator;
+        self.mutex = std.Thread.Mutex{};
         self.counts = try self.allocator.alloc(CountType, MAXX_KEY);
         std.mem.set(CountType, self.counts, 0);
     }
@@ -23,6 +25,8 @@ pub const SyllableCount = struct {
 
     pub fn put(self: *Self, key: KeyType) void {
         std.debug.assert(key < MAXX_KEY);
+        // self.mutex.lock();
+        // defer self.mutex.unlock();
         self.counts[key] += 1;
     }
 

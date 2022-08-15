@@ -172,13 +172,13 @@ pub fn main() !void {
 
     // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
     // - - - - - - - - - - - - - - - - - -
-    // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+    var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
     try scanFile("../data/fb_comments.txt");
-    // thread1.join();
-    // thread2.join();
-    // thread3.join();
+    thread1.join();
+    thread2.join();
+    thread3.join();
 
     syll_counters.list(20);
 

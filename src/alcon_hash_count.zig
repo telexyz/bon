@@ -65,13 +65,13 @@ pub fn HashCount(capacity: usize) type {
         total_puts: usize,
 
         allocator: std.mem.Allocator,
+        mutex: std.Thread.Mutex,
+
         entries: []Entry,
         len: usize,
 
         keys_bytes: []u8,
         keys_bytes_len: usize,
-
-        mutex: std.Thread.Mutex,
 
         const Self = @This();
 
@@ -112,32 +112,6 @@ pub fn HashCount(capacity: usize) type {
             if (probs > self.max_probs) self.max_probs = probs;
         }
 
-        // Algo from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
-        //
-        //     var it: Self.Entry = .{ .hash = ctx.hash(key), .key = key, .value = undefined };
-        //     var i = it.hash >> self.shift;
-        //     var inserted_at: ?usize = null;
-        //
-        //     while (true) : (i += 1) {
-        //         const entry = self.entries[i];
-        //         if (entry.hash >= it.hash) {
-        //             if (ctx.eql(entry.key, key)) {
-        //                 return .{ .found_existing = true, .value_ptr = &self.entries[i].value };
-        //             }
-        //             self.entries[i] = it;
-        //             if (entry.isEmpty()) {
-        //                 self.len += 1;
-        //                 return .{ .found_existing = false, .value_ptr = &self.entries[inserted_at orelse i].value };
-        //             }
-        //             if (inserted_at == null) {
-        //                 inserted_at = i;
-        //             }
-        //             it = entry;
-        //         }
-        //         self.put_probe_count += 1;
-        //     }
-        // }
-
         inline fn _hash(key: []const u8) u64 {
             return std.hash.Wyhash.hash(key[0], key);
         }
@@ -153,15 +127,9 @@ pub fn HashCount(capacity: usize) type {
             while (self.entries[i].hash < it.hash) : (i += 1) {}
 
             if (self.entries[i].hash == it.hash) { // key đã xuất hiện
-                // const offset = self.entries[i].offset;
-                // const ending = offset + key.len;
-                // if (self.keys_bytes[ending] == GUARD_BYTE and // len eql
-                //     std.mem.eql(u8, self.keys_bytes[offset..ending], key))
-                // {
                 self.entries[i].count += 1;
                 self.recordStats(i - _i);
                 return;
-                // }
             }
 
             self.mutex.lock();
