@@ -39,6 +39,8 @@ pub const SyllableCount = struct {
         var i: KeyType = 0;
         var n: usize = 0;
         var buffer: [12]u8 = undefined;
+
+        std.debug.print("\n(( List {d} syllable counts ))\n", .{max});
         while (i < MAXX_KEY) : (i += 1) {
             const count = self.counts[i];
             if (count > 0) {

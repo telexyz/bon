@@ -183,7 +183,7 @@ pub fn main() !void {
     syll_counters.list(20);
 
     var count_desc: ahc.CountDesc = undefined;
-    try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.key_offsets);
+    try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes);
     defer count_desc.deinit();
     count_desc.list(20);
     type_counters.showStats();
