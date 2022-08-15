@@ -197,14 +197,12 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub fn validate(self: Self) bool {
-            var a: HashType = 0;
+            var prev: HashType = 0;
             for (self.entries[0..]) |entry| {
-                const h = entry.hash;
-                if (h < maxx_hash) {
-                    if (a > h) {
-                        return false;
-                    }
-                    a = h;
+                const curr = entry.hash;
+                if (curr < maxx_hash) {
+                    if (prev >= curr) return false;
+                    prev = curr;
                 }
             }
             return true;
@@ -241,7 +239,7 @@ pub fn HashCount(capacity: usize) type {
                 .{ self.len, self.max_probs, avg_probs, self.total_probs, self.len },
             );
 
-            std.debug.print("\nHash Count Validation: {}\n", .{self.validate()});
+            // std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
         }
 
         fn slice(self: Self) []Entry {
@@ -271,11 +269,19 @@ pub const CountDesc = struct {
         self.keys_counts = try self.allocator.alloc(KeyCount, self.len);
 
         var i: IndexType = 0;
+        var prev_hash: HashType = 0;
         for (self.keys_counts) |*kc| {
-            while (entries[i].hash == maxx_hash) i += 1;
-            kc.count = entries[i].count;
+            while (entries[i].hash == maxx_hash) : (i += 1) {} // bỏ qua
+
+            const hash = entries[i].hash;
+            if (prev_hash >= hash) unreachable;
+            prev_hash = hash;
+
             kc.offset = offsets[i];
-            i += 1;
+            while (entries[i].hash == hash) : (i += 1) {
+                kc.count += entries[i].count;
+            }
+            // std.debug.print("count[{s}]={d}\n", .{ self.key_str(idx), kc.count });
         }
 
         std.sort.sort(KeyCount, self.keys_counts, {}, count_desc);
