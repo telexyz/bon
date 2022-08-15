@@ -29,8 +29,6 @@
 // cùng tác động vào 1 điểm chứa dữ liệu khiến không đảm bảo tính tăng liên tục (sorted asc) của
 // hash value !! => Khắc phục bằng cách mỗi thread có 1 HashCount riêng và sau đó merge.
 // => Thực nghiệm cho thấy HashCount.validate() vẫn OK !!
-//
-// Algorithm from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
 
 const std = @import("std");
 
@@ -113,13 +111,41 @@ pub fn HashCount(capacity: usize) type {
             if (probs > self.max_probs) self.max_probs = probs;
         }
 
+        // Algo from https://raw.githubusercontent.com/lithdew/rheia/master/hash_map.zig
+        //
+        //     var it: Self.Entry = .{ .hash = ctx.hash(key), .key = key, .value = undefined };
+        //     var i = it.hash >> self.shift;
+        //
+        //     assert(it.hash != Self.empty_hash);
+        //
+        //     var inserted_at: ?usize = null;
+        //     while (true) : (i += 1) {
+        //         const entry = self.entries[i];
+        //         if (entry.hash >= it.hash) {
+        //             if (ctx.eql(entry.key, key)) {
+        //                 return .{ .found_existing = true, .value_ptr = &self.entries[i].value };
+        //             }
+        //             self.entries[i] = it;
+        //             if (entry.isEmpty()) {
+        //                 self.len += 1;
+        //                 return .{ .found_existing = false, .value_ptr = &self.entries[inserted_at orelse i].value };
+        //             }
+        //             if (inserted_at == null) {
+        //                 inserted_at = i;
+        //             }
+        //             it = entry;
+        //         }
+        //         self.put_probe_count += 1;
+        //     }
+        // }
+
         pub inline fn put(self: *Self, key: []const u8) void {
             if (key.len > MAX_KEY_LEN) return;
 
             var it: Entry = .{
                 .hash = _hash(key),
                 .count = 1, // phần tử nếu được thêm sẽ có count = 1
-                .offset = maxx_offset,
+                .offset = maxx_offset, // trỏ tới key's value
             };
 
             // Sử dụng capacity isPowerOfTwo và dùng hàm shift để băm hash vào index.
@@ -161,13 +187,12 @@ pub fn HashCount(capacity: usize) type {
 
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash (trick 3)
                 self.entries[i] = it;
-                it = entry;
-
-                if (it.count == 0) {
-                    // ô rỗng, ko cần phải tráo nữa
+                if (entry.count == 0) {
+                    // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
                     return;
                 }
+                it = entry;
             } // while
         }
 
