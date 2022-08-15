@@ -75,13 +75,6 @@ pub fn HashCount(capacity: usize) type {
 
         const Self = @This();
 
-        pub fn key_str(self: *Self, idx: usize) []const u8 {
-            const offset = self.entries[idx].offset;
-            var ending: usize = offset + 1;
-            while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
-            return self.keys_bytes[offset..ending];
-        }
-
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.max_probs = 0;
             self.total_probs = 0;
@@ -97,7 +90,7 @@ pub fn HashCount(capacity: usize) type {
             self.entries = try self.allocator.alloc(Entry, size);
 
             std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
-            std.mem.set(Entry, self.entries, Entry{ .hash = maxx_hash, .count = 0 });
+            std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
         }
 
         pub fn deinit(self: *Self) void {
@@ -105,8 +98,11 @@ pub fn HashCount(capacity: usize) type {
             self.allocator.free(self.keys_bytes);
         }
 
-        inline fn _hash(key: []const u8) u64 {
-            return std.hash.Wyhash.hash(0, key);
+        pub fn key_str(self: *Self, idx: usize) []const u8 {
+            const offset = self.entries[idx].offset;
+            var ending: usize = offset + 1;
+            while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
+            return self.keys_bytes[offset..ending];
         }
 
         inline fn recordStats(self: *Self, _probs: usize) void {
@@ -142,6 +138,10 @@ pub fn HashCount(capacity: usize) type {
         //     }
         // }
 
+        inline fn _hash(key: []const u8) u64 {
+            return std.hash.Wyhash.hash(key[0], key);
+        }
+
         pub inline fn put(self: *Self, key: []const u8) void {
             if (key.len > MAX_KEY_LEN) return;
 
@@ -153,9 +153,15 @@ pub fn HashCount(capacity: usize) type {
             while (self.entries[i].hash < it.hash) : (i += 1) {}
 
             if (self.entries[i].hash == it.hash) { // key đã xuất hiện
+                // const offset = self.entries[i].offset;
+                // const ending = offset + key.len;
+                // if (self.keys_bytes[ending] == GUARD_BYTE and // len eql
+                //     std.mem.eql(u8, self.keys_bytes[offset..ending], key))
+                // {
                 self.entries[i].count += 1;
                 self.recordStats(i - _i);
                 return;
+                // }
             }
 
             self.mutex.lock();
@@ -246,49 +252,32 @@ pub fn HashCount(capacity: usize) type {
 
             std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
         }
-
-        fn slice(self: Self) []Entry {
-            return self.entries[0..];
-        }
     };
 }
 
 pub const CountDesc = struct {
-    allocator: std.mem.Allocator = undefined,
-    len: usize = undefined,
-    keys_counts: []KeyCount = undefined,
-    keys_bytes: []const u8 = undefined,
+    allocator: std.mem.Allocator,
+    len: usize,
+    entries: []Entry,
+    keys_bytes: []const u8,
 
     const Self = @This();
-
-    const KeyCount = struct {
-        offset: IndexType,
-        count: CountType,
-    };
 
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8) !void {
         self.allocator = allocator;
         self.len = len;
         self.keys_bytes = keys_bytes;
-        self.keys_counts = try self.allocator.alloc(KeyCount, self.len);
+        self.entries = try self.allocator.alloc(Entry, self.len);
+        std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_offset });
 
         var i: IndexType = 0;
-        var prev_hash: HashType = 0;
-        for (self.keys_counts) |*kc| {
-            while (entries[i].hash == maxx_hash) : (i += 1) {} // bỏ qua
-
-            const hash = entries[i].hash;
-            if (prev_hash >= hash) unreachable;
-            prev_hash = hash;
-
-            kc.offset = entries[i].offset;
-            while (entries[i].hash == hash) : (i += 1) {
-                kc.count += entries[i].count;
-            }
-            // std.debug.print("count[{s}]={d}\n", .{ self.key_str(idx), kc.count });
+        for (self.entries) |*new_entry| {
+            while (entries[i].count == 0) : (i += 1) {} // bỏ qua
+            new_entry.* = entries[i];
+            i += 1;
         }
 
-        std.sort.sort(KeyCount, self.keys_counts, {}, count_desc);
+        std.sort.sort(Entry, self.entries, {}, count_desc);
     }
 
     pub fn list(self: Self, max: usize) void {
@@ -296,28 +285,29 @@ pub const CountDesc = struct {
         var i: usize = 0;
         const n = if (max < self.len) max else self.len;
         while (i < n) : (i += 1) {
-            const kc = self.keys_counts[i];
-            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), kc.count });
+            const entry = self.entries[i];
+            const key = self.key_str(i);
+            std.debug.print("count[{s}]={d}\n", .{ key, entry.count });
         }
-        i = 1;
-        while (i <= n) : (i += 1) {
-            const kc = self.keys_counts[self.len - i];
-            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), kc.count });
+
+        i = self.len - 1;
+        while (i > self.len - n) : (i -= 1) {
+            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), self.entries[i].count });
         }
     }
 
     pub fn key_str(self: Self, idx: usize) []const u8 {
-        const offset = self.keys_counts[idx].offset;
+        const offset = self.entries[idx].offset;
         var ending: usize = offset + 1;
         while (self.keys_bytes[ending] != GUARD_BYTE) ending += 1;
         return self.keys_bytes[offset..ending];
     }
 
     pub fn deinit(self: *Self) void {
-        self.allocator.free(self.keys_counts);
+        self.allocator.free(self.entries);
     }
 
-    fn count_desc(context: void, a: KeyCount, b: KeyCount) bool {
+    fn count_desc(context: void, a: Entry, b: Entry) bool {
         _ = context;
         return a.count > b.count;
     }
