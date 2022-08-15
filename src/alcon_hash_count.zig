@@ -44,8 +44,8 @@ pub const IndexType = u32;
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
 pub const MAX_CAPACITY: usize = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: usize = 60;
-pub const AVG_KEY_LEN: usize = 15;
+pub const MAX_KEY_LEN: usize = 63; // + 1 guard-byte = 64
+pub const AVG_KEY_LEN: usize = 12;
 
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
@@ -104,18 +104,14 @@ pub fn HashCount(capacity: usize) type {
             self.allocator.free(self.key_offsets);
         }
 
-        pub fn slice(self: Self) []Self.Entry {
-            return self.entries[0..size];
-        }
-
         inline fn _hash(key: []const u8) u64 {
             return std.hash.Wyhash.hash(key[0], key);
         }
 
-        pub inline fn put(self: *Self, key: []const u8) CountType {
-            // if (key.len < 3) return 0; // skip 1-2 char's strings (count using array later)
+        pub inline fn put(self: *Self, key: []const u8) void {
+            // if (key.len < 3) return; // skip 1-2 char's strings, count using array
             // => Ko cải tiến rõ rệt => BỎ QUA.
-            if (key.len > MAX_KEY_LEN) return 0;
+            if (key.len > MAX_KEY_LEN) return;
 
             var it: Entry = .{
                 .hash = _hash(key),
@@ -139,7 +135,7 @@ pub fn HashCount(capacity: usize) type {
                 if (entry.hash == it.hash) {
                     // Tìm được đúng ô chứa, tăng count lên 1 and return
                     self.entries[i].count += 1;
-                    return entry.count + 1;
+                    return;
                     //
                 } else { // => entry.hash > it.hash
                     // Tráo giá trị it và entries[i]
@@ -172,7 +168,7 @@ pub fn HashCount(capacity: usize) type {
 
                         // tăng số lượng phần tử được đếm
                         self.len += 1;
-                        return 1; // phần tử vừa được thêm nên count = 1
+                        return; // phần tử vừa được thêm nên count = 1
                     } // if (entry.count == 0)
                 } // else => entry.hash > it.hash
             } // while
@@ -247,6 +243,8 @@ pub fn HashCount(capacity: usize) type {
 
             std.debug.print("\nHash Count Validation: {}\n", .{self.validate()});
         }
+
+        pub fn sort() void {}
     };
 }
 

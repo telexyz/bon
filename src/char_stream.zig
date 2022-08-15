@@ -149,9 +149,9 @@ inline fn processToken(token_idx: usize, space_idx: usize, token: []const u8) vo
     var syll = parseSyllable(token);
 
     if (syll.can_be_vietnamese)
-        _ = syll_counters.put(syll.toId())
+        syll_counters.put(syll.toId())
     else
-        _ = type_counters.put(token);
+        type_counters.put(token);
 
     if (show_info) cmn.printSyllParts(syll);
 }
