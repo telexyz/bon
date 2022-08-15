@@ -7,7 +7,7 @@
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
 //
-// Với `count` thực hiện cùng lúc bởi threads mà ko dùng lock có khả năng count update ko kịp
+// Với `count` thực hiện cùng lúc bởi threads mà ko dùng lock có khả năng count update bị trùng lặp
 // => chấp nhận được! vì với dữ liệu lớn sai số ko thành vấn đề.
 //
 // Với `insert` cần phải xử lý race condition ở thao tác grow hashtable. Giải pháp:
@@ -24,11 +24,6 @@
 //
 // 32-bytes + u32 + u64 = 44-bytes
 // unique tokens gọi là types. Giả sử có 1 triệu (2^20) types => 1M * 36-bytes = 44 Mb
-
-// !! WARING: khi sử dụng mult-threads, thao tác hoán vị trị trong hashtable có thể bị nhiều threads
-// cùng tác động vào 1 điểm chứa dữ liệu khiến không đảm bảo tính tăng liên tục (sorted asc) của
-// hash value !! => Khắc phục bằng cách mỗi thread có 1 HashCount riêng và sau đó merge.
-// => Thực nghiệm cho thấy HashCount.validate() vẫn OK !!
 
 const std = @import("std");
 
