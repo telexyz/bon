@@ -5,7 +5,7 @@ const ahc = @import("alcon_hash_count.zig");
 
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 
-var type_counters: ahc.HashCount1M = undefined; // dùng chung cho nhiều threads
+var type_counters: ahc.NotSyllHashCount = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
@@ -108,7 +108,7 @@ fn scanFile(file_name: []const u8) !void {
             //
         } else if (sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
-            processToken(0, sp_idx, curr_bytes);
+            processToken(0, sp_idx, curr_bytes[0..sp_idx]);
         }
 
         //
@@ -122,7 +122,7 @@ fn scanFile(file_name: []const u8) !void {
             // Tìm next space index
             while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
 
-            if (sp_idx < len) processToken(tk_idx, sp_idx, curr_bytes);
+            if (sp_idx < len) processToken(tk_idx, sp_idx, curr_bytes[tk_idx..sp_idx]);
         }
 
         // swap curr_bytes and prev_bytes
@@ -163,12 +163,12 @@ pub fn main() !void {
     try syll_counters.init(std.heap.page_allocator);
     defer syll_counters.deinit();
 
-    try scanFile("utf8tv.txt");
+    // try scanFile("utf8tv.txt");
 
-    try scanFile("../data/fb_comments.txt");
-    try scanFile("../data/news_titles.txt");
+    // try scanFile("../data/fb_comments.txt");
+    // try scanFile("../data/news_titles.txt");
     // try scanFile("../data/vietai_sat.txt");
-    // try scanFile("../data/vi_wiki_all.txt");
+    try scanFile("../data/vi_wiki_all.txt");
 
     // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
     // - - - - - - - - - - - - - - - - - -
@@ -181,7 +181,6 @@ pub fn main() !void {
     // thread3.join();
 
     syll_counters.list(20);
-    type_counters.list(20);
     type_counters.showStats();
 
     var count_desc: ahc.CountDesc = undefined;

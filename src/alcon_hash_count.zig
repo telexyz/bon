@@ -34,8 +34,8 @@
 
 const std = @import("std");
 
-// Init HashCount 1M entries để count các tokens ko phải âm tiết tiếng Việt
-pub const HashCount1M = HashCount(1_000_000);
+// Init HashCount để count các tokens ko phải âm tiết tiếng Việt
+pub const NotSyllHashCount = HashCount(2_500_000);
 
 pub const HashType = u64;
 pub const CountType = u32;
@@ -196,13 +196,16 @@ pub fn HashCount(capacity: usize) type {
             }
         }
 
-        pub fn validate(self: Self) bool {
+        pub fn validate(self: *Self) bool {
             var prev: HashType = 0;
-            for (self.entries[0..]) |entry| {
+            for (self.entries[0..]) |entry, i| {
                 const curr = entry.hash;
                 if (curr < maxx_hash) {
-                    if (prev >= curr) return false;
+                    // Kiểm tra độ tăng dần và duy nhất của hash. OK!
+                    // if (prev >= curr) return false;
                     prev = curr;
+                    // Kiểm tra key và hash. !! ERROR !! đang bị lỗi ở đây
+                    if (curr != _hash(self.key_str(i))) return false;
                 }
             }
             return true;
@@ -225,7 +228,7 @@ pub fn HashCount(capacity: usize) type {
             }
         }
 
-        pub fn showStats(self: Self) void {
+        pub fn showStats(self: *Self) void {
             std.debug.print("\n\nHASH COUNT STATS\n", .{});
 
             const len = self.keys_bytes_len;
@@ -239,7 +242,7 @@ pub fn HashCount(capacity: usize) type {
                 .{ self.len, self.max_probs, avg_probs, self.total_probs, self.len },
             );
 
-            // std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
+            std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
         }
 
         fn slice(self: Self) []Entry {
@@ -287,8 +290,9 @@ pub const CountDesc = struct {
         std.sort.sort(KeyCount, self.keys_counts, {}, count_desc);
     }
 
-    pub fn list(self: Self, n: usize) void {
+    pub fn list(self: Self, max: usize) void {
         var i: usize = 0;
+        const n = if (max < self.len) max else self.len;
         while (i < n) : (i += 1) {
             const kc = self.keys_counts[i];
             std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), kc.count });
