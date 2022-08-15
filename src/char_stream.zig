@@ -165,10 +165,10 @@ pub fn main() !void {
 
     // try scanFile("utf8tv.txt");
 
-    // try scanFile("../data/fb_comments.txt");
+    try scanFile("../data/fb_comments.txt");
     // try scanFile("../data/news_titles.txt");
     // try scanFile("../data/vietai_sat.txt");
-    try scanFile("../data/vi_wiki_all.txt");
+    // try scanFile("../data/vi_wiki_all.txt");
 
     // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
     // - - - - - - - - - - - - - - - - - -
@@ -181,12 +181,12 @@ pub fn main() !void {
     // thread3.join();
 
     syll_counters.list(20);
-    type_counters.showStats();
 
     var count_desc: ahc.CountDesc = undefined;
     try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.key_offsets);
     defer count_desc.deinit();
     count_desc.list(20);
+    type_counters.showStats();
 }
 
 // simple config

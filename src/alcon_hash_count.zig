@@ -105,12 +105,15 @@ pub fn HashCount(capacity: usize) type {
         }
 
         inline fn _hash(key: []const u8) u64 {
-            return std.hash.Wyhash.hash(key[0], key);
+            return std.hash.Wyhash.hash(0, key);
+        }
+
+        inline fn recordStats(self: *Self, probs: usize) void {
+            self.total_probs += probs;
+            if (probs > self.max_probs) self.max_probs = probs;
         }
 
         pub inline fn put(self: *Self, key: []const u8) void {
-            // if (key.len < 3) return; // skip 1-2 char's strings, count using array
-            // => Ko cải tiến rõ rệt => BỎ QUA.
             if (key.len > MAX_KEY_LEN) return;
 
             var it: Entry = .{
@@ -123,7 +126,7 @@ pub fn HashCount(capacity: usize) type {
             // Vậy nên đảm bảo tính tăng dần của hash value (clever trick 1)
             var i: usize = it.hash >> shift;
             const _i = i;
-            var first_swap_at: usize = maxx_index;
+            var never_swap = true;
 
             while (true) : (i += 1) {
                 const entry = self.entries[i];
@@ -135,6 +138,7 @@ pub fn HashCount(capacity: usize) type {
                 if (entry.hash == it.hash) {
                     // Tìm được đúng ô chứa, tăng count lên 1 and return
                     self.entries[i].count += 1;
+                    self.recordStats(i - _i);
                     return;
                     //
                 } else { // => entry.hash > it.hash
@@ -143,34 +147,28 @@ pub fn HashCount(capacity: usize) type {
                     self.entries[i] = it;
                     it = entry;
 
-                    if (first_swap_at == maxx_index) {
-                        first_swap_at = i;
-                    }
-
-                    // Nếu ô đó là ô rỗng, count == 0 nghĩa là chưa lưu gì cả, thì
-                    // key đầu vào lần đầu xuất hiện, ta tăng len và return
-                    if (entry.count == 0) {
-                        // gán giá trị key cho entries[first_swap_at]
-                        self.key_offsets[first_swap_at] = @intCast(IndexType, self.keys_bytes_len);
+                    if (never_swap) {
+                        never_swap = false;
+                        // gán giá trị key cho entries[i]
+                        self.key_offsets[i] = @intCast(IndexType, self.keys_bytes_len);
                         var ending = self.keys_bytes_len;
-                        @setRuntimeSafety(false);
                         for (key) |k| {
                             self.keys_bytes[ending] = k;
                             ending += 1;
                         }
                         self.keys_bytes[ending] = GUARD_BYTE;
                         self.keys_bytes_len = ending + 1;
+                    }
 
-                        // Record Stats
-                        const probs = i - _i + 1;
-                        self.total_probs += probs;
-                        if (probs > self.max_probs) self.max_probs = probs;
-
+                    // Nếu ô đó là ô rỗng, count == 0 nghĩa là chưa lưu gì cả, thì
+                    // key đầu vào lần đầu xuất hiện, ta tăng len và return
+                    if (entry.count == 0) {
+                        self.recordStats(i - _i);
                         // tăng số lượng phần tử được đếm
                         self.len += 1;
                         return; // phần tử vừa được thêm nên count = 1
-                    } // if (entry.count == 0)
-                } // else => entry.hash > it.hash
+                    }
+                } // else
             } // while
         }
 
@@ -201,11 +199,17 @@ pub fn HashCount(capacity: usize) type {
             for (self.entries[0..]) |entry, i| {
                 const curr = entry.hash;
                 if (curr < maxx_hash) {
-                    // Kiểm tra độ tăng dần và duy nhất của hash. OK!
-                    // if (prev >= curr) return false;
+                    if (prev >= curr) {
+                        std.debug.print("\n!! hash ko tăng dần !!\n", .{});
+                        return false;
+                    }
                     prev = curr;
-                    // Kiểm tra key và hash. !! ERROR !! đang bị lỗi ở đây
-                    if (curr != _hash(self.key_str(i))) return false;
+
+                    if (curr != _hash(self.key_str(i))) {
+                        std.debug.print("\n!! hash ko trùng với key !!\n", .{});
+
+                        return false;
+                    }
                 }
             }
             return true;
