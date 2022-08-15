@@ -166,9 +166,9 @@ pub fn main() !void {
     // try scanFile("utf8tv.txt");
 
     try scanFile("../data/fb_comments.txt");
-    // try scanFile("../data/news_titles.txt");
-    // try scanFile("../data/vietai_sat.txt");
-    // try scanFile("../data/vi_wiki_all.txt");
+    try scanFile("../data/news_titles.txt");
+    try scanFile("../data/vietai_sat.txt");
+    try scanFile("../data/vi_wiki_all.txt");
 
     // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
     // - - - - - - - - - - - - - - - - - -

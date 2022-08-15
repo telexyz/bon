@@ -214,24 +214,6 @@ pub fn HashCount(capacity: usize) type {
             return true;
         }
 
-        pub fn list(self: *Self, max: usize) void {
-            std.debug.print("\n(( List {d} type counts ))\n", .{max});
-            var i: usize = 0;
-            var n: usize = 0;
-            while (i < size) : (i += 1) {
-                const entry = self.entries[i];
-                if (entry.count > 0) {
-                    n += 1;
-                    if (n > max) break;
-
-                    std.debug.print("\ncount[{s}]: {d}", .{
-                        self.key_str(i),
-                        entry.count,
-                    });
-                }
-            }
-        }
-
         pub fn showStats(self: *Self) void {
             std.debug.print("\n\nHASH COUNT STATS\n", .{});
 
@@ -294,6 +276,7 @@ pub const CountDesc = struct {
     }
 
     pub fn list(self: Self, max: usize) void {
+        std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
         var i: usize = 0;
         const n = if (max < self.len) max else self.len;
         while (i < n) : (i += 1) {
