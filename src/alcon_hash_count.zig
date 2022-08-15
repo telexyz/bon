@@ -62,6 +62,7 @@ pub fn HashCount(capacity: usize) type {
         // Stats
         max_probs: usize,
         total_probs: usize,
+        total_puts: usize,
 
         allocator: std.mem.Allocator,
         entries: []Entry,
@@ -84,6 +85,7 @@ pub fn HashCount(capacity: usize) type {
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.max_probs = 0;
             self.total_probs = 0;
+            self.total_puts = 0;
 
             self.len = 0;
             self.keys_bytes_len = 0;
@@ -107,8 +109,10 @@ pub fn HashCount(capacity: usize) type {
             return std.hash.Wyhash.hash(0, key);
         }
 
-        inline fn recordStats(self: *Self, probs: usize) void {
+        inline fn recordStats(self: *Self, _probs: usize) void {
+            const probs = _probs + 1;
             self.total_probs += probs;
+            self.total_puts += 1;
             if (probs > self.max_probs) self.max_probs = probs;
         }
 
@@ -234,10 +238,10 @@ pub fn HashCount(capacity: usize) type {
             const end = self.keys_bytes[(len - 2048)..len];
             std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
 
-            const avg_probs = self.total_probs / self.len;
+            const avg_probs = self.total_probs / self.total_puts;
             std.debug.print(
                 "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n",
-                .{ self.len, self.max_probs, avg_probs, self.total_probs, self.len },
+                .{ self.len, self.max_probs, avg_probs, self.total_probs, self.total_puts },
             );
 
             std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
