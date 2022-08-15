@@ -165,20 +165,20 @@ pub fn main() !void {
 
     // try scanFile("utf8tv.txt");
 
-    try scanFile("../data/fb_comments.txt");
-    try scanFile("../data/news_titles.txt");
-    try scanFile("../data/vietai_sat.txt");
-    try scanFile("../data/vi_wiki_all.txt");
+    // try scanFile("../data/fb_comments.txt");
+    // try scanFile("../data/news_titles.txt");
+    // try scanFile("../data/vietai_sat.txt");
+    // try scanFile("../data/vi_wiki_all.txt");
 
     // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
     // - - - - - - - - - - - - - - - - - -
-    // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-    // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-    // try scanFile("../data/fb_comments.txt");
-    // thread1.join();
-    // thread2.join();
-    // thread3.join();
+    var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+    try scanFile("../data/fb_comments.txt");
+    thread1.join();
+    thread2.join();
+    thread3.join();
 
     syll_counters.list(20);
 
