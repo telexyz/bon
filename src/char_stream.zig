@@ -1,4 +1,5 @@
 const std = @import("std");
+const builtin = @import("builtin");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 const ahc = @import("alcon_hash_count.zig");
@@ -163,32 +164,37 @@ pub fn main() !void {
     try syll_counters.init(std.heap.page_allocator);
     defer syll_counters.deinit();
 
-    // try scanFile("utf8tv.txt");
-
-    // try scanFile("../data/fb_comments.txt");
-    // try scanFile("../data/news_titles.txt");
-    // try scanFile("../data/vietai_sat.txt");
-    // try scanFile("../data/vi_wiki_all.txt");
-
-    // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
-    // - - - - - - - - - - - - - - - - - -
-    var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-    var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-    var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-    try scanFile("../data/fb_comments.txt");
-    thread1.join();
-    thread2.join();
-    thread3.join();
+    switch (builtin.mode) {
+        .Debug, .ReleaseSmall => {
+            show_info = true;
+            try scanFile("utf8tv.txt");
+        },
+        .ReleaseSafe => {
+            try scanFile("../data/fb_comments.txt");
+            try scanFile("../data/news_titles.txt");
+            try scanFile("../data/vietai_sat.txt");
+            try scanFile("../data/vi_wiki_all.txt");
+        },
+        .ReleaseFast => {
+            // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
+            // - - - - - - - - - - - - - - - - - -
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+            try scanFile("../data/fb_comments.txt");
+            thread1.join();
+            thread2.join();
+            thread3.join();
+        },
+    }
 
     syll_counters.list(20);
-
     var count_desc: ahc.CountDesc = undefined;
     try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes);
     defer count_desc.deinit();
-    count_desc.list(20);
+    count_desc.list(40);
     type_counters.showStats();
 }
 
 // simple config
-const show_info = false;
-// const show_info = true;
+var show_info = false;

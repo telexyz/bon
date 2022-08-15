@@ -205,11 +205,13 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub fn showStats(self: *Self) void {
-            std.debug.print("\n\nHASH COUNT STATS\n", .{});
+            std.debug.print("\n\n(( HASH COUNT STATS ))\n", .{});
 
             const len = self.keys_bytes_len;
-            const begin = self.keys_bytes[0..2048];
-            const end = self.keys_bytes[(len - 2048)..len];
+            const x = if (len < 2048) len else 2048;
+            const begin = self.keys_bytes[0..x];
+            const y = if (len < 2048) 0 else len - 2048;
+            const end = self.keys_bytes[y..len];
             std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
 
             const avg_probs = self.total_probs / self.total_puts;
@@ -248,6 +250,7 @@ pub const CountDesc = struct {
         std.sort.sort(Entry, self.entries, {}, count_desc);
     }
 
+    const SPACES = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
     pub fn list(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
         var i: usize = 0;
@@ -255,12 +258,10 @@ pub const CountDesc = struct {
         while (i < n) : (i += 1) {
             const entry = self.entries[i];
             const key = self.key_str(i);
-            std.debug.print("count[{s}]={d}\n", .{ key, entry.count });
-        }
-
-        i = self.len - 1;
-        while (i > self.len - n) : (i -= 1) {
-            std.debug.print("count[{s}]={d}\n", .{ self.key_str(i), self.entries[i].count });
+            const spaces = SPACES[0 .. (MAX_KEY_LEN - key.len) / 9];
+            std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, entry.count, spaces });
+            const x = self.len - i - 1;
+            std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
         }
     }
 
