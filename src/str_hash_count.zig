@@ -263,8 +263,8 @@ pub const CountDesc = struct {
         }
         std.sort.sort(Entry, self.entries, {}, count_desc);
 
-        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
-        // cần 2-bytes lưu reduced coun, lấy lại 1 byte từ GUARD_BYTE nên chỉ cần thêm `len * 1`
+        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 1);
+        // cần thêm 2-bytes lưu reduced count, 1 byte từ GUARD_BYTE nên chỉ cần thêm `len * 1`
         // \count-byte1\count-byte2\len\'key' = key.len + 3
         const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
         const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
@@ -272,9 +272,8 @@ pub const CountDesc = struct {
         for (self.entries) |entry| {
             // Reduce count from u32 to u16
             self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
-            x += 1;
-            self.vocabs[x] = @intCast(u8, pext_u32(entry.count, low_bitmap));
-            x += 1;
+            self.vocabs[x + 1] = @intCast(u8, pext_u32(entry.count, low_bitmap));
+            x += 2;
 
             const l = keys_bytes[entry.offset - 1];
             const end = entry.offset + l;
@@ -295,7 +294,7 @@ pub const CountDesc = struct {
     }
 
     pub fn list(self: Self, max: usize) void {
-        std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
+        std.debug.print("\n\n(( List {d} type counts ))\n\n", .{max});
         var i: usize = 0;
         const n = if (max < self.len) max else self.len;
         var x: usize = 0;
@@ -313,30 +312,21 @@ pub const CountDesc = struct {
             const key = self.vocabs[x..end];
             x = end;
 
-            std.debug.print("\n\"{s}\" {d: <6}", .{ key, count });
+            std.debug.print("`{s}` {d: <6}", .{ key, count });
+            const sep = if (i % 2 == 0)
+                TABS[0 .. (MAX_KEY_LEN - key.len) / 9]
+            else
+                "\n";
+            std.debug.print("{s}", .{sep});
         }
     }
+    const TABS = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 
-    // const TABS = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
-    // pub fn list(self: Self, max: usize) void {
-    //     std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
-    //     var i: usize = 0;
-    //     const n = if (max < self.len) max else self.len;
-    //     while (i < n) : (i += 1) {
-    //         const entry = self.entries[i];
-    //         const key = self.key_str(i);
-    //         const spaces = TABS[0 .. (MAX_KEY_LEN - key.len) / 9];
-    //         std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, entry.count, spaces });
-    //         const x = self.len - i - 1;
-    //         std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
-    //     }
-    // }
-
-    // pub fn key_str(self: Self, idx: usize) []const u8 {
-    //     const offset = self.entries[idx].offset;
-    //     var ending: usize = offset + self.keys_bytes[offset - 1];
-    //     return self.keys_bytes[offset..ending];
-    // }
+    pub fn key_str(self: Self, idx: usize) []const u8 {
+        const offset = self.entries[idx].offset;
+        var ending: usize = offset + self.keys_bytes[offset - 1];
+        return self.keys_bytes[offset..ending];
+    }
 
     fn count_desc(context: void, a: Entry, b: Entry) bool {
         _ = context;
