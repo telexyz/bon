@@ -40,7 +40,7 @@ key =   "EDFABABBAB"
 bitmap = 0101100100
 ```
 
-Cách thứ 2 là dùng 1 mảng byte nữa để lưu symbol's len
+Cách thứ 2 là dùng mảng nữa để lưu symbol's len
 ```
 key =    "EDFABABBAB"
 sym_len = 1112020120

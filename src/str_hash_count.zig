@@ -230,6 +230,7 @@ pub const CountDesc = struct {
     entries: []Entry,
     keys_bytes: []const u8,
     vocabs: []u8,
+    vocabs_len: usize,
 
     const Self = @This();
 
@@ -279,6 +280,11 @@ pub const CountDesc = struct {
                 x += 1;
             }
         }
+        self.vocabs_len = x;
+    }
+
+    pub fn vocabs_slice(self: *Self) []const u8 {
+        return self.vocabs[0..self.vocabs_len];
     }
 
     pub fn list(self: Self, max: usize) void {
