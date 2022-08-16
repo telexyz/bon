@@ -2,7 +2,7 @@ const std = @import("std");
 // const ztracy = @import("libs/ztracy/build.zig");
 
 fn setup(step: *std.build.LibExeObjStep) void {
-    step.addCSourceFile("src/intrinsics.c", &[_][]const u8{ "-Wall", "-Wextra", "-Werror", "-O3" });
+    step.addCSourceFile("src/instructions.c", &[_][]const u8{ "-Wall", "-Wextra", "-Werror", "-O3" });
     step.linkLibC();
 }
 
@@ -21,7 +21,7 @@ pub fn build(b: *std.build.Builder) void {
     // const exe = b.addExecutable("am_cuoi", "src/am_cuoi.zig");
     // const exe = b.addExecutable("am_tiet", "src/am_tiet.zig");
     const exe = b.addExecutable("char_stream", "src/char_stream.zig");
-    // const exe = b.addExecutable("intrinsics", "src/intrinsics.zig");
+    // const exe = b.addExecutable("instructions", "src/instructions.zig");
     // const exe = b.addExecutable("turbo", "src/main.zig");
 
     // const ztracy_enable = b.option(bool, "ztracy-enable", "Enable Tracy profiler") orelse false;

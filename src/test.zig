@@ -1,5 +1,5 @@
 test "all" {
-    _ = @import("intrinsics.zig");
+    _ = @import("instructions.zig");
     _ = @import("syllable.zig");
     _ = @import("syllable_count.zig");
     _ = @import("ky_tu.zig");

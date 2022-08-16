@@ -1,3 +1,7 @@
+// https://lemire.me/blog/2018/01/08/how-fast-can-you-bit-interleave-32-bit-integers
+// `pdep` and `pext` instructions
+// More https://www.felixcloutier.com/x86/index.html
+
 pub extern fn __pext_u32(x: u32, y: u32) u32;
 pub inline fn pext_u32(x: u32, y: u32) u32 {
     return __pext_u32(x, y);

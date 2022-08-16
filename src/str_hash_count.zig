@@ -238,7 +238,7 @@ pub const CountDesc = struct {
         self.allocator.free(self.vocabs);
     }
 
-    const pext_u32 = @import("intrinsics.zig").pext_u32;
+    const pext_u32 = @import("instructions.zig").pext_u32;
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         self.allocator = allocator;
         self.len = len;
@@ -279,8 +279,6 @@ pub const CountDesc = struct {
                 x += 1;
             }
         }
-        // https://lemire.me/blog/2018/01/08/how-fast-can-you-bit-interleave-32-bit-integers
-        // `pdep` and `pext` instructions
     }
 
     pub fn list(self: Self, max: usize) void {
