@@ -232,7 +232,7 @@ pub const CountDesc = struct {
     len: usize,
     entries: []Entry,
     keys_bytes: []const u8,
-    count_desc_keys: []const u8,
+    count_desc_keys: []u8,
 
     const Self = @This();
 
@@ -241,12 +241,11 @@ pub const CountDesc = struct {
         self.allocator.free(self.count_desc_keys);
     }
 
+    const pext_u32 = @import("intrinsics.zig").pext_u32;
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         self.allocator = allocator;
         self.len = len;
         self.keys_bytes = keys_bytes;
-
-        self.count_desc_keys = try self.allocator.alloc(u8, keys_bytes_len + len * 3); // 3-first-bytes for count value
 
         self.entries = try self.allocator.alloc(Entry, self.len);
         std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_offset });
@@ -257,32 +256,79 @@ pub const CountDesc = struct {
             new_entry.* = entries[i];
             i += 1;
         }
-
         std.sort.sort(Entry, self.entries, {}, count_desc);
-        // var x: usize = 0;
-        // for (self.entries) |entry| {}
+
+        self.count_desc_keys = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
+        // cần 2-bytes lưu reduced coun, lấy lại 1 byte từ GUARD_BYTE nên chỉ cần thêm `len * 1`
+        // \count-byte1\count-byte2\len\'key' = key.len + 3
+        const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
+        const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
+        var x: usize = 0;
+        for (self.entries) |entry| {
+            // Reduce count from u32 to u16
+            self.count_desc_keys[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
+            x += 1;
+            self.count_desc_keys[x] = @intCast(u8, pext_u32(entry.count, low_bitmap));
+            x += 1;
+
+            const l = keys_bytes[entry.offset - 1];
+            const end = entry.offset + l;
+            self.count_desc_keys[x] = l; // key's len
+            x += 1;
+
+            // copy key bytes
+            for (keys_bytes[entry.offset..end]) |byte| {
+                self.count_desc_keys[x] = byte;
+                x += 1;
+            }
+        }
+        // https://lemire.me/blog/2018/01/08/how-fast-can-you-bit-interleave-32-bit-integers
+        // `pdep` and `pext` instructions
     }
 
-    const SPACES = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
+    const SPACES = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
     pub fn list(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
         var i: usize = 0;
         const n = if (max < self.len) max else self.len;
+        var x: usize = 0;
         while (i < n) : (i += 1) {
-            const entry = self.entries[i];
-            const key = self.key_str(i);
-            const spaces = SPACES[0 .. (MAX_KEY_LEN - key.len) / 9];
-            std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, entry.count, spaces });
-            const x = self.len - i - 1;
-            std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
+            const count = self.count_desc_keys[x] * @as(u32, 256) + self.count_desc_keys[x + 1];
+            x += 2;
+
+            const len = self.count_desc_keys[x];
+            x += 1;
+
+            const end = x + len;
+            const key = self.count_desc_keys[x..end];
+            x = end;
+
+            const spaces = SPACES[0 .. (MAX_KEY_LEN - len) / 9];
+            std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, count, spaces });
+            // const x = self.len - i - 1;
+            // std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
         }
     }
 
-    pub fn key_str(self: Self, idx: usize) []const u8 {
-        const offset = self.entries[idx].offset;
-        var ending: usize = offset + self.keys_bytes[offset - 1];
-        return self.keys_bytes[offset..ending];
-    }
+    // pub fn list(self: Self, max: usize) void {
+    //     std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
+    //     var i: usize = 0;
+    //     const n = if (max < self.len) max else self.len;
+    //     while (i < n) : (i += 1) {
+    //         const entry = self.entries[i];
+    //         const key = self.key_str(i);
+    //         const spaces = SPACES[0 .. (MAX_KEY_LEN - key.len) / 9];
+    //         std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, entry.count, spaces });
+    //         const x = self.len - i - 1;
+    //         std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
+    //     }
+    // }
+
+    // pub fn key_str(self: Self, idx: usize) []const u8 {
+    //     const offset = self.entries[idx].offset;
+    //     var ending: usize = offset + self.keys_bytes[offset - 1];
+    //     return self.keys_bytes[offset..ending];
+    // }
 
     fn count_desc(context: void, a: Entry, b: Entry) bool {
         _ = context;

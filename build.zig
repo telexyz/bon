@@ -1,6 +1,11 @@
 const std = @import("std");
 // const ztracy = @import("libs/ztracy/build.zig");
 
+fn setup(step: *std.build.LibExeObjStep) void {
+    step.addCSourceFile("src/intrinsics.c", &[_][]const u8{ "-Wall", "-Wextra", "-Werror", "-O3" });
+    step.linkLibC();
+}
+
 pub fn build(b: *std.build.Builder) void {
     // Standard target options allows the person running `zig build` to choose
     // what target to build for. Here we do not override the defaults, which
@@ -16,6 +21,7 @@ pub fn build(b: *std.build.Builder) void {
     // const exe = b.addExecutable("am_cuoi", "src/am_cuoi.zig");
     // const exe = b.addExecutable("am_tiet", "src/am_tiet.zig");
     const exe = b.addExecutable("char_stream", "src/char_stream.zig");
+    // const exe = b.addExecutable("intrinsics", "src/intrinsics.zig");
     // const exe = b.addExecutable("turbo", "src/main.zig");
 
     // const ztracy_enable = b.option(bool, "ztracy-enable", "Enable Tracy profiler") orelse false;
@@ -24,6 +30,7 @@ pub fn build(b: *std.build.Builder) void {
     // exe.addPackage(ztracy_pkg);
     // ztracy.link(exe, ztracy_options);
 
+    setup(exe);
     exe.setTarget(target);
     exe.setBuildMode(mode);
     exe.install();
@@ -38,6 +45,7 @@ pub fn build(b: *std.build.Builder) void {
     run_step.dependOn(&run_cmd.step);
 
     const exe_tests = b.addTest("src/test.zig");
+    setup(exe_tests);
     exe_tests.setTarget(target);
     exe_tests.setBuildMode(mode);
 
