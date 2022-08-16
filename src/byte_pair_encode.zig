@@ -63,6 +63,7 @@ pub const BPE = struct {
         self.total_vocabs = 0;
 
         while (x < vocabs.len) {
+            const key_count = vocabs[x] * @as(u16, 256) + vocabs[x + 1];
             x += 2; // bỏ qua 2-bytes lưu count
             var ending = x + vocabs[x] + 1;
             x += 1; // trỏ tới đầu key
@@ -94,7 +95,7 @@ pub const BPE = struct {
                     break;
                 }
                 const symbol = vocabs[x..next];
-                self.symbols.put(symbol);
+                _ = self.symbols.put_count(symbol, key_count);
                 // std.debug.print("{s}:{d} ", .{ symbol, symbol.len });
                 x = next;
             } // key
