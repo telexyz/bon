@@ -23,28 +23,30 @@ Coi tokens là tập hợp bytes. Có thể giả sử symbol dài nhất <= 32-
 
 => Sort type desc by count then strlen 
 
-=> Tập trung tìm best pair candidates ở các type có count lớn và strlen ngắn
+=> Tập trung tìm best pair candidates ở các type có count
 
 => Lưu riêng các types có count < 256 (chỉ cần 1 byte để lưu count)
 
 => Lưu riêng các types có count = 1,2,3
 
-Dùng heuristic để bỏ qua việc phải scan các types có count = 1,2,3 càng nhiều càng tốt
-Nếu phải scan thì dùng multi-threading để tăng tốc.
+Dùng heuristic để bỏ qua việc phải scan các types có count = 1,2,3 càng nhiều càng tốt.
+Nếu phải scan có thể dùng multi-threading để tăng tốc.
 
 ![](bpe_learn.png)
 
-- - -
+Đến bước thay thế mọi cặp `A`, `B` gần nhau trong vocab bằng `AB` symbol thì dùng `bitmap` để đánh dấu. Ví dụ:
+```
+key =   "EDFABABBAB"
+bitmap = 0101100100
+```
 
+Cách thứ là dùng 1 mảng byte nữa để lưu symbol len
+```
+key =    "EDFABABBAB"
+sym_len = 1112020120
+```
 
-## REFs
-
-Fastest BPE + DropOut https://github.com/telexyz/turbo/tree/main/libs/youtokentome
-
-Zig Impl https://gwenzek.github.io/fastBPE/analysis.html
-https://github.com/gwenzek/fastBPE/blob/master/fastBPE/learnBPE.zig
-
-Original code https://github.com/rsennrich/subword-nmt/blob/master/subword_nmt/learn_bpe.py
+=> Cần 1 thuật toán tìm sub-string hiệu quả để đánh dấu symbol mới hợp thành!
 
 ### Thuật toán tìm sub-string hiệu quả
 
