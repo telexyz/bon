@@ -15,6 +15,16 @@ pub const BPE = struct {
     symbol_lens: []u8 = undefined,
 
     const Self = @This();
+
+    pub fn learn(self: *Self) void {
+        // 1/ chọn 2 symbols liền kề có count lớn nhất trong vocabs
+        // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
+        // 3/ lặp lại bước 1/ `k` lần
+
+        // 1/ Dùng `symbols: SymbolCount` để tính count cho cặp symbol tiềm năng
+        //
+    }
+
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.symbol_lens);
     }
@@ -30,7 +40,7 @@ pub const BPE = struct {
             var ending = x + vocabs[x] + 1;
             x += 1; // trỏ tới đầu
 
-            std.debug.print("\n{d} `{s}` ", .{ ending - x, vocabs[x..ending] });
+            // std.debug.print("\n{d} `{s}` ", .{ ending - x, vocabs[x..ending] });
 
             while (x < ending) {
                 // Algo from `zig/std/unicode.zig`
@@ -55,7 +65,7 @@ pub const BPE = struct {
                     x = ending;
                     break;
                 }
-                std.debug.print("{s}:{d} ", .{ vocabs[x..next], next - x });
+                // std.debug.print("{s}:{d} ", .{ vocabs[x..next], next - x });
                 x = next;
             } // key
         } // vocabs
