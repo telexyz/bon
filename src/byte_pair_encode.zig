@@ -17,6 +17,7 @@ pub const BPE = struct {
     const Self = @This();
 
     pub fn learn(self: *Self) void {
+        _ = self;
         // 1/ chọn 2 symbols liền kề có count lớn nhất trong vocabs
         // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
         // 3/ lặp lại bước 1/ `k` lần
