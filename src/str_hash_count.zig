@@ -72,6 +72,15 @@ pub fn HashCount(capacity: usize) type {
 
         const Self = @This();
 
+        pub fn slice(self: *Self) []const Entry {
+            return self.entries[0..];
+        }
+
+        pub fn deinit(self: *Self) void {
+            self.allocator.free(self.entries);
+            self.allocator.free(self.keys_bytes);
+        }
+
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.max_probs = 0;
             self.total_probs = 0;
@@ -90,14 +99,8 @@ pub fn HashCount(capacity: usize) type {
             std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
         }
 
-        pub fn deinit(self: *Self) void {
-            self.allocator.free(self.entries);
-            self.allocator.free(self.keys_bytes);
-        }
-
-        pub fn key_str(self: *Self, idx: usize) []const u8 {
-            const offset = self.entries[idx].offset;
-            var ending: usize = offset + self.keys_bytes[offset - 1];
+        pub inline fn key_str(self: *Self, offset: IndexType) []const u8 {
+            const ending: usize = offset + self.keys_bytes[offset - 1];
             return self.keys_bytes[offset..ending];
         }
 
@@ -113,9 +116,13 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub inline fn put(self: *Self, key: []const u8) void {
-            if (key.len > MAX_KEY_LEN) return;
+            _ = self.put_count(key, 1);
+        }
 
-            var it: Entry = .{ .hash = _hash(key), .count = 1, .offset = maxx_offset };
+        pub fn put_count(self: *Self, key: []const u8, count: CountType) CountType {
+            if (key.len > MAX_KEY_LEN) return 0; // reject
+
+            var it: Entry = .{ .hash = _hash(key), .count = count, .offset = maxx_offset };
             var i: usize = it.hash >> shift;
             var never_swap = true;
             const _i = i;
@@ -123,9 +130,9 @@ pub fn HashCount(capacity: usize) type {
             while (self.entries[i].hash < it.hash) : (i += 1) {}
 
             if (self.entries[i].hash == it.hash) { // key đã xuất hiện
-                self.entries[i].count += 1;
+                self.entries[i].count += count;
                 self.recordStats(i - _i);
-                return;
+                return self.entries[i].count;
             }
 
             // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
@@ -154,7 +161,7 @@ pub fn HashCount(capacity: usize) type {
 
                 if (tmp.count == 0) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
-                    return;
+                    return count;
                 }
                 it = tmp;
             } // while
@@ -184,7 +191,7 @@ pub fn HashCount(capacity: usize) type {
 
         pub fn validate(self: *Self) bool {
             var prev: HashType = 0;
-            for (self.entries[0..]) |entry, i| {
+            for (self.entries[0..]) |entry| {
                 const curr = entry.hash;
                 if (curr < maxx_hash) {
                     if (prev >= curr) {
@@ -193,7 +200,7 @@ pub fn HashCount(capacity: usize) type {
                     }
                     prev = curr;
 
-                    if (curr != _hash(self.key_str(i))) {
+                    if (curr != _hash(self.key_str(entry.offset))) {
                         std.debug.print("\n!! hash ko trùng với key !!\n", .{});
 
                         return false;

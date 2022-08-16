@@ -1,5 +1,5 @@
 #include <stdint.h>
-#include <emmintrin.h> // SSE2 intrinsics 126-bit register
+#include <emmintrin.h> // SSE2 intrinsics 128-bit register
 #include <immintrin.h> // Intel intrinsics, including 256-bit lane
 
 __m256i mm256_shuffle_epi8(__m256i a, __m256i b) {

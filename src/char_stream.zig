@@ -141,7 +141,7 @@ fn scanFile(file_name: []const u8) !void {
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
 
-inline fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
+fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
     if (show_info)
         std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
             token_idx,
@@ -200,6 +200,7 @@ pub fn main() !void {
     var bpe: BPE = undefined;
     defer bpe.deinit();
     try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    bpe.showCandidates();
 }
 
 // simple config
