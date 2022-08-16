@@ -2,11 +2,13 @@ const std = @import("std");
 const builtin = @import("builtin");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
-const ahc = @import("alcon_hash_count.zig");
-
+const shc = @import("str_hash_count.zig");
+const BPE = @import("byte_pair_encode.zig").BPE;
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
+// Init HashCount để count các tokens ko phải âm tiết tiếng Việt
+pub const NotSyllHashCount = shc.HashCount(2_500_000);
 
-var type_counters: ahc.NotSyllHashCount = undefined; // dùng chung cho nhiều threads
+var type_counters: NotSyllHashCount = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
 
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
@@ -189,11 +191,14 @@ pub fn main() !void {
     }
 
     syll_counters.list(20);
-    var count_desc: ahc.CountDesc = undefined;
+    var count_desc: shc.CountDesc = undefined;
     try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
     defer count_desc.deinit();
     count_desc.list(40);
     type_counters.showStats();
+
+    var bpe: BPE = undefined;
+    bpe.parse(count_desc.vocabs);
 }
 
 // simple config

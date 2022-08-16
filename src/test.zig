@@ -10,6 +10,6 @@ test "all" {
     _ = @import("char_stream.zig");
 
     _ = @import("lookup_tables.zig");
-    _ = @import("alcon_hash_count.zig");
+    _ = @import("str_hash_count.zig");
     _ = @import("test_am_tiet.zig");
 }

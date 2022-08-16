@@ -4,7 +4,7 @@ Coi tokens là tập hợp bytes. Có thể giả sử symbol dài nhất <= 32-
 
 Đầu tiên cần tính count của mọi utf-8 chars (1-4 bytes) trong alco_hash_count của các token ko phải âm tiết tiếng Việt.
 
-Đầu vào các tokens đã được count sẵn trong `types_counters: ahc.NotSyllHashCount` từ `char_stream.zig` counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
+Đầu vào các tokens đã được count sẵn trong `types_counters: NotSyllHashCount` từ `char_stream.zig` counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
 
 Để xác định count của `pair` ta xác định pair's value trong keys_bytes để tìm ra keys có chứa pair's value, rồi cộng dồn counts của các keys đó.
 
@@ -40,13 +40,18 @@ key =   "EDFABABBAB"
 bitmap = 0101100100
 ```
 
-Cách thứ là dùng 1 mảng byte nữa để lưu symbol len
+Cách thứ 2 là dùng 1 mảng byte nữa để lưu symbol's len
 ```
 key =    "EDFABABBAB"
 sym_len = 1112020120
 ```
 
-=> Cần 1 thuật toán tìm sub-string hiệu quả để đánh dấu symbol mới hợp thành!
+Mỗi lần symbol mới dc tạo ra cần scan toàn bộ mảng vocabs để đánh dấu symbol mới tạo thành và hình thành các symbol tiềm năng mới.
+
+=> Có lẽ cần 1 thuật toán tìm sub-string hiệu quả để đánh dấu symbol mới hợp thành!
+
+- - -
+
 
 ### Thuật toán tìm sub-string hiệu quả
 

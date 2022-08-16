@@ -1,4 +1,4 @@
-// (Almost-)Concurrent Hash Count
+// (Almost-)Concurrent String Hash Count
 //
 // `key` là chuỗi ngắn độ dài trung bình 32-bytes
 // `hash` u64
@@ -26,9 +26,6 @@
 // unique tokens gọi là types. Giả sử có 1 triệu (2^20) types => 1M * 36-bytes = 44 Mb
 
 const std = @import("std");
-
-// Init HashCount để count các tokens ko phải âm tiết tiếng Việt
-pub const NotSyllHashCount = HashCount(2_500_000);
 
 pub const HashType = u64;
 pub const CountType = u32;
@@ -232,13 +229,13 @@ pub const CountDesc = struct {
     len: usize,
     entries: []Entry,
     keys_bytes: []const u8,
-    count_desc_keys: []u8,
+    vocabs: []u8,
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.entries);
-        self.allocator.free(self.count_desc_keys);
+        self.allocator.free(self.vocabs);
     }
 
     const pext_u32 = @import("intrinsics.zig").pext_u32;
@@ -258,7 +255,7 @@ pub const CountDesc = struct {
         }
         std.sort.sort(Entry, self.entries, {}, count_desc);
 
-        self.count_desc_keys = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
+        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
         // cần 2-bytes lưu reduced coun, lấy lại 1 byte từ GUARD_BYTE nên chỉ cần thêm `len * 1`
         // \count-byte1\count-byte2\len\'key' = key.len + 3
         const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
@@ -266,19 +263,19 @@ pub const CountDesc = struct {
         var x: usize = 0;
         for (self.entries) |entry| {
             // Reduce count from u32 to u16
-            self.count_desc_keys[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
+            self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
             x += 1;
-            self.count_desc_keys[x] = @intCast(u8, pext_u32(entry.count, low_bitmap));
+            self.vocabs[x] = @intCast(u8, pext_u32(entry.count, low_bitmap));
             x += 1;
 
             const l = keys_bytes[entry.offset - 1];
             const end = entry.offset + l;
-            self.count_desc_keys[x] = l; // key's len
+            self.vocabs[x] = l; // key's len
             x += 1;
 
             // copy key bytes
             for (keys_bytes[entry.offset..end]) |byte| {
-                self.count_desc_keys[x] = byte;
+                self.vocabs[x] = byte;
                 x += 1;
             }
         }
@@ -286,30 +283,30 @@ pub const CountDesc = struct {
         // `pdep` and `pext` instructions
     }
 
-    const SPACES = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
     pub fn list(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
         var i: usize = 0;
         const n = if (max < self.len) max else self.len;
         var x: usize = 0;
         while (i < n) : (i += 1) {
-            const count = self.count_desc_keys[x] * @as(u32, 256) + self.count_desc_keys[x + 1];
+            // count trích xuất từ 2-bytes đầu tiên
+            const count = self.vocabs[x] * @as(u32, 256) + self.vocabs[x + 1];
             x += 2;
 
-            const len = self.count_desc_keys[x];
+            // byte tiếp theo chứa key's len
+            const len = self.vocabs[x];
             x += 1;
 
+            // các bytes tiếp theo là của key
             const end = x + len;
-            const key = self.count_desc_keys[x..end];
+            const key = self.vocabs[x..end];
             x = end;
 
-            const spaces = SPACES[0 .. (MAX_KEY_LEN - len) / 9];
-            std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, count, spaces });
-            // const x = self.len - i - 1;
-            // std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
+            std.debug.print("\n\"{s}\" {d: <6}", .{ key, count });
         }
     }
 
+    // const TABS = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
     // pub fn list(self: Self, max: usize) void {
     //     std.debug.print("\n\n(( List {d} type counts ))\n", .{max});
     //     var i: usize = 0;
@@ -317,7 +314,7 @@ pub const CountDesc = struct {
     //     while (i < n) : (i += 1) {
     //         const entry = self.entries[i];
     //         const key = self.key_str(i);
-    //         const spaces = SPACES[0 .. (MAX_KEY_LEN - key.len) / 9];
+    //         const spaces = TABS[0 .. (MAX_KEY_LEN - key.len) / 9];
     //         std.debug.print("\n\"{s}\" {d: <6}{s}", .{ key, entry.count, spaces });
     //         const x = self.len - i - 1;
     //         std.debug.print("\"{s}\" {d}", .{ self.key_str(x), self.entries[x].count });
