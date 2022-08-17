@@ -168,14 +168,17 @@ pub fn main() !void {
 
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
-            show_info = true;
+            // show_info = true;
             try scanFile("utf8tv.txt");
+            try scanFile("../data/fb_comments.txt");
+            try scanFile("../data/news_titles.txt");
+            try scanFile("../data/vi_wiki_all.txt");
         },
         .ReleaseSafe => {
             try scanFile("../data/fb_comments.txt");
             try scanFile("../data/news_titles.txt");
-            try scanFile("../data/vietai_sat.txt");
             try scanFile("../data/vi_wiki_all.txt");
+            // try scanFile("../data/vietai_sat.txt");
         },
         .ReleaseFast => {
             // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)

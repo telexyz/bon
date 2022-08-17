@@ -1,7 +1,8 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-const max_total_symbols = 3000;
+// Unicode: 144,697 characters
+const max_total_symbols = 500_000;
 const SymbolCount = shc.HashCount(max_total_symbols);
 
 pub const BPE = struct {
@@ -109,8 +110,7 @@ pub const BPE = struct {
                     break;
                 }
                 const symbol = vocabs[x..next];
-                _ = self.symbols_count.put_count(symbol, key_count).?; // optinal pointer
-
+                _ = self.symbols_count.put_count(symbol, key_count);
                 // std.debug.print("{s}:{d}:{d} ", .{ symbol, symbol.len, entry.count });
                 x = next;
             } // key
