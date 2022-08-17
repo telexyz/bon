@@ -2,7 +2,7 @@ const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
 const max_total_chars = 100_000;
-const max_selected_symbols = 200;
+const max_selected_symbols = 300;
 const max_total_symbols = 1_000_000;
 const SymbolCount = shc.HashCount(max_total_symbols);
 const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
@@ -85,15 +85,16 @@ pub const BPE = struct {
 
     }
 
+    // FIX: Bị hang ở >> Marking `�` << với "../data/fb_comments.txt"
     // TODO: BPE hiện đang bị nghẽn ở mark()
     // => Tìm cách cải thiện tốc độ substr matching
     // * Dùng nhiều threads (chia để trị)
     // * Dùng SIMD để match cùng lúc nhiều bytes (64 bytes 1 lần so sánh)
     fn mark(self: *Self, entry: shc.Entry) void {
-        // std.debug.print("\n>> Marking `{s}` {} <<\n", .{ pair, entry });
         const vocabs = self.vocabs;
         const syms_len = self.symbols_len;
         const pair = self.pairs_count.key_str(entry.offset);
+        std.debug.print("\n>> Marking `{s}` <<\n", .{pair});
 
         var i: usize = 3;
         var key_count = vocabs[0] * @as(u32, 256) + vocabs[1];
