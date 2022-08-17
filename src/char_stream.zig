@@ -204,7 +204,7 @@ pub fn main() !void {
     defer bpe.deinit();
     try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
     bpe.learn();
-    bpe.showSelected(100);
+    bpe.showSelected(1000);
 }
 
 // simple config

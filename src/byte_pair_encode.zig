@@ -85,6 +85,10 @@ pub const BPE = struct {
 
     }
 
+    // TODO: BPE hiện đang bị nghẽn ở mark()
+    // => Tìm cách cải thiện tốc độ substr matching
+    // * Dùng nhiều threads (chia để trị)
+    // * Dùng SIMD để match cùng lúc nhiều bytes (64 bytes 1 lần so sánh)
     fn mark(self: *Self, entry: shc.Entry) void {
         // std.debug.print("\n>> Marking `{s}` {} <<\n", .{ pair, entry });
         const vocabs = self.vocabs;
