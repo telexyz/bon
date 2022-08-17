@@ -72,8 +72,9 @@ pub fn HashCount(capacity: usize) type {
 
         const Self = @This();
 
-        pub fn reset(self: *Self) void {
-            std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
+        pub fn reset(self: *Self) !void {
+            self.deinit();
+            try self.init(self.allocator);
         }
 
         pub fn deinit(self: *Self) void {
@@ -160,7 +161,7 @@ pub fn HashCount(capacity: usize) type {
                 const tmp = self.entries[i];
                 self.entries[i] = it;
 
-                if (tmp.count == 0) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == maxx_hash) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
                     return entry;
                 }

@@ -2,8 +2,8 @@ const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
 const max_total_chars = 100_000;
-const max_total_symbols = 3_000;
-const SymbolCount = shc.HashCount(max_total_chars + max_total_symbols);
+const max_total_symbols = 1_00;
+const SymbolCount = shc.HashCount(4_000_000);
 const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
 
 pub const BPE = struct {
@@ -21,7 +21,7 @@ pub const BPE = struct {
 
     const Self = @This();
 
-    pub fn learn(self: *Self) void {
+    pub fn learn(self: *Self) !void {
         // 0/ Khởi tạo tập selected là các chars (done)
         // 1/ chọn 2 symbols liền kề có count lớn nhất trong vocabs để bổ xung vào tập selected
         // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
@@ -31,11 +31,11 @@ pub const BPE = struct {
 
         while (self.total_selected < max_total_symbols) {
             //
-            std.debug.print("\n>> Finding new candidates <<\n", .{});
+            // std.debug.print("\n>> Finding new candidates <<\n", .{});
             var candi_1st = shc.Entry{ .count = 0 };
             var candi_2nd = candi_1st;
 
-            self.symbols_count.reset();
+            try self.symbols_count.reset();
             var i: usize = 0;
 
             while (i < vocabs.len) {
@@ -88,7 +88,7 @@ pub const BPE = struct {
 
     fn mark(self: *Self, entry: shc.Entry) void {
         const key = self.symbols_count.key_str(entry.offset);
-        std.debug.print("\n>> Marking `{s}` {} <<\n", .{ key, entry });
+        // std.debug.print("\n>> Marking `{s}` {} <<\n", .{ key, entry });
         const vocabs = self.vocabs;
         const syms_len = self.symbols_len;
         var i: usize = 3;
@@ -106,7 +106,7 @@ pub const BPE = struct {
                 }
             }
         }
-        std.debug.print("\n>> Marking `{s}` done! <<\n", .{key});
+        // std.debug.print("\n>> Marking `{s}` done! <<\n", .{key});
     }
 
     pub fn showSelected(self: *Self, n: usize) void {
