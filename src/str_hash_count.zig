@@ -91,7 +91,7 @@ pub fn HashCount(capacity: usize) type {
             self.entries = try self.allocator.alloc(Entry, size);
 
             std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
-            std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
+            std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_index });
         }
 
         pub fn key_str(self: *Self, offset: IndexType) []const u8 {
@@ -114,8 +114,8 @@ pub fn HashCount(capacity: usize) type {
             _ = self.put_count(key, 1);
         }
 
-        pub fn put_count(self: *Self, key: []const u8, count: CountType) ?*Entry {
-            if (key.len > MAX_KEY_LEN) return null; // reject
+        pub fn put_count(self: *Self, key: []const u8, count: CountType) usize {
+            if (key.len > MAX_KEY_LEN) return maxx_index; // reject
 
             var it: Entry = .{ .hash = _hash(key), .count = count };
             var i: usize = it.hash >> shift;
@@ -127,7 +127,7 @@ pub fn HashCount(capacity: usize) type {
             if (entry.hash == it.hash) { // key đã xuất hiện
                 entry.count += count;
                 self.recordStats(i - _i);
-                return entry;
+                return i;
             }
 
             // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
@@ -155,9 +155,9 @@ pub fn HashCount(capacity: usize) type {
                 const tmp = self.entries[i];
                 self.entries[i] = it;
 
-                if (tmp.count == 0) { // ô rỗng, dừng thuật toán
+                if (tmp.offset == maxx_index) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
-                    return entry;
+                    return i;
                 }
                 it = tmp;
             } // while
@@ -247,7 +247,7 @@ pub const CountDesc = struct {
         self.keys_bytes = keys_bytes;
 
         self.entries = try self.allocator.alloc(Entry, self.len);
-        std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = 0 });
+        std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_index });
 
         var i: IndexType = 0;
         for (self.entries) |*new_entry| {
