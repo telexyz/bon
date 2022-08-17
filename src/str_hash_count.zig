@@ -146,9 +146,9 @@ pub fn HashCount(capacity: usize) type {
                         self.keys_bytes[ending] = k;
                         ending += 1;
                     }
-                    // self.keys_bytes[ending] = GUARD_BYTE;
+                    self.keys_bytes[ending] = GUARD_BYTE;
                     self.keys_bytes_len = ending + 1;
-                    self.len += 1;
+                    self.len += 1; // thêm 1 phần tử nữa
                 }
 
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
@@ -271,7 +271,7 @@ pub const CountDesc = struct {
 
             const l = keys_bytes[entry.offset - 1];
             const end = entry.offset + l;
-            self.vocabs[x] = l; // key's len
+            self.vocabs[x] = l + 1; // key's len
             x += 1;
 
             // copy key bytes
@@ -279,8 +279,8 @@ pub const CountDesc = struct {
                 self.vocabs[x] = byte;
                 x += 1;
             }
-            // self.vocabs[x] = GUARD_BYTE;
-            // x += 1;
+            self.vocabs[x] = GUARD_BYTE;
+            x += 1;
         }
         self.vocabs_len = x;
     }
