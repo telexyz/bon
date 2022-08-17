@@ -3,7 +3,7 @@ const shc = @import("str_hash_count.zig");
 
 const max_total_chars = 100_000;
 const max_total_symbols = 1_00;
-const SymbolCount = shc.HashCount(4_000_000);
+const SymbolCount = shc.HashCount(100_000);
 const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
 
 pub const BPE = struct {
@@ -21,74 +21,51 @@ pub const BPE = struct {
 
     const Self = @This();
 
-    pub fn learn(self: *Self) !void {
+    pub fn learn(self: *Self) void {
         // 1/ chọn 2 symbols liền kề có count lớn nhất trong vocabs để bổ xung vào tập selected
         // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
         // 3/ lặp lại bước 1/ `k` lần
 
         const vocabs = self.vocabs;
+        var candi = shc.Entry{ .count = 0 };
+        var i: usize = 0;
+
+        while (i < vocabs.len) {
+            const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
+            i += 3; // trỏ tới key's begin
+            const key_len = vocabs[i - 1];
+            const key_end = i + key_len;
+            // key = vocabs[i..key_end]
+            // Tìm các cặp symbols liền nhau trong key
+            var curr_symbol = i;
+            i += self.symbols_len[i]; // curr_symbol_end
+            while (i < key_end) {
+                const next_symbol_end = i + self.symbols_len[i];
+                const pair = vocabs[curr_symbol..next_symbol_end];
+                // const k = self.total_selected; // lần lựa chọn thứ k
+                const entry = self.pairs_count.put_count(pair, count).?; // optional pointer
+                if (entry.count > candi.count) candi = entry.*;
+                curr_symbol = i;
+                i = next_symbol_end;
+            }
+        }
+
+        if (candi.count == 0) return;
+        // std.debug.print("\n\ncandi: `{s}` {d}\n", .{ self.pairs_count.key_str(candi.offset), candi.count});
 
         while (self.total_selected < max_total_symbols) {
             // std.debug.print("\n>> Finding new candidates <<\n", .{});
-            var candi_1st = shc.Entry{ .count = 0 };
-            var candi_2nd = candi_1st;
-
-            var i: usize = 0;
-
-            while (i < vocabs.len) {
-                const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
-                i += 3; // trỏ tới key's begin
-                const key_len = vocabs[i - 1];
-                const key_end = i + key_len;
-                // key = vocabs[i..key_end]
-                // Tìm các cặp symbols liền nhau trong key
-                var curr_symbol = i;
-                i += self.symbols_len[i]; // curr_symbol_end
-                while (i < key_end) {
-                    const next_symbol_end = i + self.symbols_len[i];
-                    const pair = vocabs[curr_symbol..next_symbol_end];
-                    // const k = self.total_selected; // lần lựa chọn thứ k
-                    const entry = self.pairs_count.put_count(pair, count).?; // optional pointer
-                    if (entry.count > candi_1st.count) {
-                        if (candi_1st.hash != entry.hash) {
-                            candi_2nd = candi_1st;
-                        }
-                        candi_1st = entry.*;
-                    } else if (entry.count > candi_2nd.count and candi_1st.offset != entry.offset) {
-                        candi_2nd = entry.*;
-                    }
-                    curr_symbol = i;
-                    i = next_symbol_end;
-                }
-            }
-            if (candi_1st.count == 0) break;
-            if (candi_2nd.count == 0) candi_2nd = candi_1st;
-
-            std.debug.print("\n\ncandi_1st: `{s}` {d}\ncandi_2nd: `{s}` {d}\n", .{
-                self.pairs_count.key_str(candi_1st.offset),
-                candi_1st.count,
-                self.pairs_count.key_str(candi_2nd.offset),
-                candi_2nd.count,
-            });
-
-            self.selected_symbols[self.total_selected] = candi_1st;
-            self.mark(candi_1st);
+            self.selected_symbols[self.total_selected] = candi;
+            self.mark(candi);
             self.total_selected += 1;
 
-            // lock tất cả pairs vừa được đếm
-            for (self.pairs_count.entries) |*entry| {
-                if (entry.count != 0) entry.lock = true;
+            // find next candi
+            candi.count = 0;
+            for (self.pairs_count.entries) |entry| {
+                if (entry.count > candi.count) candi = entry;
             }
         } // self.total_selected < max_total_symbols
 
-        // Heuristic để dừng việc scan vocabs
-        // Giả sử đang scan tới hết key thứ `i` ở vị trí `x` trong vocabs
-        // và biết `c` là count của next key:
-        // remain_keys = total_keys - i;
-        // guest_avg_count = (c / remain_keys) + 1
-        // remain_bytes = vocabs.len - x - remain_keys * 3
-        // guest_max_count = (remain_bytes / symbol.len) * guest_avg_count
-        // Nếu candidate_1st_count > candidate_2nd_count + guest_max_count thì dừng việc scan vocabs
     }
 
     fn mark(self: *Self, entry: shc.Entry) void {
@@ -96,6 +73,9 @@ pub const BPE = struct {
         const vocabs = self.vocabs;
         const syms_len = self.symbols_len;
         const pair = self.pairs_count.key_str(entry.offset);
+
+        // gán count của pair = 1 để ko chọn lại nữa
+        self.pairs_count.get_entry(pair).?.count = 1;
 
         var i: usize = 3;
         var key_count = vocabs[0] * @as(u32, 256) + vocabs[1];
@@ -113,6 +93,9 @@ pub const BPE = struct {
                 if (prev_sym != dont_exist) {
                     const prev_pair = vocabs[prev_sym..sym_end];
                     self.pairs_count.get_entry(prev_pair).?.count -= key_count;
+
+                    const new_pair = vocabs[prev_sym .. i + syms_len[i]];
+                    _ = self.pairs_count.put_count(new_pair, key_count);
                 }
 
                 const next_sym_end = sym_end + syms_len[sym_end];
@@ -121,6 +104,9 @@ pub const BPE = struct {
                     const next_pair_end = next_sym_end + syms_len[next_sym_end];
                     const next_pair = vocabs[sym_end..next_pair_end];
                     self.pairs_count.get_entry(next_pair).?.count -= key_count;
+
+                    const new_pair = vocabs[i..next_pair_end];
+                    _ = self.pairs_count.put_count(new_pair, key_count);
                 }
             }
             // next symbol

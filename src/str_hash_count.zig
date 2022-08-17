@@ -44,7 +44,6 @@ pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
     offset: IndexType = 0,
-    lock: bool = false,
 };
 
 pub fn HashCount(capacity: usize) type {
@@ -126,11 +125,9 @@ pub fn HashCount(capacity: usize) type {
 
             var entry = &self.entries[i];
             if (entry.hash == it.hash) { // key đã xuất hiện
-                if (!entry.lock) { // dùng để bỏ qua pair đã được đếm từ lần lựa chọn trước của BPE
-                    entry.count += count;
-                    self.recordStats(i - _i);
-                    return entry;
-                }
+                entry.count += count;
+                self.recordStats(i - _i);
+                return entry;
             }
 
             // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
@@ -158,7 +155,7 @@ pub fn HashCount(capacity: usize) type {
                 const tmp = self.entries[i];
                 self.entries[i] = it;
 
-                if (tmp.hash == maxx_hash) { // ô rỗng, dừng thuật toán
+                if (tmp.count == 0) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
                     return entry;
                 }

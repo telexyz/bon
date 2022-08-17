@@ -170,7 +170,7 @@ pub fn main() !void {
         .Debug, .ReleaseSmall => {
             // show_info = true;
             try scanFile("utf8tv.txt");
-            try scanFile("../data/fb_comments.txt");
+            // try scanFile("../data/fb_comments.txt");
             // try scanFile("../data/news_titles.txt");
             // try scanFile("../data/vi_wiki_all.txt");
         },
@@ -203,7 +203,7 @@ pub fn main() !void {
     var bpe: BPE = undefined;
     defer bpe.deinit();
     try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
-    try bpe.learn();
+    bpe.learn();
     bpe.showSelected(100);
 }
 
