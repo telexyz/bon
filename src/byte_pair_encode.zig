@@ -30,10 +30,14 @@ pub const BPE = struct {
         const vocabs = self.vocabs;
 
         while (self.total_selected < max_total_symbols) {
+            //
+            std.debug.print("\n>> Finding new candidates <<\n", .{});
             var candi_1st = shc.Entry{ .count = 0 };
             var candi_2nd = candi_1st;
+
             self.symbols_count.reset();
             var i: usize = 0;
+
             while (i < vocabs.len) {
                 const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
                 i += 3;
@@ -46,11 +50,11 @@ pub const BPE = struct {
                     const pair = vocabs[curr_symbol..next_symbol_end];
                     const entry = self.symbols_count.put_count(pair, count).?; // optional pointer
                     if (entry.count > candi_1st.count) {
-                        if (candi_1st.hash != entry.hash) {
+                        if (candi_1st.offset != entry.offset) {
                             candi_2nd = candi_1st;
                         }
                         candi_1st = entry.*;
-                    } else if (entry.count > candi_2nd.count and candi_1st.hash != entry.hash) {
+                    } else if (entry.count > candi_2nd.count and candi_1st.offset != entry.offset) {
                         candi_2nd = entry.*;
                     }
                     curr_symbol = i;
@@ -82,8 +86,9 @@ pub const BPE = struct {
         // Nếu candidate_1st_count > candidate_2nd_count + guest_max_count thì dừng việc scan vocabs
     }
 
-    fn mark(self: *Self, candi: shc.Entry) void {
-        const key = self.symbols_count.key_str(candi.offset);
+    fn mark(self: *Self, entry: shc.Entry) void {
+        const key = self.symbols_count.key_str(entry.offset);
+        std.debug.print("\n>> Marking `{s}` {} <<\n", .{ key, entry });
         const vocabs = self.vocabs;
         const syms_len = self.symbols_len;
         var i: usize = 3;
@@ -101,6 +106,7 @@ pub const BPE = struct {
                 }
             }
         }
+        std.debug.print("\n>> Marking `{s}` done! <<\n", .{key});
     }
 
     pub fn showSelected(self: *Self, n: usize) void {
