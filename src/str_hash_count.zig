@@ -119,29 +119,30 @@ pub fn HashCount(capacity: usize) type {
             _ = self.put_count(key, 1);
         }
 
-        pub fn put_count(self: *Self, key: []const u8, count: CountType) CountType {
-            if (key.len > MAX_KEY_LEN) return 0; // reject
+        pub fn put_count(self: *Self, key: []const u8, count: CountType) ?*Entry {
+            if (key.len > MAX_KEY_LEN) return null; // reject
 
             var it: Entry = .{ .hash = _hash(key), .count = count, .offset = maxx_offset };
             var i: usize = it.hash >> shift;
-            var never_swap = true;
             const _i = i;
 
             while (self.entries[i].hash < it.hash) : (i += 1) {}
 
-            if (self.entries[i].hash == it.hash) { // key đã xuất hiện
-                self.entries[i].count += count;
+            var entry = &self.entries[i];
+            if (entry.hash == it.hash) { // key đã xuất hiện
+                entry.count += count;
                 self.recordStats(i - _i);
-                return self.entries[i].count;
+                return entry;
             }
 
             // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
             self.mutex.lock();
             defer self.mutex.unlock();
 
+            var never_swap = true;
             while (true) : (i += 1) {
                 if (never_swap) { // key lần đầu xuất hiện, ghi lại offset
-                    never_swap = false;
+                    never_swap = false; // chỉ làm một lần này thôi
                     var ending = self.keys_bytes_len;
                     self.keys_bytes[ending] = @intCast(u8, key.len);
                     ending += 1;
@@ -161,7 +162,7 @@ pub fn HashCount(capacity: usize) type {
 
                 if (tmp.count == 0) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
-                    return count;
+                    return entry;
                 }
                 it = tmp;
             } // while

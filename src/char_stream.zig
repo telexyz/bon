@@ -194,13 +194,14 @@ pub fn main() !void {
     var count_desc: shc.CountDesc = undefined;
     defer count_desc.deinit();
     try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
-    count_desc.list(40);
+    count_desc.list(80);
     type_counters.showStats();
 
     var bpe: BPE = undefined;
     defer bpe.deinit();
     try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
     bpe.showCandidates();
+    bpe.showSelected();
 }
 
 // simple config
