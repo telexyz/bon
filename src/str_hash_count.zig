@@ -72,6 +72,10 @@ pub fn HashCount(capacity: usize) type {
 
         const Self = @This();
 
+        pub fn reset(self: *Self) void {
+            std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
+        }
+
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
             self.allocator.free(self.keys_bytes);
@@ -95,7 +99,7 @@ pub fn HashCount(capacity: usize) type {
             std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0 });
         }
 
-        pub inline fn key_str(self: *Self, offset: IndexType) []const u8 {
+        pub fn key_str(self: *Self, offset: IndexType) []const u8 {
             const ending: usize = offset + self.keys_bytes[offset - 1];
             return self.keys_bytes[offset..ending];
         }
@@ -253,8 +257,8 @@ pub const CountDesc = struct {
         }
         std.sort.sort(Entry, self.entries, {}, count_desc);
 
-        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 1);
-        // cần thêm 2-bytes lưu reduced count, 1 byte từ GUARD_BYTE nên chỉ cần thêm `len * 1`
+        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
+        // cần thêm 2-bytes lưu reduced count
         // \count-byte1\count-byte2\len\'key' = key.len + 3
         const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
         const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
@@ -275,6 +279,8 @@ pub const CountDesc = struct {
                 self.vocabs[x] = byte;
                 x += 1;
             }
+            // self.vocabs[x] = GUARD_BYTE;
+            // x += 1;
         }
         self.vocabs_len = x;
     }

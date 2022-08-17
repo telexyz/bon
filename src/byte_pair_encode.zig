@@ -1,9 +1,10 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-// Unicode: 144,697 characters
-const max_total_symbols = 500_000;
-const SymbolCount = shc.HashCount(max_total_symbols);
+const max_total_chars = 100_000;
+const max_total_symbols = 3_000;
+const SymbolCount = shc.HashCount(max_total_chars + max_total_symbols);
+const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
 
 pub const BPE = struct {
     allocator: std.mem.Allocator,
@@ -16,6 +17,7 @@ pub const BPE = struct {
     symbols_len: []u8 = undefined,
     total_vocabs: usize = undefined,
     symbols_count: SymbolCount = undefined,
+    chars_count: CharCount = undefined,
 
     const Self = @This();
 
@@ -25,27 +27,51 @@ pub const BPE = struct {
         // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
         // 3/ lặp lại bước 1/ `k` lần
 
-        // 1/ Dùng `symbols_count: SymbolCount` để tính count cho cặp symbol tiềm năng
-        // const entries = self.symbols_count.entries;
         const vocabs = self.vocabs;
-        // var candi_1st = entries[0];
-        // var candi_2nd = candi_1st;
-        var i: usize = 0;
-        while (i < vocabs.len) {
-            const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
-            i += 3;
-            const key_end = i + vocabs[i - 1]; // i + key_len
-            // Tìm các cặp symbols liền nhau trong key
-            var curr_symbol = i;
-            i += self.symbols_len[i]; // curr_symbol_end
-            while (i < key_end) {
-                const next_symbol_end = i + self.symbols_len[i];
-                const pair = vocabs[curr_symbol..next_symbol_end];
-                _ = self.symbols_count.put_count(pair, count);
-                curr_symbol = i;
-                i = next_symbol_end;
+
+        while (self.total_selected < max_total_symbols) {
+            var candi_1st = shc.Entry{ .count = 0 };
+            var candi_2nd = candi_1st;
+            self.symbols_count.reset();
+            var i: usize = 0;
+            while (i < vocabs.len) {
+                const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
+                i += 3;
+                const key_end = i + vocabs[i - 1]; // i + key_len
+                // Tìm các cặp symbols liền nhau trong key
+                var curr_symbol = i;
+                i += self.symbols_len[i]; // curr_symbol_end
+                while (i < key_end) {
+                    const next_symbol_end = i + self.symbols_len[i];
+                    const pair = vocabs[curr_symbol..next_symbol_end];
+                    const entry = self.symbols_count.put_count(pair, count).?; // optional pointer
+                    if (entry.count > candi_1st.count) {
+                        if (candi_1st.hash != entry.hash) {
+                            candi_2nd = candi_1st;
+                        }
+                        candi_1st = entry.*;
+                    } else if (entry.count > candi_2nd.count and candi_1st.hash != entry.hash) {
+                        candi_2nd = entry.*;
+                    }
+                    curr_symbol = i;
+                    i = next_symbol_end;
+                }
             }
+            if (candi_1st.count == 0) break;
+            if (candi_2nd.count == 0) candi_2nd = candi_1st;
+
+            std.debug.print("\n\ncandi_1st: `{s}` {d}\ncandi_2nd: `{s}` {d}\n\n", .{
+                self.symbols_count.key_str(candi_1st.offset),
+                candi_1st.count,
+                self.symbols_count.key_str(candi_2nd.offset),
+                candi_2nd.count,
+            });
+
+            self.selected_symbols[self.total_selected] = candi_1st;
+            self.mark(candi_1st);
+            self.total_selected += 1;
         }
+
         // Heuristic để dừng việc scan vocabs
         // Giả sử đang scan tới hết key thứ `i` ở vị trí `x` trong vocabs
         // và biết `c` là count của next key:
@@ -54,7 +80,27 @@ pub const BPE = struct {
         // remain_bytes = vocabs.len - x - remain_keys * 3
         // guest_max_count = (remain_bytes / symbol.len) * guest_avg_count
         // Nếu candidate_1st_count > candidate_2nd_count + guest_max_count thì dừng việc scan vocabs
+    }
 
+    fn mark(self: *Self, candi: shc.Entry) void {
+        const key = self.symbols_count.key_str(candi.offset);
+        const vocabs = self.vocabs;
+        const syms_len = self.symbols_len;
+        var i: usize = 3;
+        var token_end = i + vocabs[i - 1];
+        while (i < vocabs.len) {
+            const sym_end = i + key.len;
+            if (sym_end <= token_end and std.mem.eql(u8, key, vocabs[i..sym_end])) {
+                syms_len[i] = @intCast(u8, key.len);
+            }
+            i += syms_len[i];
+            if (i == token_end) {
+                i += 3;
+                if (i < vocabs.len) {
+                    token_end = i + vocabs[i - 1];
+                }
+            }
+        }
     }
 
     pub fn showSelected(self: *Self, n: usize) void {
@@ -68,24 +114,11 @@ pub const BPE = struct {
         std.debug.print("\n\nTOTAL: {d} symbols\n", .{self.symbols_count.len});
     }
 
-    pub fn showCandidates(self: *Self) void {
-        const entries = self.symbols_count.entries;
-        var candi_1st = entries[0];
-        var candi_2nd = candi_1st;
-        for (entries) |entry| {
-            if (entry.count > candi_1st.count) {
-                candi_2nd = candi_1st;
-                candi_1st = entry;
-            }
-        }
-        if (candi_2nd.count == 0) candi_2nd = candi_1st;
-        std.debug.print("\n\ncandi_1st: `{s}` {d}\ncandi_2nd: `{s}` {d}\n\n", .{ self.symbols_count.key_str(candi_1st.offset), candi_1st.count, self.symbols_count.key_str(candi_2nd.offset), candi_2nd.count });
-    }
-
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.symbols_len);
         self.allocator.free(self.selected_symbols);
         self.symbols_count.deinit();
+        self.chars_count.deinit();
     }
     pub fn init(self: *Self, init_allocator: std.mem.Allocator, vocabs: []const u8) !void {
         self.vocabs = vocabs;
@@ -93,6 +126,7 @@ pub const BPE = struct {
         self.symbols_len = try self.allocator.alloc(u8, vocabs.len);
         std.mem.set(u8, self.symbols_len[0..], 0);
         try self.symbols_count.init(self.allocator);
+        try self.chars_count.init(self.allocator);
         self.total_selected = 0;
         self.selected_symbols = try self.allocator.alloc(shc.Entry, max_total_symbols);
 
@@ -132,18 +166,10 @@ pub const BPE = struct {
                     break;
                 }
                 const symbol = vocabs[x..next];
-                _ = self.symbols_count.put_count(symbol, key_count);
+                _ = self.chars_count.put_count(symbol, key_count);
                 // std.debug.print("{s}:{d}:{d} ", .{ symbol, symbol.len, entry.count });
                 x = next;
-            } // key
+            } // key: x < ending
         } // vocabs
-
-        for (self.symbols_count.entries[0..]) |*entry| {
-            if (entry.count > 0) {
-                self.selected_symbols[self.total_selected] = entry.*;
-                self.total_selected += 1;
-                entry.count = 1; // ko bao giờ chọn lại
-            }
-        }
     }
 };
