@@ -72,10 +72,6 @@ pub fn HashCount(capacity: usize) type {
 
         const Self = @This();
 
-        pub fn slice(self: *Self) []const Entry {
-            return self.entries[0..];
-        }
-
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
             self.allocator.free(self.keys_bytes);
@@ -213,13 +209,6 @@ pub fn HashCount(capacity: usize) type {
 
         pub fn showStats(self: *Self) void {
             std.debug.print("\n\n(( HASH COUNT STATS ))\n", .{});
-
-            // const len = self.keys_bytes_len;
-            // const x = if (len < 2048) len else 2048;
-            // const begin = self.keys_bytes[0..x];
-            // const y = if (len < 2048) 0 else len - 2048;
-            // const end = self.keys_bytes[y..len];
-            // std.debug.print("\n{s}\n\n{s}\n\nkeys_bytes_len: {d}\n", .{ begin, end, len });
 
             const avg_probs = self.total_probs / self.total_puts;
             std.debug.print(
