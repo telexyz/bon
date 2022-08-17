@@ -20,14 +20,32 @@ pub const BPE = struct {
     const Self = @This();
 
     pub fn learn(self: *Self) void {
-        _ = self;
-        // 0/ Khởi tạo tập selected là các chars
+        // 0/ Khởi tạo tập selected là các chars (done)
         // 1/ chọn 2 symbols liền kề có count lớn nhất trong vocabs để bổ xung vào tập selected
         // 2/ thay thế trong vocabs 2 symbols liền kề được chọn bởi 1 symbol mới
         // 3/ lặp lại bước 1/ `k` lần
 
         // 1/ Dùng `symbols_count: SymbolCount` để tính count cho cặp symbol tiềm năng
-
+        // const entries = self.symbols_count.entries;
+        const vocabs = self.vocabs;
+        // var candi_1st = entries[0];
+        // var candi_2nd = candi_1st;
+        var i: usize = 0;
+        while (i < vocabs.len) {
+            const count = vocabs[i] * @as(u32, 256) + vocabs[i + 1];
+            i += 3;
+            const key_end = i + vocabs[i - 1]; // i + key_len
+            // Tìm các cặp symbols liền nhau trong key
+            var curr_symbol = i;
+            i += self.symbols_len[i]; // curr_symbol_end
+            while (i < key_end) {
+                const next_symbol_end = i + self.symbols_len[i];
+                const pair = vocabs[curr_symbol..next_symbol_end];
+                _ = self.symbols_count.put_count(pair, count);
+                curr_symbol = i;
+                i = next_symbol_end;
+            }
+        }
         // Heuristic để dừng việc scan vocabs
         // Giả sử đang scan tới hết key thứ `i` ở vị trí `x` trong vocabs
         // và biết `c` là count của next key:
@@ -39,12 +57,15 @@ pub const BPE = struct {
 
     }
 
-    pub fn showSelected(self: *Self) void {
+    pub fn showSelected(self: *Self, n: usize) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
-        for (self.selected_symbols[0..self.total_selected]) |entry| {
+        for (self.selected_symbols[0..self.total_selected]) |entry, i| {
+            if (i == n) break;
             const key = self.symbols_count.key_str(entry.offset);
             std.debug.print("'{s}':{d} \t", .{ key, entry.count });
         }
+
+        std.debug.print("\n\nTOTAL: {d} symbols\n", .{self.symbols_count.len});
     }
 
     pub fn showCandidates(self: *Self) void {
@@ -70,6 +91,7 @@ pub const BPE = struct {
         self.vocabs = vocabs;
         self.allocator = init_allocator;
         self.symbols_len = try self.allocator.alloc(u8, vocabs.len);
+        std.mem.set(u8, self.symbols_len[0..], 0);
         try self.symbols_count.init(self.allocator);
         self.total_selected = 0;
         self.selected_symbols = try self.allocator.alloc(shc.Entry, max_total_symbols);

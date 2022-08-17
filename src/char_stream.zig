@@ -203,8 +203,9 @@ pub fn main() !void {
     var bpe: BPE = undefined;
     defer bpe.deinit();
     try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    bpe.showSelected(100);
+    bpe.learn();
     bpe.showCandidates();
-    bpe.showSelected();
 }
 
 // simple config
