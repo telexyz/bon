@@ -279,6 +279,7 @@ pub const CountDesc = struct {
                 self.vocabs[x] = byte;
                 x += 1;
             }
+            // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
             self.vocabs[x] = GUARD_BYTE;
             x += 1;
         }
