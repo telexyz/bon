@@ -47,9 +47,9 @@ pub const BPE = struct {
     }
 
     pub fn showCandidates(self: *Self) void {
-        var candi_1st = shc.Entry{ .count = 0 };
-        var candi_2nd: shc.Entry = undefined;
-        const entries = self.symbols_count.slice();
+        const entries = self.symbols_count.entries;
+        var candi_1st = entries[0];
+        var candi_2nd = candi_1st;
         for (entries) |entry| {
             if (entry.count > candi_1st.count) {
                 candi_2nd = candi_1st;
