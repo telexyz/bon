@@ -37,14 +37,14 @@ pub const MAX_CAPACITY: usize = std.math.maxInt(u24); // = IndexType - 5-bits (2
 pub const MAX_KEY_LEN: usize = 63; // + 1 guard-byte = 64
 pub const AVG_KEY_LEN: usize = 12;
 
-const maxx_offset = maxx_index - 2;
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
 
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
-    offset: IndexType = maxx_offset,
+    offset: IndexType = 0,
+    lock: bool = false,
 };
 
 pub fn HashCount(capacity: usize) type {
@@ -71,11 +71,6 @@ pub fn HashCount(capacity: usize) type {
         keys_bytes_len: usize,
 
         const Self = @This();
-
-        pub fn reset(self: *Self) !void {
-            self.deinit();
-            try self.init(self.allocator);
-        }
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
@@ -123,7 +118,7 @@ pub fn HashCount(capacity: usize) type {
         pub fn put_count(self: *Self, key: []const u8, count: CountType) ?*Entry {
             if (key.len > MAX_KEY_LEN) return null; // reject
 
-            var it: Entry = .{ .hash = _hash(key), .count = count, .offset = maxx_offset };
+            var it: Entry = .{ .hash = _hash(key), .count = count };
             var i: usize = it.hash >> shift;
             const _i = i;
 
@@ -131,9 +126,11 @@ pub fn HashCount(capacity: usize) type {
 
             var entry = &self.entries[i];
             if (entry.hash == it.hash) { // key đã xuất hiện
-                entry.count += count;
-                self.recordStats(i - _i);
-                return entry;
+                if (!entry.lock) { // dùng để bỏ qua pair đã được đếm từ lần lựa chọn trước của BPE
+                    entry.count += count;
+                    self.recordStats(i - _i);
+                    return entry;
+                }
             }
 
             // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
@@ -170,14 +167,19 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub fn get(self: *Self, key: []const u8) CountType {
-            if (key.len > MAX_KEY_LEN) return 0;
+            const entry = self.get_entry(key);
+            if (entry == null) return 0 else return entry.?.count;
+        }
+
+        pub fn get_entry(self: *Self, key: []const u8) ?*Entry {
+            if (key.len > MAX_KEY_LEN) return null;
 
             const hash = _hash(key);
 
             var i = hash >> shift;
             // Vì hash value luôn tăng nên khi entry.hash > hash nghĩa là key chưa dc đếm
             while (true) : (i += 1) {
-                const entry = self.entries[i];
+                var entry = self.entries[i];
                 if (entry.hash < hash) continue;
 
                 const offset = entry.offset;
@@ -187,7 +189,7 @@ pub fn HashCount(capacity: usize) type {
                     self.keys_bytes[ending] == GUARD_BYTE and // len eql
                     std.mem.eql(u8, self.keys_bytes[offset..ending], key);
 
-                return if (equal) entry.count else 0;
+                return if (equal) &entry else null;
             }
         }
 
@@ -248,7 +250,7 @@ pub const CountDesc = struct {
         self.keys_bytes = keys_bytes;
 
         self.entries = try self.allocator.alloc(Entry, self.len);
-        std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_offset });
+        std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = 0 });
 
         var i: IndexType = 0;
         for (self.entries) |*new_entry| {

@@ -55,7 +55,7 @@ Xem https://github.com/telexyz/turbo/issues
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 
-- Cài đặt (Almost-)Concurrent Hash Count (no-lock) cho string <= 64 bytes
+- Cài đặt (Almost-)Concurrent Hash Count (modest-lock) cho string <= 64 bytes
 
 - Đưa token được phân tách trong `char_stream` vào bộ phân tích âm tiết
 

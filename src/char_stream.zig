@@ -170,7 +170,7 @@ pub fn main() !void {
         .Debug, .ReleaseSmall => {
             // show_info = true;
             try scanFile("utf8tv.txt");
-            try scanFile("../data/fb_comments_0.txt");
+            try scanFile("../data/fb_comments.txt");
             // try scanFile("../data/news_titles.txt");
             // try scanFile("../data/vi_wiki_all.txt");
         },
