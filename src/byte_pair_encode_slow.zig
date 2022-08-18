@@ -56,65 +56,44 @@ pub const BPE = struct {
             }
         }
 
+        var candi: shc.Entry = undefined;
+        var candi_idx: usize = undefined;
+
         while (self.total_selected < max_selected_symbols) {
-            if (self.total_candidates < 10) break;
+            // find next candi
+            // std.debug.print("\n>> Finding new candidates <<\n", .{});
+            candi.count = 0;
+            for (self.candidates[0..self.total_candidates]) |entry_idx, idx| {
+                const entry = self.pairs_count.entries[entry_idx];
+                if (entry.count > candi.count) {
+                    // std.debug.print("{d}`{s}`{d} \t", .{ idx, self.pairs_count.key_str(entry.offset), entry.count });
+                    candi = entry;
+                    candi_idx = idx;
+                }
+            }
 
-            std.sort.sort(usize, self.candidates[0..self.total_candidates], self.pairs_count.entries, count_desc);
+            if (candi.count == 0) return; // no more candi
 
-            const pairs = [_][]const u8{
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[0]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[1]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[2]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[3]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[4]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[5]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[6]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[7]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[8]].offset),
-                self.pairs_count.key_str(self.pairs_count.entries[self.candidates[9]].offset),
-            };
-
-            self.mark(pairs[0..10]);
-
-            self.candidates[0] = self.candidates[self.total_candidates - 1];
-            self.candidates[1] = self.candidates[self.total_candidates - 2];
-            self.candidates[2] = self.candidates[self.total_candidates - 3];
-            self.candidates[3] = self.candidates[self.total_candidates - 4];
-            self.candidates[4] = self.candidates[self.total_candidates - 5];
-            self.candidates[5] = self.candidates[self.total_candidates - 6];
-            self.candidates[6] = self.candidates[self.total_candidates - 7];
-            self.candidates[7] = self.candidates[self.total_candidates - 8];
-            self.candidates[8] = self.candidates[self.total_candidates - 9];
-            self.candidates[9] = self.candidates[self.total_candidates - 10];
-            self.total_candidates -= 10;
-
-            self.selected_symbols[self.total_selected + 0] = self.pairs_count.entries[self.candidates[0]];
-            self.selected_symbols[self.total_selected + 1] = self.pairs_count.entries[self.candidates[1]];
-            self.selected_symbols[self.total_selected + 2] = self.pairs_count.entries[self.candidates[2]];
-            self.selected_symbols[self.total_selected + 3] = self.pairs_count.entries[self.candidates[3]];
-            self.selected_symbols[self.total_selected + 4] = self.pairs_count.entries[self.candidates[4]];
-            self.selected_symbols[self.total_selected + 5] = self.pairs_count.entries[self.candidates[5]];
-            self.selected_symbols[self.total_selected + 6] = self.pairs_count.entries[self.candidates[6]];
-            self.selected_symbols[self.total_selected + 7] = self.pairs_count.entries[self.candidates[7]];
-            self.selected_symbols[self.total_selected + 8] = self.pairs_count.entries[self.candidates[8]];
-            self.selected_symbols[self.total_selected + 9] = self.pairs_count.entries[self.candidates[9]];
-            self.total_selected += 10;
+            // Loại selected candi from `candidates`
+            self.total_candidates -= 1;
+            self.candidates[candi_idx] = self.candidates[self.total_candidates];
+            // std.debug.print("\n\ncandidate[{d}]:`{s}`-{d} ", .{ candi_idx, self.pairs_count.key_str(candi.offset), candi.count });
+            self.selected_symbols[self.total_selected] = candi;
+            self.mark(candi);
+            self.total_selected += 1;
         } // self.total_selected < max_selected_symbols
 
-    }
-
-    fn count_desc(entries: []shc.Entry, a: usize, b: usize) bool {
-        return entries[a].count > entries[b].count;
     }
 
     // TODO: BPE hiện đang bị nghẽn ở mark()
     // => Tìm cách cải thiện tốc độ substr matching
     // * Dùng nhiều threads (chia để trị)
     // * Dùng SIMD để match cùng lúc nhiều bytes (64 bytes 1 lần so sánh)
-    // * Hiện tại mỗi lần scan vocab thì chỉ mark được 1 pair => làm thế nào mark
-    //   nhiều pairs một lúc? (đoán trước tập pairs sẽ dc chọn mà ko cần marking)
-    fn mark(self: *Self, pairs: []const []const u8) void {
+    fn mark(self: *Self, entry: shc.Entry) void {
         const vocabs = self.vocabs;
+        const syms_len = self.symbols_len;
+        const pair = self.pairs_count.key_str(entry.offset);
+
         var i: usize = 3;
         var key_count = vocabs[0] * @as(u32, 256) + vocabs[1];
         var key_begin = i;
@@ -122,59 +101,56 @@ pub const BPE = struct {
         const dont_exist = 0;
         var prev_sym: usize = dont_exist;
 
-        // const show_info = false; //std.mem.eql(u8, pair, "chi");
-        // if (show_info) std.debug.print("\nMarking `{s}`: ", .{pairs});
+        const show_info = false; //std.mem.eql(u8, pair, "chi");
+        if (show_info) std.debug.print("\nMarking `{s}`: ", .{pair});
 
         while (i < vocabs.len) { // quét toàn bộ vocabs
-            const sym_end = i + self.symbols_len[i];
+            const sym_end = i + syms_len[i];
             if (sym_end < key_end) {
                 //
-                const next_sym_end = sym_end + self.symbols_len[sym_end];
+                const next_sym_end = sym_end + syms_len[sym_end];
                 const my_pair = vocabs[i..next_sym_end]; // Nếu thấy xuất hiện `pair` ở vị trí `i`
 
-                for (pairs) |pair| {
-                    if (std.mem.eql(u8, pair, my_pair)) {
-                        // thì thay thế `pair` vào vị trí `i`
-                        self.symbols_len[i] = @intCast(u8, pair.len);
-                        // và loại bỏ count của cặp ngay trước `pair`.
-                        if (prev_sym >= key_begin) {
-                            const prev_pair = vocabs[prev_sym..sym_end];
-                            const e = self.pairs_count.get_entry(prev_pair);
-                            if (e != null) e.?.count -= key_count;
+                if (std.mem.eql(u8, pair, my_pair)) {
+                    // thì thay thế `pair` vào vị trí `i`
+                    syms_len[i] = @intCast(u8, pair.len);
+                    // và loại bỏ count của cặp ngay trước `pair`.
+                    if (prev_sym >= key_begin) {
+                        const prev_pair = vocabs[prev_sym..sym_end];
+                        const e = self.pairs_count.get_entry(prev_pair);
+                        if (e != null) e.?.count -= key_count;
 
-                            const new_pair = vocabs[prev_sym .. i + self.symbols_len[i]];
-                            const idx = self.pairs_count.put_count(new_pair, key_count);
-                            if (self.pairs_count.entries[idx].count == key_count) {
-                                self.candidates[self.total_candidates] = idx;
-                                self.total_candidates += 1;
-                            }
-                            // if (show_info) std.debug.print("prev[{s}]:`{s}`-`{s}` \t", .{ pair, prev_pair, new_pair });
+                        const new_pair = vocabs[prev_sym .. i + syms_len[i]];
+                        const idx = self.pairs_count.put_count(new_pair, key_count);
+                        if (self.pairs_count.entries[idx].count == key_count) {
+                            self.candidates[self.total_candidates] = idx;
+                            self.total_candidates += 1;
                         }
+                        if (show_info) std.debug.print("prev[{s}]:`{s}`-`{s}` \t", .{ pair, prev_pair, new_pair });
+                    }
 
-                        // rồi loại bỏ count của cặp ngay sau `pair`
-                        // if (show_info) std.debug.print("{s}-{s}-{s} \t", .{ vocabs[i..key_end], vocabs[i..sym_end], vocabs[sym_end..next_sym_end] });
-                        if (next_sym_end < key_end) {
-                            const next_pair_end = next_sym_end + self.symbols_len[next_sym_end];
-                            const next_pair = vocabs[sym_end..next_pair_end];
+                    // rồi loại bỏ count của cặp ngay sau `pair`
+                    // if (show_info) std.debug.print("{s}-{s}-{s} \t", .{ vocabs[i..key_end], vocabs[i..sym_end], vocabs[sym_end..next_sym_end] });
+                    if (next_sym_end < key_end) {
+                        const next_pair_end = next_sym_end + syms_len[next_sym_end];
+                        const next_pair = vocabs[sym_end..next_pair_end];
 
-                            const e = self.pairs_count.get_entry(next_pair);
-                            if (e != null) e.?.count -= key_count;
+                        const e = self.pairs_count.get_entry(next_pair);
+                        if (e != null) e.?.count -= key_count;
 
-                            const new_pair = vocabs[i..next_pair_end];
-                            const idx = self.pairs_count.put_count(new_pair, key_count);
-                            if (self.pairs_count.entries[idx].count == key_count) {
-                                self.candidates[self.total_candidates] = idx;
-                                self.total_candidates += 1;
-                            }
-                            // if (show_info) std.debug.print("next[{s}]:`{s}`-`{s}`\t", .{ pair, next_pair, new_pair });
+                        const new_pair = vocabs[i..next_pair_end];
+                        const idx = self.pairs_count.put_count(new_pair, key_count);
+                        if (self.pairs_count.entries[idx].count == key_count) {
+                            self.candidates[self.total_candidates] = idx;
+                            self.total_candidates += 1;
                         }
-                        break; // khỏi for (pairs)
-                    } // my_pair == pair
-                } // for (pairs)
+                        if (show_info) std.debug.print("next[{s}]:`{s}`-`{s}`\t", .{ pair, next_pair, new_pair });
+                    }
+                }
                 //
             } else if (sym_end > key_end) { // có lỗi
                 //
-                std.debug.print("\n>> sym_end:{d} > key_end:{d} <<\n", .{ sym_end, key_end });
+                std.debug.print("\n>> sym_end:{d} > key_end:{} <<\n", .{ sym_end, key_end });
                 std.debug.print("sym:`{s}`\n", .{vocabs[i..sym_end]});
                 unreachable;
             }
@@ -185,7 +161,7 @@ pub const BPE = struct {
 
             if (i == prev_sym) {
                 const key = vocabs[i..key_end];
-                std.debug.print("\n>> Bị đứng ở marking `{s}` for key `{s}` <<\n", .{ pairs, key });
+                std.debug.print("\n>> Bị đứng ở marking `{s}` for key `{s}` <<\n", .{ pair, key });
                 unreachable;
             }
 
