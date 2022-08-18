@@ -2,8 +2,8 @@ const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
 const max_total_chars = 100_000;
-const max_selected_symbols = 300;
-const max_total_symbols = 1_000_000;
+const max_selected_symbols = 1_000;
+const max_total_symbols = 800_000;
 const SymbolCount = shc.HashCount(max_total_symbols);
 const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
 
@@ -152,7 +152,6 @@ pub const BPE = struct {
                 //
                 std.debug.print("\n>> sym_end:{d} > key_end:{} <<\n", .{ sym_end, key_end });
                 std.debug.print("sym:`{s}`\n", .{vocabs[i..sym_end]});
-                // std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
                 unreachable;
             }
 
@@ -162,8 +161,7 @@ pub const BPE = struct {
 
             if (i == prev_sym) {
                 const key = vocabs[i..key_end];
-                std.debug.print("\n>> Bị đứng ở marking `{s}` <<\n", .{pair});
-                std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
+                std.debug.print("\n>> Bị đứng ở marking `{s}` for key `{s}` <<\n", .{ pair, key });
                 unreachable;
             }
 
