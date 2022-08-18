@@ -85,7 +85,6 @@ pub const BPE = struct {
 
     }
 
-    // FIX: Bị hang ở >> Marking `�` << với "../data/fb_comments.txt"
     // TODO: BPE hiện đang bị nghẽn ở mark()
     // => Tìm cách cải thiện tốc độ substr matching
     // * Dùng nhiều threads (chia để trị)
@@ -94,7 +93,6 @@ pub const BPE = struct {
         const vocabs = self.vocabs;
         const syms_len = self.symbols_len;
         const pair = self.pairs_count.key_str(entry.offset);
-        std.debug.print("\n>> Marking `{s}` <<\n", .{pair});
 
         var i: usize = 3;
         var key_count = vocabs[0] * @as(u32, 256) + vocabs[1];
@@ -103,33 +101,35 @@ pub const BPE = struct {
         const dont_exist = 0;
         var prev_sym: usize = dont_exist;
 
-        // const show_info = true; //std.mem.eql(u8, pair, "chi");
-        // if (show_info) std.debug.print("\n{s}: ", .{pair});
+        const show_info = false; //std.mem.eql(u8, pair, "chi");
+        if (show_info) std.debug.print("\nMarking `{s}`: ", .{pair});
 
         while (i < vocabs.len) { // quét toàn bộ vocabs
-            const n = i + pair.len; // nếu thấy xuất hiện `pair` ở vị trí `i`
-            if (n <= key_end and std.mem.eql(u8, pair, vocabs[i..n])) {
-                const sym_end = i + syms_len[i];
-                // thì thay thế `pair` vào vị trí `i`
-                syms_len[i] = @intCast(u8, pair.len);
-                // và loại bỏ count của cặp ngay trước `pair`
-                if (prev_sym >= key_begin) {
-                    const prev_pair = vocabs[prev_sym..sym_end];
-                    const e = self.pairs_count.get_entry(prev_pair);
-                    if (e != null) e.?.count -= key_count;
+            const sym_end = i + syms_len[i];
+            if (sym_end < key_end) {
+                //
+                const next_sym_end = sym_end + syms_len[sym_end];
+                const my_pair = vocabs[i..next_sym_end]; // Nếu thấy xuất hiện `pair` ở vị trí `i`
 
-                    const new_pair = vocabs[prev_sym .. i + syms_len[i]];
-                    const idx = self.pairs_count.put_count(new_pair, key_count);
-                    if (self.pairs_count.entries[idx].count == key_count) {
-                        self.candidates[self.total_candidates] = idx;
-                        self.total_candidates += 1;
+                if (std.mem.eql(u8, pair, my_pair)) {
+                    // thì thay thế `pair` vào vị trí `i`
+                    syms_len[i] = @intCast(u8, pair.len);
+                    // và loại bỏ count của cặp ngay trước `pair`.
+                    if (prev_sym >= key_begin) {
+                        const prev_pair = vocabs[prev_sym..sym_end];
+                        const e = self.pairs_count.get_entry(prev_pair);
+                        if (e != null) e.?.count -= key_count;
+
+                        const new_pair = vocabs[prev_sym .. i + syms_len[i]];
+                        const idx = self.pairs_count.put_count(new_pair, key_count);
+                        if (self.pairs_count.entries[idx].count == key_count) {
+                            self.candidates[self.total_candidates] = idx;
+                            self.total_candidates += 1;
+                        }
+                        if (show_info) std.debug.print("prev[{s}]:`{s}`-`{s}` \t", .{ pair, prev_pair, new_pair });
                     }
-                    // if (show_info) std.debug.print("prev[{s}]:`{s}`-`{s}` \t", .{ pair, prev_pair, new_pair });
-                }
 
-                // rồi loại bỏ count của cặp ngay sau `pair`
-                if (sym_end < key_end) {
-                    const next_sym_end = sym_end + syms_len[sym_end];
+                    // rồi loại bỏ count của cặp ngay sau `pair`
                     // if (show_info) std.debug.print("{s}-{s}-{s} \t", .{ vocabs[i..key_end], vocabs[i..sym_end], vocabs[sym_end..next_sym_end] });
                     if (next_sym_end < key_end) {
                         const next_pair_end = next_sym_end + syms_len[next_sym_end];
@@ -144,13 +144,36 @@ pub const BPE = struct {
                             self.candidates[self.total_candidates] = idx;
                             self.total_candidates += 1;
                         }
-                        // if (show_info) std.debug.print("next[{s}]:`{s}`-`{s}` \t", .{ pair, next_pair, new_pair });
+                        if (show_info) std.debug.print("next[{s}]:`{s}`-`{s}`\t", .{ pair, next_pair, new_pair });
                     }
                 }
+                //
+            } else if (sym_end > key_end) { // có lỗi
+                //
+                std.debug.print("\n>> sym_end:{d} > key_end:{} <<\n", .{ sym_end, key_end });
+                std.debug.print("sym:`{s}`\n", .{vocabs[i..sym_end]});
+                // std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
+                unreachable;
             }
+
             // next symbol
             prev_sym = i;
-            i += syms_len[i];
+            i = sym_end;
+
+            if (i == prev_sym) {
+                const key = vocabs[i..key_end];
+                std.debug.print("\n>> Bị đứng ở marking `{s}` <<\n", .{pair});
+                std.debug.print("key:`{s}`\n", .{key});
+                // std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
+                unreachable;
+
+                // TOFIX: Bị treo ở >> Marking << với "../data/fb_comments.txt"
+                // >> Bị treo ở marking `di` <<
+                // key:`�သွားပြီးလေ ` maybe_pair:`��`
+                // >> Bị treo ở marking `di` <<
+                // key:`�ွားပြီးလေ ` maybe_pair:`��`
+                // Giải pháp: scan đủ 1 symbol chứ ko làm tắt như `maybe_pair`
+            }
 
             if (i == key_end) {
                 i += 3; // next key
@@ -158,6 +181,8 @@ pub const BPE = struct {
                     key_count = vocabs[i - 3] * @as(u32, 256) + vocabs[i - 2];
                     key_end = i + vocabs[i - 1];
                     prev_sym = dont_exist;
+                    key_begin = i;
+                    continue;
                 }
             }
         }
@@ -232,6 +257,8 @@ pub const BPE = struct {
                     else => { // error.Utf8InvalidStartByte
                         // treat phần còn lại của key là chuỗi byte
                         std.mem.set(u8, self.symbols_len[x..key_end], 1);
+                        // bỏ qua phần còn lại của key
+                        // self.symbols_len[x] = @intCast(u8, key_end - x);
                         x = key_end;
                         break;
                     },
@@ -241,6 +268,8 @@ pub const BPE = struct {
                     // Lỗi ko đủ byte cho symbol
                     // treat phần còn lại của key là chuỗi byte
                     std.mem.set(u8, self.symbols_len[x..key_end], 1);
+                    // bỏ qua phần còn lại của key
+                    // self.symbols_len[x] = @intCast(u8, key_end - x);
                     x = key_end;
                     break;
                 }
