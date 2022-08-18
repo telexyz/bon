@@ -163,16 +163,8 @@ pub const BPE = struct {
             if (i == prev_sym) {
                 const key = vocabs[i..key_end];
                 std.debug.print("\n>> Bị đứng ở marking `{s}` <<\n", .{pair});
-                std.debug.print("key:`{s}`\n", .{key});
-                // std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
+                std.debug.print("key:`{s}` my_pair:`{s}`\n", .{ key, my_pair });
                 unreachable;
-
-                // TOFIX: Bị treo ở >> Marking << với "../data/fb_comments.txt"
-                // >> Bị treo ở marking `di` <<
-                // key:`�သွားပြီးလေ ` maybe_pair:`��`
-                // >> Bị treo ở marking `di` <<
-                // key:`�ွားပြီးလေ ` maybe_pair:`��`
-                // Giải pháp: scan đủ 1 symbol chứ ko làm tắt như `maybe_pair`
             }
 
             if (i == key_end) {
