@@ -154,10 +154,13 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
     if (show_info) cmn.printSyllParts(syll);
 }
 
-// Stats
+// Performance Stats (2.3GB input data)
+// - - - - - - - - -
 // 05s để tách tokens
 // 20s để phân tích syllable
 // 03s để count types ko phải syllables
+// 02m00s để lọc 1k BPE symbols (naive impl) => 5.1k cần 10m
+// youtokentome cần 1m36s => nhanh hơn 7.35x lần
 
 pub fn main() !void {
     try type_counters.init(std.heap.page_allocator);
@@ -185,7 +188,8 @@ pub fn main() !void {
             thread3.join();
         },
         .ReleaseFast => {
-            // "char_stream.zig -Drelease-fast=true bị lỗi segment-fault; debug và safe mode ok
+            // `src/byte_pair_encode_hasbug.zig` -Drelease-fast=true bị lỗi segment-fault;
+            // debug và safe mode ok!
             // try scanFile("utf8tv.txt");
 
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
@@ -208,11 +212,11 @@ pub fn main() !void {
     type_counters.showStats();
     type_counters.deinit(); // Giải phóng bộ nhớ của type_counters (khoảng 60MB)
 
-    // var bpe: BPE = undefined;
-    // defer bpe.deinit();
-    // try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
-    // bpe.learn();
-    // bpe.showSelected(1000);
+    var bpe: BPE = undefined;
+    defer bpe.deinit();
+    try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    bpe.learn();
+    bpe.showSelected(1000);
 }
 
 // simple config
