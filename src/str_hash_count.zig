@@ -266,12 +266,17 @@ pub const CountDesc = struct {
         // \count-byte1\count-byte2\len\'key' = key.len + 3
         // const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
         // const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
+
+        const max_u16 = std.math.maxInt(u16);
+        const max_count = self.entries[0].count;
+        const ratio = if (max_count <= max_u16) 1 else max_count / max_u16;
         var x: usize = 0;
+
         for (self.entries) |entry| {
             // Reduce count from u32 to u16
             // self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
             // self.vocabs[x + 1] = @intCast(u8, pext_u32(entry.count, low_bitmap));
-            const reduced = @intCast(u16, entry.count / 255 + 1);
+            const reduced = @intCast(u16, entry.count / ratio + 1);
             self.vocabs[x] = @intCast(u8, reduced >> 8);
             self.vocabs[x + 1] = @intCast(u8, reduced & 0x00ff);
             x += 2;
