@@ -1,8 +1,11 @@
 // (Almost-)Concurrent String Hash Count
 //
-// `key` là chuỗi ngắn độ dài trung bình 32-bytes
-// `hash` u64
-// `count` là u32
+// `key` là chuỗi ngắn độ dài trung bình 32-bytes, được lưu riêng trong mảng keys_bytes
+// Mỗi hashtable entry gồm:
+// * `hash` u64
+// * `count` là u32
+// * `offset` u24, trỏ tới vị trí đầu của key trong keys_bytes
+// => Total 16-bytes (1/4 cache-line)
 //
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
@@ -11,19 +14,13 @@
 // => chấp nhận được! vì với dữ liệu lớn sai số ko thành vấn đề.
 //
 // Với `insert` cần phải xử lý race condition ở thao tác grow hashtable. Giải pháp:
-// 1/ Init hashtable size đủ lớn để ko bao giờ phải grow bởi bất cứ threads nào
-// 2/ Dùng lock khi cần grow
+// * 1/ Init hashtable size đủ lớn để ko bao giờ phải grow
+// * 2/ Dùng lock khi cần grow (chưa impl)
 //
 // - - -
 //
 // Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và
 // `cswisstable`; có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
-//
-// => * Làm cách 1/ trước để thử nghiệm tốc độ!
-//    * Dùng lại code của `telexyz/engine`
-//
-// 32-bytes + u32 + u64 = 44-bytes
-// unique tokens gọi là types. Giả sử có 1 triệu (2^20) types => 1M * 36-bytes = 44 Mb
 
 const std = @import("std");
 
