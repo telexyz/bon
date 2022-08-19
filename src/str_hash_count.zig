@@ -121,7 +121,12 @@ pub fn HashCount(capacity: usize) type {
             var i: usize = it.hash >> shift;
             const _i = i;
 
-            while (self.entries[i].hash < it.hash) : (i += 1) {}
+            while (self.entries[i].hash < it.hash) : (i += 1) {
+                if (i == size) {
+                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                    unreachable;
+                }
+            }
 
             var entry = &self.entries[i];
             if (entry.hash == it.hash) { // key đã xuất hiện
@@ -134,27 +139,28 @@ pub fn HashCount(capacity: usize) type {
             self.mutex.lock();
             defer self.mutex.unlock();
 
-            var never_swap = true;
-            while (true) : (i += 1) {
-                if (never_swap) { // key lần đầu xuất hiện, ghi lại offset
-                    never_swap = false; // chỉ làm một lần này thôi
-                    var ending = self.keys_bytes_len;
-                    self.keys_bytes[ending] = @intCast(u8, key.len);
+            { // key lần đầu xuất hiện, ghi lại offset
+                var ending = self.keys_bytes_len;
+                self.keys_bytes[ending] = @intCast(u8, key.len);
+                ending += 1;
+                it.offset = @intCast(IndexType, ending);
+                for (key) |k| {
+                    self.keys_bytes[ending] = k;
                     ending += 1;
-                    it.offset = @intCast(IndexType, ending);
-                    for (key) |k| {
-                        self.keys_bytes[ending] = k;
-                        ending += 1;
-                    }
-                    self.keys_bytes[ending] = GUARD_BYTE;
-                    self.keys_bytes_len = ending + 1;
-                    self.len += 1; // thêm 1 phần tử nữa
                 }
+                self.keys_bytes[ending] = GUARD_BYTE;
+                self.keys_bytes_len = ending + 1;
+                self.len += 1; // thêm 1 phần tử nữa
+            }
 
+            while (true) : (i += 1) {
+                if (i == size) {
+                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                    unreachable;
+                }
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                 const tmp = self.entries[i];
                 self.entries[i] = it;
-
                 if (tmp.offset == maxx_index) { // ô rỗng, dừng thuật toán
                     self.recordStats(i - _i);
                     return i;
