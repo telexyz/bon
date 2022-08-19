@@ -176,6 +176,8 @@ pub fn main() !void {
             // try scanFile("../data/vietai_sat.txt");
         },
         .ReleaseSafe => {
+            // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
+            // - - - - - - - - - - - - - - - - - -
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
@@ -185,8 +187,8 @@ pub fn main() !void {
             thread3.join();
         },
         .ReleaseFast => {
-            // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
-            // - - - - - - - - - - - - - - - - - -
+            // "char_stream.zig -Drelease-fast=true đang bị lỗi segment-fault; debug và safe mode thì ko bị"
+            //
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
