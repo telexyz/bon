@@ -240,7 +240,7 @@ pub const CountDesc = struct {
         self.allocator.free(self.vocabs);
     }
 
-    const pext_u32 = @import("instructions.zig").pext_u32;
+    // const pext_u32 = @import("instructions.zig").pext_u32;
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         self.allocator = allocator;
         self.len = len;
@@ -260,13 +260,16 @@ pub const CountDesc = struct {
         self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
         // cần thêm 2-bytes lưu reduced count
         // \count-byte1\count-byte2\len\'key' = key.len + 3
-        const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
-        const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
+        // const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
+        // const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
         var x: usize = 0;
         for (self.entries) |entry| {
             // Reduce count from u32 to u16
-            self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
-            self.vocabs[x + 1] = @intCast(u8, pext_u32(entry.count, low_bitmap));
+            // self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
+            // self.vocabs[x + 1] = @intCast(u8, pext_u32(entry.count, low_bitmap));
+            const reduced = @intCast(u16, entry.count / 255 + 1);
+            self.vocabs[x] = @intCast(u8, reduced >> 8);
+            self.vocabs[x + 1] = @intCast(u8, reduced & 0x00ff);
             x += 2;
 
             const l = keys_bytes[entry.offset - 1];
