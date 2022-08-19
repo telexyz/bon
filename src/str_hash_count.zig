@@ -132,41 +132,42 @@ pub fn HashCount(capacity: usize) type {
 
             var entry = &self.entries[i];
             if (entry.hash == it.hash) { // key đã xuất hiện
-                entry.count += count;
+                entry.count += count; // xáo trộn duy nhất là tăng count lên 1
                 return i;
             }
 
-            // Chỉ dùng lock khi cần hoán đổi thành viên mảng entries
-            self.mutex.lock();
-            defer self.mutex.unlock();
+            { // Chỉ dùng lock khi có xáo trộn dữ liệu lớn
+                self.mutex.lock();
+                defer self.mutex.unlock();
 
-            { // key lần đầu xuất hiện, ghi lại offset
-                var ending = self.keys_bytes_len;
-                self.keys_bytes[ending] = @intCast(u8, key.len);
-                ending += 1;
-                it.offset = @intCast(IndexType, ending);
-                for (key) |k| {
-                    self.keys_bytes[ending] = k;
+                { // key lần đầu xuất hiện, ghi lại offset
+                    var ending = self.keys_bytes_len;
+                    self.keys_bytes[ending] = @intCast(u8, key.len);
                     ending += 1;
+                    it.offset = @intCast(IndexType, ending);
+                    for (key) |k| {
+                        self.keys_bytes[ending] = k;
+                        ending += 1;
+                    }
+                    self.keys_bytes[ending] = GUARD_BYTE;
+                    self.keys_bytes_len = ending + 1;
+                    self.len += 1; // thêm 1 phần tử nữa
                 }
-                self.keys_bytes[ending] = GUARD_BYTE;
-                self.keys_bytes_len = ending + 1;
-                self.len += 1; // thêm 1 phần tử nữa
-            }
 
-            while (true) : (i += 1) {
-                if (i == size) {
-                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
-                    unreachable;
-                }
-                // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
-                const tmp = self.entries[i];
-                self.entries[i] = it;
-                if (tmp.offset == maxx_index) { // ô rỗng, dừng thuật toán
-                    return i;
-                }
-                it = tmp;
-            } // while
+                while (true) : (i += 1) {
+                    if (i == size) {
+                        std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                        unreachable;
+                    }
+                    // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
+                    const tmp = self.entries[i];
+                    self.entries[i] = it;
+                    if (tmp.offset == maxx_index) { // ô rỗng, dừng thuật toán
+                        return i;
+                    }
+                    it = tmp;
+                } // while
+            } // Mutex
         }
 
         pub fn get(self: *Self, key: []const u8) CountType {

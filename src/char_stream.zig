@@ -154,6 +154,11 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
     if (show_info) cmn.printSyllParts(syll);
 }
 
+// Stats
+// 05s để tách tokens
+// 20s để phân tích syllable
+// 03s để count types ko phải syllables
+
 pub fn main() !void {
     try type_counters.init(std.heap.page_allocator);
     try syll_counters.init(std.heap.page_allocator);
