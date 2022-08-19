@@ -1,3 +1,5 @@
+Note: nhặt ngẫu nhiên từ nhiều nguồn
+
 ### Ascalon RiscV Processor
 https://youtu.be/KOHQQyAKY14?t=506
 
@@ -31,4 +33,3 @@ Mô hình truyền thống (Global Memory Access) bên trái cực kỳ ổn đ�
 Bên phải là tính toán tại bộ nhớ cục bộ với dữ liệu ở khắp mọi nơi (networked memory) và phải kiểm soát việc dịch chuyển dữ liệu tới compute node hoặc dịch chuyển dữ liệu đã tính toán xong đi chỗ khác. 
 
 => Kiểm soát việc dịch chuyển dữ liệu là rất khó!
-

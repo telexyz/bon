@@ -47,13 +47,8 @@ fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
 const idx_bits: []const u64 = &.{ 1, 2, 4, 8, 16, 32, 64, 128, 256, 512, 1024, 1 << 11, 1 << 12, 1 << 13, 1 << 14, 1 << 15, 1 << 16, 1 << 17, 1 << 18, 1 << 19, 1 << 20, 1 << 21, 1 << 22, 1 << 23, 1 << 24, 1 << 25, 1 << 26, 1 << 27, 1 << 28, 1 << 29, 1 << 30, 1 << 31, 1 << 32, 1 << 33, 1 << 34, 1 << 35, 1 << 36, 1 << 37, 1 << 38, 1 << 39, 1 << 40, 1 << 41, 1 << 42, 1 << 43, 1 << 44, 1 << 45, 1 << 46, 1 << 47, 1 << 48, 1 << 49, 1 << 50, 1 << 51, 1 << 52, 1 << 53, 1 << 54, 1 << 55, 1 << 56, 1 << 57, 1 << 58, 1 << 59, 1 << 60, 1 << 61, 1 << 62, 1 << 63 };
 
 inline fn inSet(bits: BitType, idx: usize) bool {
-    std.debug.assert(BitType == u64);
     return (idx_bits[idx] & bits) != 0;
 }
-// inline fn inSet(bits: *const BitType, idx: usize) bool {
-//     const _u64s = @ptrCast(*const [BYTES_PROCESSED / 64]u64, bits).*;
-//     return (idx_bits[idx % 64] & _u64s[idx / 64]) != 0;
-// }
 
 fn scanFile(file_name: []const u8) !void {
     // cwd(): curr_bytesent working directory
@@ -161,8 +156,6 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
 
 pub fn main() !void {
     try type_counters.init(std.heap.page_allocator);
-    defer type_counters.deinit();
-
     try syll_counters.init(std.heap.page_allocator);
     defer syll_counters.deinit();
 
@@ -187,31 +180,34 @@ pub fn main() !void {
             thread3.join();
         },
         .ReleaseFast => {
-            // "char_stream.zig -Drelease-fast=true đang bị lỗi segment-fault; debug và safe mode thì ko bị"
-            //
-            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            try scanFile("utf8tv.txt");
-            // try scanFile("../data/fb_comments.txt");
-            // thread1.join();
-            // thread2.join();
-            // thread3.join();
+            // "char_stream.zig -Drelease-fast=true bị lỗi segment-fault; debug và safe mode ok
+            // try scanFile("utf8tv.txt");
+
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+            try scanFile("../data/fb_comments.txt");
+            thread1.join();
+            thread2.join();
+            thread3.join();
         },
     }
 
     syll_counters.list(20);
+
     var count_desc: shc.CountDesc = undefined;
     defer count_desc.deinit();
     try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
+
     count_desc.list(80);
     type_counters.showStats();
+    type_counters.deinit(); // Giải phóng bộ nhớ của type_counters (khoảng 60MB)
 
-    var bpe: BPE = undefined;
-    defer bpe.deinit();
-    try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
-    bpe.learn();
-    bpe.showSelected(1000);
+    // var bpe: BPE = undefined;
+    // defer bpe.deinit();
+    // try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    // bpe.learn();
+    // bpe.showSelected(1000);
 }
 
 // simple config

@@ -36,11 +36,7 @@ The main difference between them is that of architectural complexity, which is m
 
 * x86 CPUs are complex instruction set computers (CISC). They `improve performance by adding many specialized instructions`, some of which may only be rarely used in practical programs.
 
-The main advantage of RISC designs is that they result in simpler and smaller chips, which projects to lower manufacturing costs and power usage. It’s not surprising that the market segmented itself with Arm dominating battery-powered, general-purpose devices, and leaving the complex neural network and Galois field calculations to server-grade, highly-specialized x86s.
-
-```
-Modern 64-bit versions of x86 are known as “AMD64,” “Intel 64,” or by the more vendor-neutral names of “x86-64” or just “x64.” A similar 64-bit extension of Arm is called “AArch64” or “ARM64.” In this book, we will just use plain “x86” and “Arm” implying the 64-bit versions. ↩︎
-```
+The main advantage of RISC designs is that they result in simpler and smaller chips, which projects to lower manufacturing costs and power usage.
 
 
 https://en.algorithmica.org/hpc/architecture/assembly/

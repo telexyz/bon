@@ -128,10 +128,11 @@ pub fn HashCount(capacity: usize) type {
                 }
             }
 
+            self.recordStats(i - _i);
+
             var entry = &self.entries[i];
             if (entry.hash == it.hash) { // key đã xuất hiện
                 entry.count += count;
-                self.recordStats(i - _i);
                 return i;
             }
 
@@ -162,7 +163,6 @@ pub fn HashCount(capacity: usize) type {
                 const tmp = self.entries[i];
                 self.entries[i] = it;
                 if (tmp.offset == maxx_index) { // ô rỗng, dừng thuật toán
-                    self.recordStats(i - _i);
                     return i;
                 }
                 it = tmp;
