@@ -35,7 +35,7 @@ pub const SyllableCount = struct {
         return self.counts[key];
     }
 
-    pub fn key_str(key: KeyType, buf: []u8) []const u8 {
+    pub fn keyStr(key: KeyType, buf: []u8) []const u8 {
         return Syllable.newFromId(key).printBuffUtf8(buf);
     }
 
@@ -52,7 +52,7 @@ pub const SyllableCount = struct {
                 if (n > max) break;
 
                 std.debug.print("\ncount[{s}]: {d}", .{
-                    SyllableCount.key_str(i, buffer[0..]),
+                    SyllableCount.keyStr(i, buffer[0..]),
                     count,
                 });
             }
@@ -73,6 +73,6 @@ test "SyllableCount" {
     try std.testing.expectEqual(sc.get(key), 1);
 
     var buffer: [12]u8 = undefined;
-    const token = SyllableCount.key_str(key, buffer[0..]);
+    const token = SyllableCount.keyStr(key, buffer[0..]);
     try std.testing.expectEqualStrings(token, "nguốm");
 }

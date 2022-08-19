@@ -94,7 +94,7 @@ pub fn HashCount(capacity: usize) type {
             std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_index });
         }
 
-        pub fn key_str(self: *Self, offset: IndexType) []const u8 {
+        pub fn keyStr(self: *Self, offset: IndexType) []const u8 {
             const ending: usize = offset + self.keys_bytes[offset - 1];
             return self.keys_bytes[offset..ending];
         }
@@ -111,10 +111,10 @@ pub fn HashCount(capacity: usize) type {
         }
 
         pub inline fn put(self: *Self, key: []const u8) void {
-            _ = self.put_count(key, 1);
+            _ = self.putCount(key, 1);
         }
 
-        pub fn put_count(self: *Self, key: []const u8, count: CountType) usize {
+        pub fn putCount(self: *Self, key: []const u8, count: CountType) usize {
             if (key.len > MAX_KEY_LEN) return maxx_index; // reject
 
             var it: Entry = .{ .hash = _hash(key), .count = count };
@@ -201,7 +201,7 @@ pub fn HashCount(capacity: usize) type {
                     }
                     prev = curr;
 
-                    if (curr != _hash(self.key_str(entry.offset))) {
+                    if (curr != _hash(self.keyStr(entry.offset))) {
                         std.debug.print("\n!! hash ko trùng với key !!\n", .{});
 
                         return false;
@@ -319,7 +319,7 @@ pub const CountDesc = struct {
     }
     const TABS = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 
-    pub fn key_str(self: Self, idx: usize) []const u8 {
+    pub fn keyStr(self: Self, idx: usize) []const u8 {
         const offset = self.entries[idx].offset;
         var ending: usize = offset + self.keys_bytes[offset - 1];
         return self.keys_bytes[offset..ending];
