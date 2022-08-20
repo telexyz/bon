@@ -212,11 +212,11 @@ pub fn main() !void {
     type_counters.showStats();
     type_counters.deinit(); // Giải phóng bộ nhớ của type_counters (khoảng 60MB)
 
-    var bpe: BPE = undefined;
-    defer bpe.deinit();
-    try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
-    bpe.learn();
-    bpe.showSelected(1000);
+    // var bpe: BPE = undefined;
+    // defer bpe.deinit();
+    // try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    // bpe.learn();
+    // bpe.showSelected(1000);
 }
 
 // simple config
