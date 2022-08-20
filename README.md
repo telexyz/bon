@@ -8,8 +8,7 @@
 
 - - - 
 
-Các kỹ thuật có thể áp dụng: SIMD (vectorized), branchless, multi-threading.
-Kỳ vọng tăng tốc `~10x` so với scalar, single thread code.
+Các kỹ thuật có thể áp dụng: data-oriented programming, SIMD (vectorized), branchless, multi-threading. Kỳ vọng tăng tốc `~10x` so với scalar, single thread code.
 
 Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tương thích cho các kiến trúc phần cứng AI sắp ra mắt (spatial, processing in memory, on-chip CPU cluster ...)
 

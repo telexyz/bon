@@ -6,6 +6,12 @@ Bugs will have nowhere to hide once you master these advanced techniques!
 
 - - -
 
+https://www.youtube.com/watch?v=8JEEYwdrexc |
+Using Valgrind and GDB together to fix a segfault and memory leak
+
+
+- - -
+
 
 https://www.youtube.com/watch?v=v_C1cvo1biI | 
 https://lldb.llvm.org/use/tutorial.html
