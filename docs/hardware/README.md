@@ -1,5 +1,9 @@
 Note: nhặt ngẫu nhiên từ nhiều nguồn
 
+### Understanding CPU Microarchitecture for Performance (JChampionsConf)
+https://www.youtube.com/watch?v=Pa_l3aHCoGc
+
+
 ### Ascalon RiscV Processor
 https://youtu.be/KOHQQyAKY14?t=506
 
