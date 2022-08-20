@@ -163,8 +163,12 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
 // youtokentome cần 1m36s => nhanh hơn 7.35x lần
 
 pub fn main() !void {
-    try type_counters.init(std.heap.page_allocator);
-    try syll_counters.init(std.heap.page_allocator);
+    // Use c_allocator to run Valgrind mem leak check
+    const default_allocator = std.heap.c_allocator;
+    // const default_allocator = std.heap.page_allocator;
+
+    try type_counters.init(default_allocator);
+    try syll_counters.init(default_allocator);
     defer syll_counters.deinit();
 
     switch (builtin.mode) {
@@ -206,7 +210,7 @@ pub fn main() !void {
 
     var count_desc: shc.CountDesc = undefined;
     defer count_desc.deinit();
-    try count_desc.init(std.heap.page_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
+    try count_desc.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
 
     count_desc.list(80);
     type_counters.showStats();
@@ -214,7 +218,7 @@ pub fn main() !void {
 
     // var bpe: BPE = undefined;
     // defer bpe.deinit();
-    // try bpe.init(std.heap.page_allocator, count_desc.vocabs_slice());
+    // try bpe.init(default_allocator, count_desc.vocabs_slice());
     // bpe.learn();
     // bpe.showSelected(1000);
 }

@@ -3,6 +3,18 @@
 zig build -Drelease-fast=true
 time zig-out/bin/char_stream
 
+# Debug, Analysis: Mem / Perf
+# - - - - - - - - - - - - - -
+
+# valgrind --tool=callgrind ./zig-out/bin/char_stream
+
+# valgrind --tool=cachegrind ./zig-out/bin/char_stream
+
+# valgrind --leak-check=full --track-origins=yes \
+# --show-leak-kinds=all --num-callers=15 \
+# --log-file=leak.txt ./zig-out/bin/char_stream
+
+
 # You Token To Me, the fatest BPE out-there
 # - - - - - - - - - - - - - - - - - - - - -
 #

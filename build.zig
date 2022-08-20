@@ -30,6 +30,7 @@ pub fn build(b: *std.build.Builder) void {
     // exe.addPackage(ztracy_pkg);
     // ztracy.link(exe, ztracy_options);
 
+    exe.linkLibC();
     // setup(exe);
     exe.setTarget(target);
     exe.setBuildMode(mode);

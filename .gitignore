@@ -2,3 +2,4 @@ zig-cache
 zig-out
 callgrind.out.*
 cachegrind.out.*
+leak.txt
