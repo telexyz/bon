@@ -36,7 +36,8 @@ pub const SyllableCount = struct {
     }
 
     pub fn keyStr(key: KeyType, buf: []u8) []const u8 {
-        return Syllable.newFromId(key).printBuffUtf8(buf);
+        var syll = Syllable.newFromId(key);
+        return syll.printBuffUtf8(buf);
     }
 
     pub fn list(self: *Self, max: usize) void {
