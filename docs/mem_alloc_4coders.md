@@ -1,3 +1,8 @@
+https://www.youtube.com/watch?v=vHWiDx_l4V0 |
+What's a Memory Allocator Anyway? - Benjamin Feng
+
+- - -
+
 https://www.youtube.com/watch?v=gYfd25Bdmws
 
 introduce the current industry standard memory allocators (general-purpose and specialized), their design and implementation. review real world problems and their respective solutions, where application performance was significantly hindered or complex bugs were introduced.

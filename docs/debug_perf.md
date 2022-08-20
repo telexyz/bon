@@ -1,3 +1,12 @@
+https://sycl.it/agenda/workshops/advanced-debugging-techniques
+
+Learn how to use powerful tools such as `Valgrind`, `GDB`, `QEMU`, and `rr`. Explore memory watchpoints, reverse-execution, leak checking, thread sanitization, and defensive programming to turn head-scratchers into no-brainers.
+
+Bugs will have nowhere to hide once you master these advanced techniques!
+
+- - -
+
+
 https://www.youtube.com/watch?v=v_C1cvo1biI | 
 https://lldb.llvm.org/use/tutorial.html
 
