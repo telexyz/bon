@@ -3,6 +3,9 @@
 zig build -Drelease-fast=true
 time zig-out/bin/char_stream
 
+# You Token To Me, the fatest BPE out-there
+# - - - - - - - - - - - - - - - - - - - - -
+#
 # cat ../data/*.txt > all.tx # 2.3 GB
 # pip3 install Cython youtokentome
 # yttm encode --model OUTPUT_MODEL_FILE --output_type subword < TEST_DATA_FILE > ENCODED_DATA

@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 const shc = @import("str_hash_count.zig");
-const BPE = @import("byte_pair_encode.zig").BPE;
+const BPE = @import("byte_pair_encoding.zig").BPE;
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 // Init HashCount để count các tokens ko phải âm tiết tiếng Việt
 pub const NotSyllHashCount = shc.HashCount(2_500_000);
