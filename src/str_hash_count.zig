@@ -1,11 +1,11 @@
 // (Almost-)Concurrent String Hash Count
 //
-// `key` là chuỗi ngắn độ dài trung bình 32-bytes, được lưu riêng trong mảng keys_bytes
+// `key` là chuỗi ngắn độ dài trung bình 15-bytes, được lưu riêng trong mảng keys_bytes
 // Mỗi hashtable entry gồm:
 // * `hash` u64
 // * `count` là u24
-// * `offset` u32, trỏ tới vị trí đầu của key trong keys_bytes
-// => Total 15-bytes (23% cache-line)
+// * `offset` u48, trỏ tới vị trí đầu của key trong keys_bytes hoặc lưu 1 cặp u24,u24 dùng trong BPE
+// => Total 16-bytes (25% cache-line)
 //
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
@@ -26,7 +26,7 @@ const std = @import("std");
 
 pub const HashType = u64;
 pub const CountType = u24;
-pub const IndexType = u32; // u24 ko đủ để lưu offset
+pub const IndexType = u48; // Để lưu được 1 cặp u24,u24 (dùng trong BPE)
 
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
@@ -43,14 +43,20 @@ pub const Entry = packed struct {
     offset: IndexType = 0,
 };
 
-pub fn HashCount(capacity: usize) type {
-    const bits = std.math.log2_int(u64, capacity);
+pub const Config = struct {
+    capacity: usize,
+    for_bpe: bool,
+};
+
+pub fn HashCount(comptime cfg: Config) type {
+    const bits = std.math.log2_int(u64, cfg.capacity);
     const shift = 63 - bits;
-    const size = (@as(usize, 2) << bits) + capacity;
+    const size = (@as(usize, 2) << bits) + cfg.capacity;
+    const KeyType = if (cfg.for_bpe) IndexType else []const u8;
 
     std.debug.assert(size < MAX_CAPACITY);
-    std.debug.assert(size > capacity);
-    std.debug.assert(capacity * AVG_KEY_LEN < MAX_CAPACITY);
+    std.debug.assert(size > cfg.capacity);
+    std.debug.assert(cfg.capacity * AVG_KEY_LEN < MAX_CAPACITY);
 
     return struct {
         // Stats
@@ -71,7 +77,9 @@ pub fn HashCount(capacity: usize) type {
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
-            self.allocator.free(self.keys_bytes);
+            if (!cfg.for_bpe) {
+                self.allocator.free(self.keys_bytes);
+            }
         }
 
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
@@ -85,10 +93,12 @@ pub fn HashCount(capacity: usize) type {
             self.mutex = std.Thread.Mutex{};
             self.allocator = init_allocator;
 
-            self.keys_bytes = try self.allocator.alloc(u8, capacity * AVG_KEY_LEN);
-            self.entries = try self.allocator.alloc(Entry, size);
+            if (!cfg.for_bpe) {
+                self.keys_bytes = try self.allocator.alloc(u8, cfg.capacity * AVG_KEY_LEN);
+                std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
+            }
 
-            std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
+            self.entries = try self.allocator.alloc(Entry, size);
             std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = maxx_index });
         }
 
@@ -104,16 +114,16 @@ pub fn HashCount(capacity: usize) type {
             if (probs > self.max_probs) self.max_probs = probs;
         }
 
-        inline fn _hash(key: []const u8) u64 {
-            return std.hash.Wyhash.hash(key[0], key);
+        inline fn _hash(key: KeyType) u64 {
+            return std.hash.Wyhash.hash(2, std.mem.asBytes(&key));
         }
 
-        pub inline fn put(self: *Self, key: []const u8) void {
+        pub inline fn put(self: *Self, key: KeyType) void {
             _ = self.putCount(key, 1);
         }
 
-        pub fn putCount(self: *Self, key: []const u8, count: CountType) usize {
-            if (key.len > MAX_KEY_LEN) return maxx_index; // reject
+        pub fn putCount(self: *Self, key: KeyType, count: CountType) usize {
+            if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return maxx_index; // reject
 
             var it: Entry = .{ .hash = _hash(key), .count = count };
             var i: usize = it.hash >> shift;
@@ -129,20 +139,32 @@ pub fn HashCount(capacity: usize) type {
             self.recordStats(i - _i);
 
             var entry = &self.entries[i];
-            if (entry.hash == it.hash) { // key đã xuất hiện
-                entry.count += count; // xáo trộn duy nhất là tăng count lên 1
-                return i;
+
+            if (cfg.for_bpe) {
+                if (entry.offset == it.offset) { // key đã xuất hiện
+                    entry.count += count; // xáo trộn duy nhất là tăng count lên 1
+                    return i;
+                }
+            } else {
+                if (entry.hash == it.hash) { // key đã xuất hiện
+                    entry.count += count; // xáo trộn duy nhất là tăng count lên 1
+                    return i;
+                }
             }
 
             { // Chỉ dùng lock khi có xáo trộn dữ liệu lớn
                 self.mutex.lock();
                 defer self.mutex.unlock();
 
-                { // key lần đầu xuất hiện, ghi lại offset
+                // key lần đầu xuất hiện, ghi lại offset
+                if (cfg.for_bpe) {
+                    it.offset = key;
+                    self.len += 1; // thêm 1 phần tử nữa
+                } else {
                     var ending = self.keys_bytes_len;
                     self.keys_bytes[ending] = @intCast(u8, key.len);
+                    it.offset = @intCast(IndexType, ending + 1);
                     ending += 1;
-                    it.offset = @intCast(IndexType, ending);
                     for (key) |k| {
                         self.keys_bytes[ending] = k;
                         ending += 1;
@@ -168,13 +190,13 @@ pub fn HashCount(capacity: usize) type {
             } // Mutex
         }
 
-        pub fn get(self: *Self, key: []const u8) CountType {
+        pub fn get(self: *Self, key: KeyType) CountType {
             const entry = self.get_entry(key);
             if (entry == null) return 0 else return entry.?.count;
         }
 
-        pub fn get_entry(self: *Self, key: []const u8) ?*Entry {
-            if (key.len > MAX_KEY_LEN) return null;
+        pub fn get_entry(self: *Self, key: KeyType) ?*Entry {
+            if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return null;
 
             const hash = _hash(key);
 
@@ -184,14 +206,14 @@ pub fn HashCount(capacity: usize) type {
                 var entry = self.entries[i];
                 if (entry.hash < hash) continue;
 
-                const offset = entry.offset;
-                const ending = offset + key.len;
-
-                const equal = (entry.hash == hash) and // check hash first
-                    self.keys_bytes[ending] == GUARD_BYTE and // len eql
-                    std.mem.eql(u8, self.keys_bytes[offset..ending], key);
-
-                return if (equal) &entry else null;
+                if (cfg.for_bpe) {
+                    return if (entry.offset == key) &entry else null;
+                } else {
+                    const offset = entry.offset;
+                    const ending = offset + key.len;
+                    const equal = hash == entry.hash and std.mem.eql(u8, self.keys_bytes[offset..ending], key);
+                    return if (equal) &entry else null;
+                }
             }
         }
 
@@ -336,8 +358,8 @@ pub const CountDesc = struct {
     }
 };
 
-test "HashCount" {
-    const HC1024 = HashCount(1024);
+test "HashCount for string" {
+    const HC1024 = HashCount(.{ .capacity = 1024, .for_bpe = false });
     var counters: HC1024 = undefined;
     try counters.init(std.testing.allocator);
     defer counters.deinit();
@@ -349,4 +371,24 @@ test "HashCount" {
     try std.testing.expectEqual(@as(CountType, 2), counters.get("a"));
     counters.put("b");
     try std.testing.expectEqual(@as(CountType, 1), counters.get("b"));
+}
+
+test "HashCount for bpe" {
+    const HC1024 = HashCount(.{ .capacity = 1024, .for_bpe = true });
+    var counters: HC1024 = undefined;
+    try counters.init(std.testing.allocator);
+    defer counters.deinit();
+
+    const x: IndexType = 111;
+    try std.testing.expectEqual(counters.get(x), 0);
+    counters.put(x);
+    try std.testing.expectEqual(counters.get(x), 1);
+    counters.put(x);
+    try std.testing.expectEqual(counters.get(x), 2);
+
+    const y: IndexType = 888;
+    try std.testing.expectEqual(counters.get(y), 0);
+    counters.put(y);
+    counters.put(y);
+    try std.testing.expectEqual(counters.get(y), 2);
 }

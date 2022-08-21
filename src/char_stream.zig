@@ -6,7 +6,7 @@ const shc = @import("str_hash_count.zig");
 const BPE = @import("byte_pair_encoding.zig").BPE;
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 // Init HashCount để count các tokens ko phải âm tiết tiếng Việt
-pub const NotSyllHashCount = shc.HashCount(2_500_000);
+pub const NotSyllHashCount = shc.HashCount(.{ .capacity = 2_500_000, .for_bpe = false });
 
 var type_counters: NotSyllHashCount = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
@@ -174,18 +174,15 @@ pub fn main() !void {
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
             // show_info = true;
-            // try scanFile("utf8tv.txt");
-            // try scanFile("../data/fb_comments.txt");
-
-            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
             try scanFile("utf8tv.txt");
-            thread0.join();
-            thread1.join();
-            thread2.join();
-            thread3.join();
+            // thread0.join();
+            // thread1.join();
+            // thread2.join();
+            // thread3.join();
         },
         .ReleaseSafe => {},
         .ReleaseFast => {
@@ -194,7 +191,6 @@ pub fn main() !void {
             var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
             var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
             try scanFile("utf8tv.txt");
-            // try scanFile("../data/fb_comments.txt");
             thread1.join();
             thread2.join();
             thread3.join();
