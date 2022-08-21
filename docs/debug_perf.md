@@ -6,30 +6,36 @@ Bugs will have nowhere to hide once you master these advanced techniques!
 
 - - -
 
-https://www.youtube.com/watch?v=8JEEYwdrexc |
-Using Valgrind and GDB together to fix a segfault and memory leak
+## LLDB
 
-
-- - -
-
-
-https://www.youtube.com/watch?v=v_C1cvo1biI | 
+https://lldb.llvm.org/use/map.html |
 https://lldb.llvm.org/use/tutorial.html
 
 ```
 zig build
-lldb zig-out/bin/char_stream.zig
+lldb zig-out/bin/str_hash_count
 (lldb) help
+
+b str_hash_count.zig:139
+b str_hash_count.zig:143
+
+run
+
+fr v 		# `frame variable` Show the arguments and local variables for the current frame
+fr v -a		# `frame variable --no-args` Show the local variables for the current frame.
+
+p bar 		# Show the contents of local variable "bar".
+p/x bar 	# Show the contents of local variable "bar" formatted as hex.
+
+s 			# Do a source level single step in the currently selected thread.
 ```
 
 - - -
 
-https://valgrind.org
+## Valgrind
 
-Valgrind is an instrumentation framework for building dynamic analysis tools. There are Valgrind tools that can automatically detect many memory management and threading bugs, and profile your programs in detail. You can also use Valgrind to build new tools.
-
-The Valgrind distribution currently includes seven production-quality tools: a memory error detector, two thread error detectors, a cache and branch-prediction profiler, a call-graph generating cache and branch-prediction profiler, and two different heap profilers. It also includes an experimental SimPoint basic block vector generator.
-
+https://www.youtube.com/watch?v=8JEEYwdrexc |
+Using Valgrind and GDB together to fix a segfault and memory leak
 
 https://github.com/LouisBrunner/valgrind-macos
 
@@ -83,6 +89,8 @@ valgrind --leak-check=full --track-origins=yes \
 
 - - -
 
+## Tracy
+
 https://github.com/michal-z/zig-gamedev/tree/main/libs/ztracy
 
 ```build tracy profiler on macos
@@ -92,11 +100,4 @@ tar vxfz v0.8.2.tar.gz && rm v0.8.2.tar.gz
 cd tracy/profiler/build/unix
 make release
 ./Tracy-release
-```
-
-- - -
-
-```
-brew install hyperfine
-hyperfine --warmup 3 './zig-out/bin/char_stream'
 ```

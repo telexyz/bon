@@ -115,7 +115,7 @@ pub fn HashCount(comptime cfg: Config) type {
         }
 
         inline fn _hash(key: KeyType) u64 {
-            return std.hash.Wyhash.hash(2, std.mem.asBytes(&key));
+            return std.hash.Wyhash.hash(2, std.mem.asBytes(&key)[0..]);
         }
 
         pub inline fn put(self: *Self, key: KeyType) void {
@@ -391,4 +391,14 @@ test "HashCount for bpe" {
     counters.put(y);
     counters.put(y);
     try std.testing.expectEqual(counters.get(y), 2);
+}
+
+pub fn main() !void {
+    const HC1024 = HashCount(.{ .capacity = 1024, .for_bpe = true });
+    var counters: HC1024 = undefined;
+    try counters.init(std.heap.c_allocator);
+    defer counters.deinit();
+    const x: IndexType = 111;
+    counters.put(x);
+    _ = counters.get(x);
 }
