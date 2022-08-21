@@ -174,35 +174,31 @@ pub fn main() !void {
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
             // show_info = true;
-            try scanFile("utf8tv.txt");
-            // try scanFile("../data/fb_comments.txt");
-            // try scanFile("../data/news_titles.txt");
-            // try scanFile("../data/vi_wiki_all.txt");
-            // try scanFile("../data/vietai_sat.txt");
-        },
-        .ReleaseSafe => {
-            // Chạy 4 threads giúp tăng tốc gấp đôi (Intel Duo-Core)
-            // - - - - - - - - - - - - - - - - - -
-            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            try scanFile("../data/fb_comments.txt");
-            thread1.join();
-            thread2.join();
-            thread3.join();
-        },
-        .ReleaseFast => {
-            // `src/byte_pair_encode_hasbug.zig` -Drelease-fast=true bị lỗi segment-fault;
-            // debug và safe mode ok!
             // try scanFile("utf8tv.txt");
+            // try scanFile("../data/fb_comments.txt");
 
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            try scanFile("../data/fb_comments.txt");
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            try scanFile("utf8tv.txt");
+            thread0.join();
             thread1.join();
             thread2.join();
             thread3.join();
+        },
+        .ReleaseSafe => {},
+        .ReleaseFast => {
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            try scanFile("utf8tv.txt");
+            // try scanFile("../data/fb_comments.txt");
+            thread1.join();
+            thread2.join();
+            thread3.join();
+            thread0.join();
         },
     }
 

@@ -3,9 +3,9 @@
 // `key` là chuỗi ngắn độ dài trung bình 32-bytes, được lưu riêng trong mảng keys_bytes
 // Mỗi hashtable entry gồm:
 // * `hash` u64
-// * `count` là u32
-// * `offset` u24, trỏ tới vị trí đầu của key trong keys_bytes
-// => Total 16-bytes (1/4 cache-line)
+// * `count` là u24
+// * `offset` u32, trỏ tới vị trí đầu của key trong keys_bytes
+// => Total 15-bytes (23% cache-line)
 //
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
@@ -25,14 +25,14 @@
 const std = @import("std");
 
 pub const HashType = u64;
-pub const CountType = u32;
-pub const IndexType = u32;
+pub const CountType = u24;
+pub const IndexType = u32; // u24 ko đủ để lưu offset
 
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
-pub const MAX_CAPACITY: usize = std.math.maxInt(u24); // = IndexType - 5-bits (2^5 = 32)
-pub const MAX_KEY_LEN: usize = 63; // + 1 guard-byte = 64
-pub const AVG_KEY_LEN: usize = 12;
+pub const MAX_CAPACITY: usize = std.math.maxInt(IndexType);
+pub const MAX_KEY_LEN: usize = 63; // need <= 63 (để dành 1 cho guard byte)
+pub const AVG_KEY_LEN: usize = 15;
 
 const maxx_hash = std.math.maxInt(HashType);
 const maxx_index = std.math.maxInt(IndexType);
@@ -46,10 +46,11 @@ pub const Entry = packed struct {
 pub fn HashCount(capacity: usize) type {
     const bits = std.math.log2_int(u64, capacity);
     const shift = 63 - bits;
-    const size = @as(usize, 2) << bits;
+    const size = (@as(usize, 2) << bits) + capacity;
 
     std.debug.assert(size < MAX_CAPACITY);
     std.debug.assert(size > capacity);
+    std.debug.assert(capacity * AVG_KEY_LEN < MAX_CAPACITY);
 
     return struct {
         // Stats
@@ -259,27 +260,18 @@ pub const CountDesc = struct {
             new_entry.* = entries[i];
             i += 1;
         }
-        std.sort.sort(Entry, self.entries, {}, count_desc);
+        std.sort.sort(Entry, self.entries, self, count_desc);
 
-        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 2);
-        // cần thêm 2-bytes lưu reduced count
-        // \count-byte1\count-byte2\len\'key' = key.len + 3
-        // const low_bitmap: u32 = 0b00000000_00000000_00101010_01010111;
-        // const high_bitmap: u32 = 0b0101010_10101010_10000000_00000000;
+        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 3);
+        // cần thêm 3-bytes lưu count
 
-        const max_u16 = std.math.maxInt(u16);
-        const max_count = self.entries[0].count;
-        const ratio = if (max_count <= max_u16) 1 else max_count / max_u16;
         var x: usize = 0;
-
         for (self.entries) |entry| {
-            // Reduce count from u32 to u16
-            // self.vocabs[x] = @intCast(u8, pext_u32(entry.count, high_bitmap));
-            // self.vocabs[x + 1] = @intCast(u8, pext_u32(entry.count, low_bitmap));
-            const reduced = @intCast(u16, entry.count / ratio + 1);
-            self.vocabs[x] = @intCast(u8, reduced >> 8);
-            self.vocabs[x + 1] = @intCast(u8, reduced & 0x00ff);
-            x += 2;
+            // 3-bytes đầu lưu count
+            self.vocabs[x] = @intCast(u8, (entry.count >> 16) & 0x00ff);
+            self.vocabs[x + 1] = @intCast(u8, (entry.count >> 8) & 0x00ff);
+            self.vocabs[x + 2] = @intCast(u8, entry.count & 0x00ff);
+            x += 3;
 
             const l = keys_bytes[entry.offset - 1];
             const end = entry.offset + l;
@@ -309,8 +301,8 @@ pub const CountDesc = struct {
         var x: usize = 0;
         while (i < n) : (i += 1) {
             // count trích xuất từ 2-bytes đầu tiên
-            const count = self.vocabs[x] * @as(u32, 256) + self.vocabs[x + 1];
-            x += 2;
+            const count = (@as(u24, self.vocabs[x]) << 16) + (@as(u24, self.vocabs[x + 1]) << 8) + self.vocabs[x + 2];
+            x += 3;
 
             // byte tiếp theo chứa key's len
             const len = self.vocabs[x];
@@ -321,9 +313,9 @@ pub const CountDesc = struct {
             const key = self.vocabs[x..end];
             x = end;
 
-            std.debug.print("`{s}` {d: <6}", .{ key, count });
+            std.debug.print("`{s}`:{d: <6}", .{ key, count });
             const sep = if (i % 2 == 0)
-                TABS[0 .. (MAX_KEY_LEN - key.len) / 9]
+                TABS[0 .. (MAX_KEY_LEN + 6 - key.len) / 5]
             else
                 "\n";
             std.debug.print("{s}", .{sep});
@@ -337,9 +329,10 @@ pub const CountDesc = struct {
         return self.keys_bytes[offset..ending];
     }
 
-    fn count_desc(context: void, a: Entry, b: Entry) bool {
-        _ = context;
-        return a.count > b.count;
+    fn count_desc(context: *Self, a: Entry, b: Entry) bool {
+        // _ = context;
+        // return a.count > b.count;
+        return context.keys_bytes[a.offset - 1] > context.keys_bytes[b.offset - 1];
     }
 };
 
