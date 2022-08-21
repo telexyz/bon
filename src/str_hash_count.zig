@@ -23,6 +23,7 @@
 // `cswisstable`; có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
 
 const std = @import("std");
+const builtin = @import("builtin");
 
 pub const HashType = u64;
 pub const CountType = u24;
@@ -59,8 +60,10 @@ pub fn HashCount(comptime cfg: Config) type {
     std.debug.assert(cfg.capacity * AVG_KEY_LEN < MAX_CAPACITY);
 
     return struct {
+        const lock_init = if (builtin.single_threaded) {} else false;
+
         allocator: std.mem.Allocator,
-        mutex: std.Thread.Mutex,
+        spinlock: @TypeOf(lock_init),
 
         entries: []Entry,
         len: usize,
@@ -90,7 +93,7 @@ pub fn HashCount(comptime cfg: Config) type {
             self.len = 0;
             self.keys_bytes_len = 0;
 
-            self.mutex = std.Thread.Mutex{};
+            self.spinlock = lock_init;
             self.allocator = init_allocator;
 
             if (!cfg.for_bpe) {
@@ -150,8 +153,8 @@ pub fn HashCount(comptime cfg: Config) type {
             }
 
             { // Chỉ dùng lock khi có xáo trộn dữ liệu lớn
-                self.mutex.lock();
-                defer self.mutex.unlock();
+                while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
+                defer std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
 
                 // key lần đầu xuất hiện, ghi lại offset
                 if (cfg.for_bpe) {
