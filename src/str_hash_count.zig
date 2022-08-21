@@ -330,14 +330,10 @@ pub const CountDesc = struct {
             x = end;
 
             std.debug.print("`{s}`:{d: <6}", .{ key, count });
-            const sep = if (i % 2 == 0)
-                TABS[0 .. (MAX_KEY_LEN + 6 - key.len) / 5]
-            else
-                "\n";
+            const sep = if (i % 2 == 0) "\t\t\t" else "\n";
             std.debug.print("{s}", .{sep});
         }
     }
-    const TABS = "\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t\t";
 
     pub fn keyStr(self: Self, idx: usize) []const u8 {
         const offset = self.entries[idx].offset;
