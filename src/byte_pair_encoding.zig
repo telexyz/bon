@@ -96,6 +96,22 @@ pub const BPE = struct {
     fn removeFromVocabs(self: *Self, pair: PairType) void {
         _ = self;
         _ = pair;
+        // Phần chạy chậm và phức tạp nhất của BPE
+        // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
+        // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
+        //
+        // Các bước cài đặt:
+        //
+        // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
+        // lùi lại phía trước một ô trong mảng vocabs.
+        //
+        // 2/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 threads.
+        // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
+        // nên cần chính xác tuyệt đối!
+        //
+        // 3/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
+        // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
+        // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
     }
 
     pub fn deinit(self: *Self) void {
