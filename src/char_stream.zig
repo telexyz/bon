@@ -168,6 +168,8 @@ pub fn main() !void {
     // const default_allocator = std.heap.page_allocator;
 
     try type_counters.init(default_allocator);
+    defer type_counters.deinit();
+
     try syll_counters.init(default_allocator);
     defer syll_counters.deinit();
 
@@ -199,18 +201,13 @@ pub fn main() !void {
     }
 
     syll_counters.list(20);
+    var bpe: BPE = undefined;
+    defer bpe.deinit();
 
-    var count_desc: shc.CountDesc = undefined;
-    defer count_desc.deinit();
-    try count_desc.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
-
-    count_desc.list(80);
+    try bpe.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
+    bpe.list(80);
     type_counters.showStats();
-    type_counters.deinit(); // Giải phóng bộ nhớ của type_counters (khoảng 60MB)
 
-    // var bpe: BPE = undefined;
-    // defer bpe.deinit();
-    // try bpe.init(default_allocator, count_desc.vocabs_slice());
     // bpe.learn();
     // bpe.showSelected(1000);
 }
