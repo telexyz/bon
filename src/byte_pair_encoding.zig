@@ -19,7 +19,8 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-const max_selected_pairs = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
+// const max_selected_pairs = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
+const max_selected_pairs = 50;
 const max_total_symbols = 900_000; // Unicode: 144,697 characters
 
 const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = true });
@@ -54,13 +55,17 @@ pub const BPE = struct {
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
             const selected_pair: PairType = self.selectMaxCountPair();
-            const valid_pair = selected_pair != maxx_index;
+            const valid_pair = (selected_pair != maxx_index);
             if (valid_pair) {
-                // Kết nạp pair được chọn
                 const entry = self.pairs_count.getEntry(selected_pair).?;
-                entry.offset = self.total_selected;
+                // optional pointer => pointer
+
+                // Kết nạp pair được chọn
+                _ = entry;
+                entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
                 self.selected_symbols[self.total_selected] = selected_pair;
-                self.total_selected += 1;
+                self.total_selected += 1; // thêm 1 pair mới được chọn
+
                 // loại bỏ pair được chọn khỏi vocabs
                 self.removeFromVocabs(selected_pair);
             } else break;
@@ -70,11 +75,11 @@ pub const BPE = struct {
         var max: CountType = 0;
         var selected_pair: PairType = maxx_index;
         for (self.pairs_count.entries) |entry| {
-            const key = entry.keyPair();
+            if (entry.count == 0) continue;
             const not_selected = entry.offset == 0;
             if (not_selected and entry.count > max) {
                 max = entry.count;
-                selected_pair = key;
+                selected_pair = entry.keyPair();
             }
         }
         return selected_pair;
