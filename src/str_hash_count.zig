@@ -64,8 +64,10 @@ pub const Entry = packed struct {
 
         if (key < maxx_index and key > SYM_BOUND) {
             const charcode = key - SYM_BOUND;
-            // std.debug.print("\n>> char {d} <<\n", .{charcode}); // DEBUG
-            return std.unicode.utf8Encode(@intCast(u21, charcode), out) catch unreachable;
+            return std.unicode.utf8Encode(@intCast(u21, charcode), out) catch |err| {
+                std.debug.print("\n>> char {d}, {any} <<\n", .{ charcode, err }); // DEBUG
+                unreachable;
+            };
         } else {
             const left = key >> 24;
             const right = key & 0x000000_ffffff;
@@ -92,7 +94,9 @@ test "Entry" {
     const d = 3;
     const e = 4;
 
-    symbols[a] = counts.putCountReturnEntry(SYM_BOUND + 'a', 1).keyPair();
+    const a_key = std.unicode.utf8Decode("ầ") catch unreachable;
+
+    symbols[a] = counts.putCountReturnEntry(SYM_BOUND + a_key, 1).keyPair();
     symbols[b] = counts.putCountReturnEntry(SYM_BOUND + 'b', 1).keyPair();
     symbols[c] = counts.putCountReturnEntry(SYM_BOUND + 'c', 1).keyPair();
     symbols[d] = counts.putCountReturnEntry(SYM_BOUND + 'd', 1).keyPair();
@@ -110,16 +114,16 @@ test "Entry" {
 
     var out: [MAX_KEY_LEN]u8 = undefined;
     var len = Entry.pairStr(symbols[ab], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ab");
+    try std.testing.expectEqualStrings(out[0..len], "ầb");
 
     len = Entry.pairStr(symbols[de], out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "de");
 
     len = Entry.pairStr(symbols[abc], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "abc");
+    try std.testing.expectEqualStrings(out[0..len], "ầbc");
 
     len = Entry.pairStr(symbols[abcde], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "abcde");
+    try std.testing.expectEqualStrings(out[0..len], "ầbcde");
 }
 
 pub const Config = struct {
