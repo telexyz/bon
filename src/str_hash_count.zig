@@ -3,9 +3,9 @@
 // `key` là chuỗi ngắn độ dài trung bình 15-bytes, được lưu riêng trong mảng keys_bytes
 // Mỗi hashtable entry gồm:
 // * `hash` u64
-// * `count` là u24
+// * `count` là u32
 // * `offset` u24, trỏ tới vị trí đầu của key trong keys_bytes nếu key là string
-// => Total 14-bytes (22% cache-line)
+// => Total 15-bytes (21% cache-line)
 //
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
@@ -30,7 +30,7 @@ const std = @import("std");
 const builtin = @import("builtin");
 
 pub const HashType = u64;
-pub const CountType = u24;
+pub const CountType = u32;
 pub const IndexType = u24;
 pub const PairType = u48;
 
@@ -47,6 +47,16 @@ pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
     offset: IndexType = 0,
+
+    pub fn keyPairStr(self: Entry, out: []u8) []const u8 {
+        var unicode = @intCast(u21, self.keyPair());
+        const len = std.unicode.utf8Encode(unicode, out) catch unreachable;
+        return out[0..len];
+    }
+
+    inline fn keyPair(self: Entry) PairType {
+        return @intCast(PairType, self.hash *% 0x2040003d780970bd);
+    }
 };
 
 pub const Config = struct {
@@ -121,10 +131,6 @@ pub fn HashCount(comptime cfg: Config) type {
             if (probs > self.max_probs) self.max_probs = probs;
         }
 
-        fn keyPair(entry: Entry) PairType {
-            return @intCast(PairType, entry.hash *% 0x2040003d780970bd);
-        }
-
         fn keyStr(self: Self, entry: *const Entry, ss_ptr: *HashType) []const u8 {
             const offset = entry.offset;
             if (offset <= 8) { // small string
@@ -155,11 +161,11 @@ pub fn HashCount(comptime cfg: Config) type {
             _ = self.putCount(key, 1);
         }
 
-        pub fn putCount(self: *Self, key: KeyType, count: CountType) usize {
+        pub fn putCount(self: *Self, key: KeyType, count: CountType) IndexType {
             if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return maxx_index; // reject
 
             var it: Entry = .{ .hash = _hash(key), .count = count };
-            var i: usize = it.hash >> shift;
+            var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
 
             while (self.entries[i].hash < it.hash) : (i += 1) {

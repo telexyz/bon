@@ -19,30 +19,36 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-const max_total_chars = 100_000;
-const max_selected_symbols = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
-const max_total_symbols = 800_000;
-const SymbolCount = shc.HashCount(max_total_symbols);
-const CharCount = shc.HashCount(max_total_chars); // Unicode: 144,697 characters
+const max_selected_pairs = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
+const max_total_symbols = 1_500_000; // Unicode: 144,697 characters
+
+const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = true });
 
 const Entry = shc.Entry;
 const HashType = shc.HashType;
 const IndexType = shc.IndexType;
 const GUARD_BYTE = shc.GUARD_BYTE;
+const PairType = shc.PairType;
 
 pub const BPE = struct {
+    selected_symbols: []IndexType = undefined,
+    total_selected: IndexType = 0,
+
     allocator: std.mem.Allocator,
     len: usize,
     entries: []Entry,
     keys_bytes: []const u8,
     vocabs: []u8,
     vocabs_len: usize,
+    pairs_count: PairCount,
 
     const Self = @This();
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.entries);
         self.allocator.free(self.vocabs);
+        self.pairs_count.deinit();
+        self.allocator.free(self.selected_symbols);
     }
 
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
@@ -50,7 +56,11 @@ pub const BPE = struct {
         self.len = len;
         self.keys_bytes = keys_bytes;
 
+        self.total_selected = 0;
+        self.selected_symbols = try self.allocator.alloc(IndexType, max_total_symbols);
+
         self.entries = try self.allocator.alloc(Entry, self.len);
+        try self.pairs_count.init(self.allocator);
 
         var i: IndexType = 0;
         var ss_puts: usize = 0;
@@ -77,23 +87,34 @@ pub const BPE = struct {
         const ss_ptr = &ss;
         for (self.entries) |entry| {
             const key_str = self.keyStr(entry, ss_ptr);
+            var k: usize = 0;
 
-            // 3-bytes đầu lưu count
-            self.vocabs[x] = @intCast(u8, (entry.count >> 16) & 0x00ff);
-            self.vocabs[x + 1] = @intCast(u8, (entry.count >> 8) & 0x00ff);
-            self.vocabs[x + 2] = @intCast(u8, entry.count & 0x00ff);
-            self.vocabs[x + 3] = @intCast(u8, key_str.len) + 1; // key's len
-            x += 4;
             // copy key bytes
-            for (key_str) |byte| {
-                self.vocabs[x] = byte;
-                x += 1;
+            while (k < key_str.len) {
+                const char_len = std.unicode.utf8ByteSequenceLength(key_str[k]) catch unreachable;
+                const unicode = std.unicode.utf8Decode(key_str[k .. k + char_len]) catch unreachable;
+                self.selected_symbols[self.total_selected] = self.pairs_count.putCount(unicode, entry.count);
+                self.total_selected += 1;
+                k += char_len;
             }
             // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
-            self.vocabs[x] = GUARD_BYTE;
-            x += 1;
+            // self.vocabs[x] = GUARD_BYTE;
         }
         self.vocabs_len = x;
+    }
+
+    pub fn showSelected(self: Self, n: IndexType) void {
+        std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
+        var out: [4]u8 = undefined;
+        var min = self.total_selected;
+        if (min > n) min = n;
+        for (self.selected_symbols[0..min]) |idx| {
+            const entry = self.pairs_count.entries[idx];
+            const key = entry.keyPairStr(out[0..]);
+            std.debug.print("'{s}':{d} \t", .{ key, entry.count });
+        }
+
+        std.debug.print("\n\nTOTAL: {d} symbols\n", .{self.pairs_count.len});
     }
 
     pub fn keyStr(self: Self, entry: Entry, ss_ptr: *HashType) []const u8 {

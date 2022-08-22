@@ -201,15 +201,16 @@ pub fn main() !void {
     }
 
     syll_counters.list(20);
+    type_counters.showStats();
+
     var bpe: BPE = undefined;
     defer bpe.deinit();
 
     try bpe.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
     bpe.list(80);
-    type_counters.showStats();
 
     // bpe.learn();
-    // bpe.showSelected(1000);
+    bpe.showSelected(1000);
 }
 
 // simple config
