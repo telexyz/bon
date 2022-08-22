@@ -1,7 +1,6 @@
+[`wordcount` perf](https://easyperf.net/blog/2022/05/28/Performance-analysis-and-tuning-contest-6#upd-july-20th-2022-results)
 
-`wordcount` Perf https://easyperf.net/blog/2022/05/28/Performance-analysis-and-tuning-contest-6#upd-july-20th-2022-results
-
-Slides https://docs.google.com/presentation/d/16M90It8nOK-Oiy7j9Kw27o9boLFwr6GFy55XFVzaAVA
+[Slides](slides.pdf)
 
 __Goal__: Split a text and count each word's frequency, then print the list sorted by frequency in decreasing order. Ties are printed in alphabetical order.
 
@@ -56,12 +55,9 @@ Optimization
 
 - - -
 
-
-Hiện tại quá nửa thời gian nằm ở HashCount => Thử nghiệm:
-
 * Hybrid Hashing (ko có cải thiện)
 
-* Short-String-Optimization (hiện ko dùng string compare nên tạm bỏ qua)
+* Short-String-Optimization (rất hiệu quả vì 87% số lần puts lên quan tới SSO)
 
 * Hash prefetch (hashtable hiện tại rất nhỏ, và avg probs < 2 nên có lẽ ko cần)
 
