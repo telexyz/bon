@@ -40,23 +40,89 @@ pub const MAX_CAPACITY: usize = std.math.maxInt(IndexType);
 pub const MAX_KEY_LEN: usize = 63; // need <= 63 (để dành 1 cho guard byte)
 pub const AVG_KEY_LEN: usize = 15;
 
-const maxx_hash = std.math.maxInt(HashType);
-const maxx_index = std.math.maxInt(IndexType);
+pub const maxx_hash = std.math.maxInt(HashType);
+pub const maxx_index = std.math.maxInt(IndexType);
 
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
     offset: IndexType = 0,
 
-    pub fn keyPairStr(self: Entry, out: []u8) u3 {
-        var unicode = @intCast(u21, self.keyPair());
-        return std.unicode.utf8Encode(unicode, out) catch unreachable;
+    pub inline fn isChar(self: Entry) bool {
+        return self.keyPair() < maxx_index;
     }
-
+    pub inline fn isSelected(self: Entry) bool {
+        return self.offset == maxx_index;
+    }
+    pub inline fn setSelected(self: *Entry) void {
+        self.offset = maxx_index;
+    }
+    pub inline fn keyPairStr(self: Entry, out: []u8, symbols: []Entry) u6 {
+        const pair = self.keyPair();
+        return pairStr(pair, out, symbols);
+    }
+    fn pairStr(pair: PairType, out: []u8, symbols: []Entry) u3 {
+        if (pair < maxx_index) {
+            return std.unicode.utf8Encode(@intCast(u21, pair), out) catch unreachable;
+        } else {
+            const left = pair >> 24;
+            const right = pair & 0x000000_ffffff;
+            std.debug.print("\n>>pair {d} {d}<<\n", .{ left, right });
+            const left_len = pairStr(symbols[left].keyPair(), out, symbols);
+            const right_len = pairStr(symbols[right].keyPair(), out[left_len..], symbols);
+            return left_len + right_len;
+        }
+    }
     inline fn keyPair(self: Entry) PairType {
         return @intCast(PairType, self.hash *% 0x2040003d780970bd);
     }
 };
+
+test "Entry" {
+    var counts: HashCount(.{ .capacity = 10, .for_bpe = true }) = undefined;
+    try counts.init(std.heap.c_allocator);
+    defer counts.deinit();
+    var symbols: [10]Entry = undefined;
+
+    const a = 0;
+    const b = 1;
+    const c = 2;
+    const d = 3;
+    const e = 4;
+
+    symbols[a] = counts.putCountReturnEntry('a', 1).*;
+    symbols[b] = counts.putCountReturnEntry('b', 1).*;
+    symbols[c] = counts.putCountReturnEntry('c', 1).*;
+    symbols[d] = counts.putCountReturnEntry('d', 1).*;
+    symbols[e] = counts.putCountReturnEntry('e', 1).*;
+
+    const ab = 5;
+    const de = 6;
+    const abc = 7;
+    const abcde = 8;
+
+    const ab_key = (symbols[a].keyPair() << 24) + b;
+    symbols[ab] = counts.putCountReturnEntry(ab_key, 1).*;
+
+    var out: [MAX_KEY_LEN]u8 = undefined;
+    var len = symbols[ab].keyPairStr(out[0..], symbols[0..]);
+    try std.testing.expectEqualStrings(out[0..len], "ab");
+
+    const de_key = (@as(PairType, d) << 24) + e;
+    symbols[de] = counts.putCountReturnEntry(de_key, 1).*;
+
+    const abc_key = (@as(PairType, ab) << 24) + c;
+    symbols[abc] = counts.putCountReturnEntry(abc_key, 1).*;
+
+    const abcde_key = (@as(PairType, abc) << 24) + de;
+    symbols[abcde] = counts.putCountReturnEntry(abcde_key, 1).*;
+
+    // len = symbols[de].keyPairStr(out[0..], symbols);
+    // try std.testing.expectEqualStrings(out[0..len], "de");
+
+    // len = symbols[abcde].keyPairStr(out[0..], symbols);
+    // try std.testing.expectEqualStrings(out[0..len], "abcde");
+}
 
 pub const Config = struct {
     capacity: usize,
@@ -159,7 +225,10 @@ pub fn HashCount(comptime cfg: Config) type {
         pub inline fn put(self: *Self, key: KeyType) void {
             _ = self.putCount(key, 1);
         }
-
+        pub fn putCountReturnEntry(self: *Self, key: KeyType, count: CountType) *Entry {
+            const idx = self.putCount(key, count);
+            return &self.entries[idx];
+        }
         pub fn putCount(self: *Self, key: KeyType, count: CountType) IndexType {
             if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return maxx_index; // reject
 
