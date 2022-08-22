@@ -27,6 +27,7 @@ const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = tru
 const Entry = shc.Entry;
 const HashType = shc.HashType;
 const IndexType = shc.IndexType;
+const CountType = shc.CountType;
 const GUARD_BYTE = shc.GUARD_BYTE;
 const PairType = shc.PairType;
 const maxx_index = shc.maxx_index;
@@ -46,6 +47,42 @@ pub const BPE = struct {
     pairs_count: PairCount,
 
     const Self = @This();
+
+    pub fn learn(self: *Self) void {
+        var i: usize = 0;
+        // chọn cho đủ max_selected_pairs pairs
+        while (i < max_selected_pairs) : (i += 1) {
+            // chọn pair có count lớn nhất
+            const selected_pair: PairType = self.selectMaxCountPair();
+            const valid_pair = selected_pair != maxx_index;
+            if (valid_pair) {
+                // Kết nạp pair được chọn
+                const entry = self.pairs_count.getEntry(selected_pair).?;
+                entry.offset = self.total_selected;
+                self.selected_symbols[self.total_selected] = selected_pair;
+                self.total_selected += 1;
+                // loại bỏ pair được chọn khỏi vocabs
+                self.removeFromVocabs(selected_pair);
+            } else break;
+        }
+    }
+    fn selectMaxCountPair(self: *Self) PairType {
+        var max: CountType = 0;
+        var selected_pair: PairType = maxx_index;
+        for (self.pairs_count.entries) |entry| {
+            const key = entry.keyPair();
+            const not_selected = entry.offset == 0;
+            if (not_selected and entry.count > max) {
+                max = entry.count;
+                selected_pair = key;
+            }
+        }
+        return selected_pair;
+    }
+    fn removeFromVocabs(self: *Self, pair: PairType) void {
+        _ = self;
+        _ = pair;
+    }
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.entries);
@@ -120,13 +157,13 @@ pub const BPE = struct {
 
                 if (prev_sym != no_prev_sym) {
                     const pair_key = (@intCast(PairType, prev_sym) << 24) + curr_sym;
-                    const pair_entry = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
+                    _ = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
 
-                    if (pair_entry.count == entry.count) { // pair lần đầu xuất hiện
-                        self.selected_symbols[self.total_selected] = pair_key;
-                        pair_entry.offset = self.total_selected;
-                        self.total_selected += 1;
-                    }
+                    // if (pair_entry.count == entry.count) { // pair lần đầu xuất hiện
+                    //     self.selected_symbols[self.total_selected] = pair_key;
+                    //     pair_entry.offset = self.total_selected;
+                    //     self.total_selected += 1;
+                    // }
                 }
 
                 prev_sym = curr_sym;
