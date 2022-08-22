@@ -134,7 +134,8 @@ pub const BPE = struct {
                 chars_count.* += 1;
             }
             // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
-            // self.vocabs[x] = GUARD_BYTE;
+            // self.vocabs[x] = GUARD_BYTE + SYM_BOUND;
+            // x += 1;
         }
         self.vocabs_len = x;
     }

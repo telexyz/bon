@@ -1,50 +1,6 @@
 Lecture video https://youtu.be/tOMjTCO0htA?t=69
-
-Coi tokens là tập hợp bytes. Có thể giả sử symbol dài nhất <= 32-bytes
-
-Đầu tiên cần tính count của mọi utf-8 chars (1-4 bytes) trong alco_hash_count của các token ko phải âm tiết tiếng Việt.
-
-Đầu vào các tokens đã được count sẵn trong `types_counters: NotSyllHashCount` từ `char_stream.zig` counters chứa `keys_bytes` và `keys_bytes_len` là 1 chuỗi các `types` (uniq tokens)
-
-Để xác định count của `pair` ta xác định pair's value trong keys_bytes để tìm ra keys có chứa pair's value, rồi cộng dồn counts của các keys đó.
-
-=> Cần 1 bước đệm là map key's ending vào key's count (u24)
-=> Để dành 3-bytes sau key's ending để lưu key's count
-
-* `key_string`\0x010203\0x20
-* 0x20 GUARD_BYTE
-* 0x010203 `key_count` (3-bytes)
-
-
-Để chọn được next `pair` là pair có count lớn nhất ta xem xét việc `phân loại types`:
-* Các types có count phân bổ không đều, một lượng count lớn tập trung ở một vài type có strlen ngắn
-* Rất nhiều types có count <= 3
-* Các type có strlen dài thường là unique (count = 1)
-
-=> Sort type desc by count then strlen 
-
-=> Tập trung tìm best pair candidates ở các type có count
-
-=> Lưu riêng các types có count < 256 (chỉ cần 1 byte để lưu count)
-
-=> Lưu riêng các types có count = 1,2,3
-
-Dùng heuristic để bỏ qua việc phải scan các types có count = 1,2,3 càng nhiều càng tốt.
-Nếu phải scan có thể dùng multi-threading để tăng tốc.
-
 ![](bpe_learn.png)
 
-Đến bước thay thế mọi cặp `A`, `B` gần nhau trong vocab bằng `AB` symbol thì dùng `bitmap` để đánh dấu. Ví dụ:
-```
-key =   "EDFABABBAB"
-bitmap = 0101100100
-```
-
-Cách thứ 2 là dùng mảng nữa để lưu symbol's len
-```
-key =    "EDFABABBAB"
-sym_len = 1112020120
-```
 
 Mỗi lần symbol mới dc tạo ra cần scan toàn bộ mảng vocabs để đánh dấu symbol mới tạo thành và hình thành các symbol tiềm năng mới.
 
