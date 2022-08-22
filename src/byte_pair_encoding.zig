@@ -196,7 +196,7 @@ pub const BPE = struct {
                     else => 0,
                 };
                 if (char_len == 0) {
-                    std.debug.print("\n>> Lỗi utf8 at char `{c}` của key '{s}'<<\n", .{ key_str[k], key_str });
+                    // std.debug.print("\n>> Lỗi utf8 at char `{c}` của key '{s}'<<\n", .{ key_str[k], key_str });
                     break; // bỏ qua phần còn lại, xử lý key tiếp theo
                 }
 
