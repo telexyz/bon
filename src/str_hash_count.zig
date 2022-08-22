@@ -64,9 +64,12 @@ pub const Entry = packed struct {
 
         if (key < maxx_index and key > SYM_BOUND) {
             const charcode = key - SYM_BOUND;
-            return std.unicode.utf8Encode(@intCast(u21, charcode), out) catch |err| {
-                std.debug.print("\n>> char {d}, {any} <<\n", .{ charcode, err }); // DEBUG
-                unreachable;
+            return std.unicode.utf8Encode(@intCast(u21, charcode), out) catch {
+                // std.debug.print("\n>> Lỗi utf8Encode at char {d} <<\n", .{charcode}); // DEBUG
+                // Hiển thị char ko encode được bằng dấu `?`
+                out[0] = '?';
+                return 1;
+                // unreachable;
             };
         } else {
             const left = key >> 24;
