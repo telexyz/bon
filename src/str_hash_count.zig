@@ -22,7 +22,9 @@
 // Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và
 // `cswisstable`; có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
 //
-// >> small string type count: 1_099_201, ss bytes: 6_788_771, remain: 14_427_001 <<
+// >> small strings: 1_099_201, ss puts: 38_210_356, ss bytes: 6_788_771, remain: 14_427_001 <<
+//    total          2_051_991           43_811_775
+// => Chiếm 87% số lần put vào HashCount
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -94,7 +96,7 @@ pub fn HashCount(comptime cfg: Config) type {
             self.total_puts = 0;
 
             self.len = 0;
-            self.keys_bytes_len = 9; // 0-8 để dành lưu len của small string
+            self.keys_bytes_len = MAX_KEY_LEN; // 0-8 để dành lưu len của small string
 
             self.spinlock = lock_init;
             self.allocator = init_allocator;
@@ -170,18 +172,18 @@ pub fn HashCount(comptime cfg: Config) type {
             const ss_ptr = &ss;
 
             while (entry.hash == it.hash) {
-                const found = cfg.for_bpe or std.mem.eql(u8, self.keyStr(entry, ss_ptr), key);
+                // for_bpe cần hash = nhau, key ngắn cần offset == key.len, còn ko so sánh cả key
+                const found = cfg.for_bpe or entry.offset == key.len or (std.mem.eql(u8, self.keyStr(entry, ss_ptr), key));
 
                 if (found) { // key đã tồn tại từ trước
                     entry.count += count; // xáo trộn duy nhất là thay đổi giá trị count
+                    self.recordStats(i - _i);
                     return i;
                 }
 
                 i += 1;
                 entry = &self.entries[i];
             }
-
-            self.recordStats(i - _i);
 
             { // Chỉ dùng lock khi có xáo trộn dữ liệu lớn
                 while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
@@ -216,6 +218,7 @@ pub fn HashCount(comptime cfg: Config) type {
                     self.entries[i] = it;
                     if (tmp.offset == 0) { // ô rỗng, dừng thuật toán
                         self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
+                        self.recordStats(i - _i);
                         return i;
                     }
                     it = tmp;
