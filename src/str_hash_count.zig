@@ -48,10 +48,9 @@ pub const Entry = packed struct {
     count: CountType = 0,
     offset: IndexType = 0,
 
-    pub fn keyPairStr(self: Entry, out: []u8) []const u8 {
+    pub fn keyPairStr(self: Entry, out: []u8) u3 {
         var unicode = @intCast(u21, self.keyPair());
-        const len = std.unicode.utf8Encode(unicode, out) catch unreachable;
-        return out[0..len];
+        return std.unicode.utf8Encode(unicode, out) catch unreachable;
     }
 
     inline fn keyPair(self: Entry) PairType {

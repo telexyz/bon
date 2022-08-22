@@ -39,7 +39,7 @@ pub const BPE = struct {
     len: usize,
     entries: []Entry,
     keys_bytes: []const u8,
-    vocabs: []u8,
+    vocabs: []IndexType,
     vocabs_len: usize,
     pairs_count: PairCount,
 
@@ -80,26 +80,37 @@ pub const BPE = struct {
         std.debug.print("\n\n\n>> small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} <<\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
         std.sort.sort(Entry, self.entries, self, count_desc);
 
-        self.vocabs = try self.allocator.alloc(u8, keys_bytes_len + len * 20);
+        self.vocabs = try self.allocator.alloc(IndexType, keys_bytes_len + len * 20);
         // cần thêm 3-bytes lưu count
 
         var x: usize = 0;
         var ss: HashType = undefined;
         const ss_ptr = &ss;
+
         for (self.entries) |entry| {
             const key_str = self.keyStr(entry, ss_ptr);
-            var k: usize = 0;
+            self.vocabs[x] = @intCast(IndexType, entry.count); // phần tử đầu chứa count
+            const chars_count: *IndexType = &self.vocabs[x + 1]; // phần tử thứ 2 chứa len
 
-            // copy key bytes
+            chars_count.* = 0;
+            var k: usize = 0;
+            x += 2; // trỏ tới đầu nội dung
+
             while (k < key_str.len) {
                 const char_len = std.unicode.utf8ByteSequenceLength(key_str[k]) catch unreachable;
                 const unicode = std.unicode.utf8Decode(key_str[k .. k + char_len]) catch unreachable;
                 const idx = self.pairs_count.putCount(unicode, entry.count);
+
+                self.vocabs[x] = idx; // ghi symbol lại
+                x += 1;
+
                 if (self.pairs_count.entries[idx].count == entry.count) { // lần đầu xuất hiện
                     self.selected_symbols[self.total_selected] = idx;
                     self.total_selected += 1;
                 }
+
                 k += char_len;
+                chars_count.* += 1;
             }
             // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
             // self.vocabs[x] = GUARD_BYTE;
@@ -115,7 +126,7 @@ pub const BPE = struct {
         if (min > n) min = n;
         for (self.selected_symbols[0..min]) |idx| {
             const entry = self.pairs_count.entries[idx];
-            const key = entry.keyPairStr(out[0..]);
+            const key = out[0..entry.keyPairStr(out[0..])];
             std.debug.print("'{s}':{d} \t", .{ key, entry.count });
         }
 
@@ -132,9 +143,34 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
-    pub fn list(self: Self, max: usize) void {
-        std.debug.print("\n\n(( List {d} type counts ))\n\n", .{max});
-        var ss: HashType = undefined;
+    pub fn listVocabs(self: Self, max: usize) void {
+        std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
+        var out: [64]u8 = undefined;
+
+        const n = if (max < self.len) max else self.len;
+        var x: usize = 0;
+        var i: usize = 0;
+        while (x < self.vocabs_len) {
+            const count = self.vocabs[x];
+            const len = self.vocabs[x + 1];
+            x += 2; // trỏ tới nội dung
+            var out_len: usize = 0;
+            for (self.vocabs[x .. x + len]) |idx| {
+                const symbol = self.pairs_count.entries[idx];
+                out_len += symbol.keyPairStr(out[out_len..]);
+            }
+            x += len;
+            std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
+            i += 1;
+            if (i > n) break;
+            const sep = if (i % 2 == 0) "\t\t\t" else "\n";
+            std.debug.print("{s}", .{sep});
+        }
+    }
+
+    pub fn listEntries(self: Self, max: usize) void {
+        std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
+        var ss: HashType = undefined; // ss = small string
         const ss_ptr = &ss;
         const n = if (max < self.len) max else self.len;
         for (self.entries[0..n]) |entry, i| {
