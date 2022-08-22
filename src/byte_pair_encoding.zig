@@ -20,7 +20,7 @@ const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
 const max_selected_pairs = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
-const max_total_symbols = 1_500_000; // Unicode: 144,697 characters
+const max_total_symbols = 900_000; // Unicode: 144,697 characters
 
 const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = true });
 
@@ -31,8 +31,9 @@ const GUARD_BYTE = shc.GUARD_BYTE;
 const PairType = shc.PairType;
 
 pub const BPE = struct {
-    selected_symbols: []IndexType = undefined,
-    total_selected: IndexType = 0,
+    selected_symbols: []IndexType,
+    selected_chars: IndexType,
+    total_selected: IndexType,
 
     allocator: std.mem.Allocator,
     len: usize,
@@ -93,13 +94,17 @@ pub const BPE = struct {
             while (k < key_str.len) {
                 const char_len = std.unicode.utf8ByteSequenceLength(key_str[k]) catch unreachable;
                 const unicode = std.unicode.utf8Decode(key_str[k .. k + char_len]) catch unreachable;
-                self.selected_symbols[self.total_selected] = self.pairs_count.putCount(unicode, entry.count);
-                self.total_selected += 1;
+                const idx = self.pairs_count.putCount(unicode, entry.count);
+                if (self.pairs_count.entries[idx].count == entry.count) { // lần đầu xuất hiện
+                    self.selected_symbols[self.total_selected] = idx;
+                    self.total_selected += 1;
+                }
                 k += char_len;
             }
             // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
             // self.vocabs[x] = GUARD_BYTE;
         }
+        self.selected_chars = self.total_selected;
         self.vocabs_len = x;
     }
 
