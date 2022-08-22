@@ -42,6 +42,7 @@ pub const AVG_KEY_LEN: usize = 15;
 
 pub const maxx_hash = std.math.maxInt(HashType);
 pub const maxx_index = std.math.maxInt(IndexType);
+pub const SYM_BOUND = @as(PairType, 2) << 22;
 
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,
@@ -78,8 +79,6 @@ pub const Entry = packed struct {
         return @intCast(PairType, self.hash *% 0x2040003d780970bd);
     }
 };
-
-pub const SYM_BOUND = @as(PairType, 2) << 22;
 
 test "Entry" {
     var counts: HashCount(.{ .capacity = 10, .for_bpe = true }) = undefined;
@@ -301,12 +300,12 @@ pub fn HashCount(comptime cfg: Config) type {
             } // Mutex
         }
 
-        pub fn get(self: *Self, key: KeyType) CountType {
+        pub fn get(self: Self, key: KeyType) CountType {
             const entry = self.getEntry(key);
             if (entry == null) return 0 else return entry.?.count;
         }
 
-        pub fn getEntry(self: *Self, key: KeyType) ?*Entry {
+        pub fn getEntry(self: Self, key: KeyType) ?*Entry {
             if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return null;
             const hash = _hash(key);
             var i = hash >> shift;

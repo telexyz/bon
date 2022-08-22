@@ -30,10 +30,10 @@ const IndexType = shc.IndexType;
 const GUARD_BYTE = shc.GUARD_BYTE;
 const PairType = shc.PairType;
 const maxx_index = shc.maxx_index;
+const SYM_BOUND = shc.SYM_BOUND;
 
 pub const BPE = struct {
-    selected_symbols: []IndexType,
-    selected_chars: IndexType,
+    selected_symbols: []PairType,
     total_selected: IndexType,
 
     allocator: std.mem.Allocator,
@@ -59,7 +59,7 @@ pub const BPE = struct {
         self.keys_bytes = keys_bytes;
 
         self.total_selected = 0;
-        self.selected_symbols = try self.allocator.alloc(IndexType, max_total_symbols);
+        self.selected_symbols = try self.allocator.alloc(PairType, max_total_symbols);
 
         self.entries = try self.allocator.alloc(Entry, self.len);
         try self.pairs_count.init(self.allocator);
@@ -87,7 +87,6 @@ pub const BPE = struct {
         var x: usize = 0;
         var ss: HashType = undefined;
         const ss_ptr = &ss;
-        const symbols = self.pairs_count.entries;
 
         for (self.entries) |entry| {
             const key_str = self.keyStr(entry, ss_ptr);
@@ -104,46 +103,48 @@ pub const BPE = struct {
             while (k < key_str.len) {
                 const char_len = std.unicode.utf8ByteSequenceLength(key_str[k]) catch unreachable;
                 const unicode = std.unicode.utf8Decode(key_str[k .. k + char_len]) catch unreachable;
-                const sym_idx = self.pairs_count.putCount(unicode, entry.count);
+                const sym_key = unicode + SYM_BOUND;
+                var pair_entry = self.pairs_count.putCountReturnEntry(sym_key, entry.count);
 
-                if (symbols[sym_idx].count == entry.count) { // char lần đầu xuất hiện
-                    self.selected_symbols[self.total_selected] = sym_idx;
+                if (pair_entry.count == entry.count) { // char lần đầu xuất hiện
+                    self.selected_symbols[self.total_selected] = sym_key;
+                    pair_entry.offset = self.total_selected;
                     self.total_selected += 1;
                 }
 
-                self.vocabs[x] = sym_idx; // ghi symbol lại
+                self.vocabs[x] = pair_entry.offset; // ghi symbol lại
                 x += 1;
 
-                if (prev_sym != no_prev_sym) {
-                    const pair_key = (@intCast(PairType, prev_sym) << 24) + sym_idx;
-                    const idx = self.pairs_count.putCount(pair_key, entry.count);
-                    if (symbols[sym_idx].count == entry.count) { // char lần đầu xuất hiện
-                        self.selected_symbols[self.total_selected] = idx;
+                const is_new_pair = prev_sym != no_prev_sym;
+                prev_sym = pair_entry.offset;
+
+                if (is_new_pair) {
+                    const pair_key = (@intCast(PairType, prev_sym) << 24) + pair_entry.offset;
+                    pair_entry = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
+                    if (pair_entry.count == entry.count) { // pair lần đầu xuất hiện
+                        self.selected_symbols[self.total_selected] = pair_key;
+                        pair_entry.offset = self.total_selected;
                         self.total_selected += 1;
                     }
-                }
-                prev_sym = sym_idx;
+                } else k += char_len;
 
-                k += char_len;
                 chars_count.* += 1;
             }
             // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
             // self.vocabs[x] = GUARD_BYTE;
         }
-        self.selected_chars = self.total_selected;
         self.vocabs_len = x;
     }
 
     pub fn showSelected(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
         var out: [4]u8 = undefined;
-        const symbols = self.pairs_count.entries;
+        const symbols = self.selected_symbols[0..];
         var min = self.total_selected;
         if (min > n) min = n;
-        for (self.selected_symbols[0..min]) |idx| {
-            const entry = symbols[idx];
-            const key = out[0..entry.keyPairStr(out[0..], symbols)];
-            std.debug.print("'{s}':{d} \t", .{ key, entry.count });
+        for (self.selected_symbols[0..min]) |key| {
+            const key_str = out[0..Entry.pairStr(key, out[0..], symbols)];
+            std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
 
         std.debug.print("\n\nTOTAL: {d} symbols\n", .{self.pairs_count.len});
@@ -162,7 +163,7 @@ pub const BPE = struct {
     pub fn listVocabs(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
         var out: [64]u8 = undefined;
-        const symbols = self.pairs_count.entries;
+        const symbols = self.selected_symbols[0..];
 
         const n = if (max < self.len) max else self.len;
         var x: usize = 0;
@@ -174,8 +175,8 @@ pub const BPE = struct {
             x += 2; // trỏ tới nội dung
             var out_len: usize = 0;
             for (self.vocabs[x .. x + len]) |idx| {
-                const symbol = symbols[idx];
-                out_len += symbol.keyPairStr(out[out_len..], symbols);
+                const key = symbols[idx];
+                out_len += Entry.pairStr(key, out[out_len..], symbols);
             }
             x += len;
             std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
