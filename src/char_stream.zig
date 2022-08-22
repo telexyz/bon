@@ -179,9 +179,9 @@ pub fn main() !void {
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_small.tx"});
             try scanFile("utf8tv.txt");
-            // thread0.join();
+            thread0.join();
             // thread1.join();
             // thread2.join();
             // thread3.join();
