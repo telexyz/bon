@@ -19,9 +19,11 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-// const max_selected_pairs = 5104; // = 20000 - 14896; // giống config của yttm trong ./run.sh
-const max_selected_pairs = 50;
-const max_total_symbols = 900_000; // Unicode: 144,697 characters
+const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
+// const max_selected_pairs = 50;
+const max_total_symbols = 900_000;
+const max_selected_symbols = 100_000 + max_selected_pairs; // Unicode: 144,697 characters
+const max_candidates = max_total_symbols - max_selected_symbols;
 
 const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = true });
 
@@ -36,6 +38,9 @@ const SYM_BOUND = shc.SYM_BOUND;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
 pub const BPE = struct {
+    candidates: []PairType,
+    total_candidates: usize,
+
     selected_symbols: []PairType,
     total_selected: IndexType,
 
@@ -54,35 +59,39 @@ pub const BPE = struct {
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
-            const selected_pair: PairType = self.selectMaxCountPair();
-            const valid_pair = (selected_pair != maxx_index);
-            if (valid_pair) {
-                const entry = self.pairs_count.getEntry(selected_pair).?;
-                // optional pointer => pointer
+            const selected_index = self.selectMaxCountPair();
+            const valid = (selected_index != self.total_candidates);
+
+            if (valid) {
+                const pair_key = self.candidates[selected_index];
+                const entry = self.pairs_count.getEntry(pair_key).?;
+
+                // Loại bỏ candiate được chọn
+                self.candidates[selected_index] = self.candidates[self.total_candidates - 1];
+                self.total_candidates -= 1;
 
                 // Kết nạp pair được chọn
-                _ = entry;
                 entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
-                self.selected_symbols[self.total_selected] = selected_pair;
+                self.selected_symbols[self.total_selected] = pair_key;
                 self.total_selected += 1; // thêm 1 pair mới được chọn
 
                 // loại bỏ pair được chọn khỏi vocabs
-                self.removeFromVocabs(selected_pair);
+                self.removeFromVocabs(pair_key);
             } else break;
         }
     }
-    fn selectMaxCountPair(self: *Self) PairType {
+    fn selectMaxCountPair(self: *Self) usize {
         var max: CountType = 0;
-        var selected_pair: PairType = maxx_index;
-        for (self.pairs_count.entries) |entry| {
-            if (entry.count == 0) continue;
-            const not_selected = entry.offset == 0;
-            if (not_selected and entry.count > max) {
+        var selected_index = self.total_candidates;
+        const candidates = self.candidates[0..self.total_candidates];
+        for (candidates) |pair_key, index| {
+            const entry = self.pairs_count.getEntry(pair_key).?;
+            if (entry.count > max) {
                 max = entry.count;
-                selected_pair = entry.keyPair();
+                selected_index = index;
             }
         }
-        return selected_pair;
+        return selected_index;
     }
     fn removeFromVocabs(self: *Self, pair: PairType) void {
         _ = self;
@@ -94,6 +103,7 @@ pub const BPE = struct {
         self.allocator.free(self.vocabs);
         self.pairs_count.deinit();
         self.allocator.free(self.selected_symbols);
+        self.allocator.free(self.candidates);
     }
 
     pub fn init(self: *Self, allocator: std.mem.Allocator, len: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
@@ -102,7 +112,10 @@ pub const BPE = struct {
         self.keys_bytes = keys_bytes;
 
         self.total_selected = 1; // bắt đầu bằng 1 để đảm bảo pair's value > maxx_index
-        self.selected_symbols = try self.allocator.alloc(PairType, max_total_symbols);
+        self.selected_symbols = try self.allocator.alloc(PairType, max_selected_symbols);
+
+        self.total_candidates = 0;
+        self.candidates = try self.allocator.alloc(PairType, max_candidates);
 
         self.entries = try self.allocator.alloc(Entry, self.len);
         try self.pairs_count.init(self.allocator);
@@ -162,13 +175,13 @@ pub const BPE = struct {
 
                 if (prev_sym != no_prev_sym) {
                     const pair_key = (@intCast(PairType, prev_sym) << 24) + curr_sym;
-                    _ = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
+                    const pair_entry = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
 
-                    // if (pair_entry.count == entry.count) { // pair lần đầu xuất hiện
-                    //     self.selected_symbols[self.total_selected] = pair_key;
-                    //     pair_entry.offset = self.total_selected;
-                    //     self.total_selected += 1;
-                    // }
+                    if (pair_entry.count == entry.count) { // pair lần đầu xuất hiện
+                        // Kết nạp pair vào tập ứng viên
+                        self.candidates[self.total_candidates] = pair_key;
+                        self.total_candidates += 1;
+                    }
                 }
 
                 prev_sym = curr_sym;
