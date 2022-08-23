@@ -77,6 +77,9 @@ pub const BPE = struct {
     inline fn getSelectedSymbols(self: Self) []const PairType {
         return self.selected_symbols[0..self.total_selected];
     }
+    inline fn getCandidates(self: Self) []const PairType {
+        return self.candidates[0..self.total_candidates];
+    }
 
     pub fn learn(self: *Self) void {
         var i: usize = 0;
@@ -103,20 +106,21 @@ pub const BPE = struct {
     fn selectMaxCountPair(self: *Self) usize {
         var max: CountType = 0;
         var selected_index = self.total_candidates;
-        const candidates = self.candidates[0..self.total_candidates];
-        for (candidates) |pair_key, index| {
+
+        for (self.getCandidates()) |pair_key, index| {
             const entry = self.pairs_count.getEntry(pair_key);
+
             if (entry == null) {
                 // var out: [5]u8 = undefined;
                 // const len = Entry.pairStr(pair_key, out[0..], self.selectedSymbols());
                 std.debug.print("\n>> Ko tìm thấy count của candidate {d} <<\n", .{pair_key});
-                self.total_candidates -= 1;
-                self.candidates[index] = self.candidates[self.total_candidates];
-
+                self.removeCandidate(index);
                 continue;
             }
-            if (entry.?.count > max) {
-                max = entry.?.count;
+
+            const count = entry.?.count;
+            if (count > max) {
+                max = count;
                 selected_index = index;
             }
         }
