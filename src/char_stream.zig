@@ -163,8 +163,8 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
 // youtokentome cần 1m36s => nhanh hơn 7.35x lần
 //
 // UPDATE 23/08/2022: Cài đặt lại BPE ở bước 1/ và thay đổi cách tổ chức dữ liệu vocabs
-// 17s để lọc 5k BPE (Total 0m45.419s)
-// => Nhanh hơn youtokentome 3.5x, vẫn còn bước 2/ và 3/ chưa impl :D
+// 39s để lọc 5k BPE (Total 1m7.620s - 28s)
+// => Nhanh hơn youtokentome ~2x, vẫn còn bước 2/ và 3/ chưa impl :D
 
 pub fn main() !void {
     // Use c_allocator to run Valgrind mem leak check
@@ -180,24 +180,28 @@ pub fn main() !void {
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
             // show_info = true;
-            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles_small.tx"});
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+
+            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles_small.tx"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_small.tx"});
+
             try scanFile("utf8tv.txt");
-            // thread0.join();
+            thread0.join();
             thread1.join();
-            // thread2.join();
-            // thread3.join();
+            thread2.join();
+            thread3.join();
         },
         .ReleaseSafe => {},
         .ReleaseFast => {
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
             try scanFile("utf8tv.txt");
-            // thread0.join();
+            thread0.join();
             thread1.join();
             thread2.join();
             thread3.join();

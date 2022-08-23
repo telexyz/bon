@@ -76,11 +76,13 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 Xem https://github.com/telexyz/turbo/issues
 
-Tìm cài đặt thuật toán BPE tốt hơn vì cách cài đặt hiện tại code chưa ưng ý và chưa dễ đọc.
+- Áp dụng multi-thread + SIMD cho BPE v2
 
 ## [ DONE ]
 
-- BPE Impl works, 1 thread, naive impl, none SIMD tốc độ = fastBPE, YouTokenToMe nhanh hơn 7.35x.
+- BPE v2, 1 thread, tổ chức dữ liệu tốt hơn, no SIMD, nhanh hơn YouTokenToMe multi-thread `~2x`.
+
+- BPE v1, 1 thread, naive impl, no SIMD tốc độ = fastBPE, chậm hơn YouTokenToMe multi-thread 7.35x.
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 

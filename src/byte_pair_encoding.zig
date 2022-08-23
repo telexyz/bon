@@ -183,7 +183,8 @@ pub const BPE = struct {
     }
     inline fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
         // Điều chỉnh count của pair_reduc và pair_added
-        self.pairs_count.getEntry(pair_reduc).?.count -= count;
+        const reduc_entry = self.pairs_count.getEntry(pair_reduc);
+        if (reduc_entry != null) reduc_entry.?.count -= count;
         const entry = self.pairs_count.putCountgetEntry(pair_added, count);
         if (entry.count == count) self.addToCandidates(pair_added); // nếu mới xuất hiện thì cho vào tập candidates
     }
@@ -359,7 +360,7 @@ pub const BPE = struct {
         std.sort.sort(Entry, self.type_entries, self, keyLenDesc);
 
         // Khởi tạo vocabs
-        self.vocabs = try self.allocator.alloc(IndexType, keys_bytes_len + self.total_types * 20);
+        self.vocabs = try self.allocator.alloc(IndexType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
 
         var x: usize = 0;
         var ss: HashType = undefined;
