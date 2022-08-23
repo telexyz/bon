@@ -275,7 +275,8 @@ pub fn HashCount(comptime cfg: Config) type {
                     }
                     prev = curr;
 
-                    if (curr != _hash(self.keyStr(entry, ss_ptr))) {
+                    const hash = if (cfg.for_bpe) _hash(entry.keyPair()) else _hash(self.keyStr(entry, ss_ptr));
+                    if (curr != hash) {
                         std.debug.print("\n!! hash ko trùng với key !!\n", .{});
 
                         return false;

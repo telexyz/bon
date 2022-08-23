@@ -210,6 +210,7 @@ pub fn main() !void {
     bpe.listVocabs(80);
     bpe.learn();
     bpe.showSelectedSymbols(1000);
+    bpe.pairs_count.showStats();
 }
 
 // simple config

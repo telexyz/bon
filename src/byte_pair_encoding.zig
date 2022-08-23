@@ -37,9 +37,8 @@ const maxx_index = shc.maxx_index;
 const SYM_BOUND = shc.SYM_BOUND;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
-// Bộ từ vựng là các hàm nhỏ, dùng lại nhiều lần, inline để ko làm giảm tốc độ
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-// Bộ từ vụng cho keys của char và pair
+// Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 inline fn makeCharKey(char_str: []const u8) PairType { // char key luôn < maxx_index
     const unicode = std.unicode.utf8Decode(char_str) catch return 0;
     const char_key = unicode + SYM_BOUND; // SYM_BOUND để tách char ra khỏi pairs được lựa chọn sau này
@@ -80,7 +79,6 @@ pub fn pairDecode(pair: PairType, out: []u8, symbols: []const PairType) u3 {
         return left_len + right_len;
     }
 }
-
 test "pairDecode" {
     var counts: shc.HashCount(.{ .capacity = 10, .for_bpe = true }) = undefined;
     try counts.init(std.heap.c_allocator);
