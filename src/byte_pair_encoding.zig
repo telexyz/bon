@@ -20,7 +20,7 @@ const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
 // const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
-const max_selected_pairs = 50;
+const max_selected_pairs = 5;
 const max_total_symbols = 900_000;
 const max_selected_symbols = 100_000 + max_selected_pairs; // Unicode: 144,697 characters
 const max_candidates = max_total_symbols - max_selected_symbols;
@@ -37,8 +37,8 @@ const maxx_index = shc.maxx_index;
 const SYM_BOUND = shc.SYM_BOUND;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 inline fn makeCharKey(char_str: []const u8) PairType { // char key luôn < maxx_index
     const unicode = std.unicode.utf8Decode(char_str) catch return 0;
     const char_key = unicode + SYM_BOUND; // SYM_BOUND để tách char ra khỏi pairs được lựa chọn sau này
@@ -59,6 +59,18 @@ inline fn isChar(key: PairType) bool {
 inline fn getUnicode(key: PairType) u21 {
     return @intCast(u21, key - SYM_BOUND);
 }
+inline fn getLeftSymbol(key: PairType) PairType {
+    return key >> 24;
+}
+inline fn getRightSymbol(key: PairType) PairType {
+    return key & 0x000000_ffffff;
+}
+fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
+    var out: [MAX_KEY_LEN]u8 = undefined;
+    const len = pairDecode(pair, out[0..], symbols_to_keys);
+    const key = out[0..len];
+    std.debug.print("`{s}`", .{key});
+}
 pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) u6 {
     const key = if (isSymbol(pair)) symbols_to_keys[pair] else pair;
 
@@ -71,8 +83,8 @@ pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) 
             // unreachable;
         };
     } else {
-        const left = key >> 24;
-        const right = key & 0x000000_ffffff;
+        const left = getLeftSymbol(key);
+        const right = getRightSymbol(key);
         // std.debug.print("\n>> pair {d} {d} <<\n", .{ left, right });// DEBUG
         const left_len = pairDecode(left, out, symbols_to_keys);
         const right_len = pairDecode(right, out[left_len..], symbols_to_keys);
@@ -93,21 +105,21 @@ test "pairDecode" {
 
     const a_key = std.unicode.utf8Decode("ầ") catch unreachable;
 
-    symbols[a] = counts.putCountgetEntry(SYM_BOUND + a_key, 1).keyPair();
-    symbols[b] = counts.putCountgetEntry(SYM_BOUND + 'b', 1).keyPair();
-    symbols[c] = counts.putCountgetEntry(SYM_BOUND + 'c', 1).keyPair();
-    symbols[d] = counts.putCountgetEntry(SYM_BOUND + 'd', 1).keyPair();
-    symbols[e] = counts.putCountgetEntry(SYM_BOUND + 'e', 1).keyPair();
+    symbols[a] = counts.putCountgetEntry(makeCharKey(a_key), 1).keyPair();
+    symbols[b] = counts.putCountgetEntry(makeCharKey('b'), 1).keyPair();
+    symbols[c] = counts.putCountgetEntry(makeCharKey('c'), 1).keyPair();
+    symbols[d] = counts.putCountgetEntry(makeCharKey('d'), 1).keyPair();
+    symbols[e] = counts.putCountgetEntry(makeCharKey('e'), 1).keyPair();
 
     const ab = 5;
     const de = 6;
     const abc = 7;
     const abcde = 8;
 
-    symbols[ab] = counts.putCountgetEntry((symbols[a] << 24) + b, 1).keyPair();
-    symbols[de] = counts.putCountgetEntry((@as(PairType, d) << 24) + e, 1).keyPair();
-    symbols[abc] = counts.putCountgetEntry((@as(PairType, ab) << 24) + c, 1).keyPair();
-    symbols[abcde] = counts.putCountgetEntry((@as(PairType, abc) << 24) + de, 1).keyPair();
+    symbols[ab] = counts.putCountgetEntry(makePairKey(symbols[a], b), 1).keyPair();
+    symbols[de] = counts.putCountgetEntry(makePairKey(d, e), 1).keyPair();
+    symbols[abc] = counts.putCountgetEntry(makePairKey(ab, c), 1).keyPair();
+    symbols[abcde] = counts.putCountgetEntry(makePairKey(abc, de), 1).keyPair();
 
     var out: [MAX_KEY_LEN]u8 = undefined;
     var len = Entry.pairDecode(symbols[ab], out[0..], symbols[0..]);
@@ -122,7 +134,8 @@ test "pairDecode" {
     len = Entry.pairDecode(symbols[abcde], out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "ầbcde");
 }
-// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+// Dùng bộ từ vựng trên để đảm bảo tính vẹn toàn của mã hoá char, pair, sym
+// - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 pub const BPE = struct {
     candidates: []PairType,
@@ -167,8 +180,8 @@ pub const BPE = struct {
     inline fn getCandidates(self: Self) []const PairType {
         return self.candidates[0..self.total_candidates];
     }
-    // Dùng bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
-    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     pub fn learn(self: *Self) void {
         var i: usize = 0;
@@ -179,16 +192,16 @@ pub const BPE = struct {
             const valid = (selected_index != self.total_candidates);
 
             if (valid) {
-                // Loại bỏ candiate được chọn
-                self.removeCandidateAt(selected_index);
-
                 // Kết nạp pair được chọn
                 const pair_key = self.candidates[selected_index];
                 const entry = self.pairs_count.getEntry(pair_key).?;
                 self.selectSymbol(entry);
 
+                // Loại bỏ candiate được chọn
+                self.removeCandidateAt(selected_index);
+
                 // loại bỏ pair được chọn khỏi vocabs
-                self.removeFromVocabs(pair_key);
+                self.removeLastSelectedFromVocabs();
             } else break;
         }
     }
@@ -200,11 +213,10 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
 
             if (entry == null) {
-                std.debug.print("\n>> Ko tìm thấy count của candidate {d}", .{pair_key});
-                var out: [MAX_KEY_LEN]u8 = undefined;
-                const len = pairDecode(pair_key, out[0..], self.getSelectedSymbols());
-                std.debug.print(":`{s}` <<\n", .{out[0..len]});
-                self.removeCandidateAt(index);
+                std.debug.print("\n>> Ko tìm thấy count của candidate {d}:`", .{pair_key});
+                printPair(pair_key, self.getSelectedSymbols());
+                std.debug.print("` <<\n", .{});
+                // self.removeCandidateAt(index);
                 continue;
             }
 
@@ -216,25 +228,55 @@ pub const BPE = struct {
         }
         return selected_index;
     }
-    fn removeFromVocabs(self: *Self, pair: PairType) void {
-        _ = self;
-        _ = pair;
-        // Phần chạy chậm và phức tạp nhất của BPE
-        // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
-        // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
-        //
-        // Các bước cài đặt:
-        //
-        // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
-        // lùi lại phía trước một ô trong mảng vocabs.
-        //
-        // 2/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 threads.
-        // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
-        // nên cần chính xác tuyệt đối!
-        //
-        // 3/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
-        // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
-        // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
+
+    // Phần chạy chậm và phức tạp nhất của BPE
+    // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
+    // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
+    //
+    // Các bước cài đặt:
+    //
+    // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
+    // lùi lại phía trước một ô trong mảng vocabs. Đồng thời loại bỏ count của pair trước và sau
+    // Ví dụ: Nếu loại bỏ pair 'cd' có id 'x' trong key 'abcde' có count là 100
+    // Thì new_key = 'abxe' và trừ count của 'bc' và 'de' đi 100.
+    //
+    // 2/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 threads.
+    // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
+    // nên cần chính xác tuyệt đối!
+    //
+    // 3/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
+    // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
+    // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
+    fn removeLastSelectedFromVocabs(self: *Self) void {
+        // Bước 1/
+        const last_selected = self.selected_symbols[self.total_selected - 1];
+        std.debug.print("\nRemove pair ", .{});
+        printPair(last_selected, self.getSelectedSymbols());
+        std.debug.print(":{d} ", .{self.pairs_count.get(last_selected)});
+
+        const left = getLeftSymbol(last_selected);
+        const right = getRightSymbol(last_selected);
+
+        var x: usize = 0;
+        while (x < self.vocabs_len) {
+            while (self.vocabs[x] == 0) : (x += 1) {}
+            const key_begin = x + 2; // bỏ qua 2 phần tử lưu key count và key len
+            const key_len_ptr = &self.vocabs[key_begin - 1];
+            const key_end = x + key_len_ptr.*;
+            var curr = self.vocabs[x];
+            while (x < key_end) {
+                x += 1;
+                const next = self.vocabs[x];
+                curr = next;
+                if (curr == left and next == right) { // tìm thấy pair
+                    //
+                    _ = self.printVocabGetEnd(x); // DEBUG
+                }
+            }
+            x = key_end; // nhảy tới key tiếp theo
+
+            if (x > 100) break; // DEBUG
+        }
     }
 
     pub fn deinit(self: *Self) void {
@@ -371,7 +413,7 @@ pub const BPE = struct {
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
 
-        std.debug.print("\nTOTAL: {d} symbols\n", .{self.pairs_count.len});
+        std.debug.print("\nTOTAL: {d} symbols selected.\n", .{self.total_selected});
     }
 
     // Copy `keyStr()` từ str_hash_count.zig
@@ -385,29 +427,32 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
+    fn printVocabGetEnd(self: Self, x: usize) usize {
+        const symbols = self.getSelectedSymbols();
+        var out: [MAX_KEY_LEN]u8 = undefined;
+        const count = self.vocabs[x];
+        const begin = x + 2; // trỏ tới nội dung
+        const end = begin + self.vocabs[x + 1];
+        var out_len: usize = 0;
+        for (self.vocabs[begin..end]) |idx| {
+            const key = symbols[idx];
+            out_len += pairDecode(key, out[out_len..], symbols);
+        }
+        std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
+        return end;
+    }
     // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
     pub fn listVocabs(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
-        var out: [MAX_KEY_LEN]u8 = undefined;
-        const symbols = self.getSelectedSymbols();
 
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
         var i: usize = 0;
 
         while (x < self.vocabs_len) {
-            const count = self.vocabs[x];
-            const len = self.vocabs[x + 1];
-            x += 2; // trỏ tới nội dung
-            var out_len: usize = 0;
-            for (self.vocabs[x .. x + len]) |idx| {
-                const key = symbols[idx];
-                out_len += pairDecode(key, out[out_len..], symbols);
-            }
-            x += len;
-            std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
-            i += 1;
+            x = self.printVocabGetEnd(x);
             if (i > n) break;
+            i += 1;
             const sep = if (i % 2 == 1) "\t\t\t" else "\n";
             std.debug.print("{s}", .{sep});
         }
