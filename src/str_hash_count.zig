@@ -49,85 +49,10 @@ pub const Entry = packed struct {
     count: CountType = 0,
     offset: IndexType = 0,
 
-    pub fn isChar(self: Entry) bool {
-        return self.keyPair() < maxx_index;
-    }
-    pub fn isSelected(self: Entry) bool {
-        return self.offset == maxx_index;
-    }
-    pub fn setSelected(self: *Entry) void {
-        self.offset = maxx_index;
-    }
-    pub fn pairStr(pair: PairType, out: []u8, symbols: []const PairType) u3 {
-        var key: PairType = pair;
-        if (pair < SYM_BOUND) key = symbols[pair];
-
-        if (key < maxx_index and key > SYM_BOUND) {
-            const charcode = key - SYM_BOUND;
-            return std.unicode.utf8Encode(@intCast(u21, charcode), out) catch {
-                // std.debug.print("\n>> Lỗi utf8Encode at char {d} <<\n", .{charcode}); // DEBUG
-                // Hiển thị char ko encode được bằng dấu `?`
-                out[0] = '?';
-                return 1;
-                // unreachable;
-            };
-        } else {
-            const left = key >> 24;
-            const right = key & 0x000000_ffffff;
-            // std.debug.print("\n>> pair {d} {d} <<\n", .{ left, right });// DEBUG
-            const left_len = pairStr(left, out, symbols);
-            const right_len = pairStr(right, out[left_len..], symbols);
-            return left_len + right_len;
-        }
-    }
     pub fn keyPair(self: Entry) PairType {
         return @intCast(PairType, self.hash *% 0x2040003d780970bd);
     }
 };
-
-test "Entry" {
-    var counts: HashCount(.{ .capacity = 10, .for_bpe = true }) = undefined;
-    try counts.init(std.heap.c_allocator);
-    defer counts.deinit();
-    var symbols: [10]PairType = undefined;
-
-    const a = 0;
-    const b = 1;
-    const c = 2;
-    const d = 3;
-    const e = 4;
-
-    const a_key = std.unicode.utf8Decode("ầ") catch unreachable;
-
-    symbols[a] = counts.putCountgetEntry(SYM_BOUND + a_key, 1).keyPair();
-    symbols[b] = counts.putCountgetEntry(SYM_BOUND + 'b', 1).keyPair();
-    symbols[c] = counts.putCountgetEntry(SYM_BOUND + 'c', 1).keyPair();
-    symbols[d] = counts.putCountgetEntry(SYM_BOUND + 'd', 1).keyPair();
-    symbols[e] = counts.putCountgetEntry(SYM_BOUND + 'e', 1).keyPair();
-
-    const ab = 5;
-    const de = 6;
-    const abc = 7;
-    const abcde = 8;
-
-    symbols[ab] = counts.putCountgetEntry((symbols[a] << 24) + b, 1).keyPair();
-    symbols[de] = counts.putCountgetEntry((@as(PairType, d) << 24) + e, 1).keyPair();
-    symbols[abc] = counts.putCountgetEntry((@as(PairType, ab) << 24) + c, 1).keyPair();
-    symbols[abcde] = counts.putCountgetEntry((@as(PairType, abc) << 24) + de, 1).keyPair();
-
-    var out: [MAX_KEY_LEN]u8 = undefined;
-    var len = Entry.pairStr(symbols[ab], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầb");
-
-    len = Entry.pairStr(symbols[de], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "de");
-
-    len = Entry.pairStr(symbols[abc], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầbc");
-
-    len = Entry.pairStr(symbols[abcde], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầbcde");
-}
 
 pub const Config = struct {
     capacity: usize,
