@@ -142,6 +142,7 @@ pub const BPE = struct {
     total_candidates: usize,
 
     selected_symbols: []PairType,
+    char_symbols_end_at: usize,
     total_selected: IndexType,
 
     allocator: std.mem.Allocator,
@@ -180,9 +181,16 @@ pub const BPE = struct {
     inline fn getCandidates(self: Self) []const PairType {
         return self.candidates[0..self.total_candidates];
     }
+    inline fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
+        self.pairs_count.getEntry(pair_reduc).?.count -= count;
+        const entry = self.pairs_count.putCountgetEntry(pair_added, count);
+        if (entry.count == count) self.selectSymbol(entry);
+    }
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
+    // BPE learn gồm 2 bước: selectMaxCountPair() và removeLastSelectedFromVocabs()
+    // Lặp lại 2 bước trên `max_selected_pairs` lần để chọn ra các symbols để tách token
     pub fn learn(self: *Self) void {
         var i: usize = 0;
         // chọn cho đủ max_selected_pairs pairs
@@ -237,8 +245,10 @@ pub const BPE = struct {
     //
     // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
     // lùi lại phía trước một ô trong mảng vocabs. Đồng thời loại bỏ count của pair trước và sau
+    // và thêm count của 2 pairs mới.
     // Ví dụ: Nếu loại bỏ pair 'cd' có id 'x' trong key 'abcde' có count là 100
-    // Thì new_key = 'abxe' và trừ count của 'bc' và 'de' đi 100.
+    // Thì new_key = 'abxe' và trừ count của 'bc' và 'de' đi 100
+    // và tăng count cặp `bx` và `xe` thêm 100.
     //
     // 2/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 threads.
     // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
@@ -249,7 +259,9 @@ pub const BPE = struct {
     // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
     fn removeLastSelectedFromVocabs(self: *Self) void {
         // Bước 1/
-        const last_selected = self.selected_symbols[self.total_selected - 1];
+        const last_symbol_idx = self.total_selected - 1;
+        const last_selected = self.selected_symbols[last_symbol_idx];
+
         std.debug.print("\nRemove pair ", .{});
         printPair(last_selected, self.getSelectedSymbols());
         std.debug.print(":{d} ", .{self.pairs_count.get(last_selected)});
@@ -257,27 +269,50 @@ pub const BPE = struct {
         const left = getLeftSymbol(last_selected);
         const right = getRightSymbol(last_selected);
 
+        std.debug.assert(left < maxx_index);
+        std.debug.assert(right < maxx_index);
+
         var x: usize = 0;
         while (x < self.vocabs_len) {
             while (self.vocabs[x] == 0) : (x += 1) {}
-            const key_begin = x + 2; // bỏ qua 2 phần tử lưu key count và key len
-            const key_len_ptr = &self.vocabs[key_begin - 1];
-            const key_end = x + key_len_ptr.*;
-            var curr = self.vocabs[x];
-            while (x < key_end) {
-                x += 1;
-                const next = self.vocabs[x];
-                curr = next;
-                if (curr == left and next == right) { // tìm thấy pair
-                    //
-                    _ = self.printVocabGetEnd(x); // DEBUG
+            const first_char_idx = x + 2; // bỏ qua 2 phần tử lưu key count và key len
+            const count = self.vocabs[first_char_idx - 2];
+            const key_len_ptr = &self.vocabs[first_char_idx - 1];
+            var last_char_idx = first_char_idx + key_len_ptr.* - 1;
+
+            x = first_char_idx;
+            while (x < last_char_idx) : (x += 1) {
+                if (left == self.vocabs[x] and right == self.vocabs[x + 1]) { // tìm thấy pair
+                    // _ = self.printVocabGetEnd(first_char_idx - 2, x - first_char_idx); // DEBUG
+
+                    if (x > first_char_idx) {
+                        const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
+                        const prev_paid_added = makePairKey(self.vocabs[x - 1], last_symbol_idx);
+                        self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
+                    }
+
+                    self.vocabs[x] = last_symbol_idx;
+                    var y = x + 1;
+
+                    if (y < last_char_idx) { // còn sym phía sau
+                        const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
+                        const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
+                        self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
+                        while (y < last_char_idx) : (y += 1) { // dồn toa
+                            self.vocabs[y] = self.vocabs[y + 1];
+                        }
+                        self.vocabs[last_char_idx] = 0; // toa cuối rỗng
+                        last_char_idx -= 1;
+                        key_len_ptr.* -= 1;
+                    }
                 }
             }
-            x = key_end; // nhảy tới key tiếp theo
-
+            x = first_char_idx + key_len_ptr.*; // trỏ tới key tiếp theo
             if (x > 100) break; // DEBUG
         }
     }
+    // Kết thúc phần liên quan tới BPE learn
+    // - - - - - - - - - - - - - - - - - - -
 
     pub fn deinit(self: *Self) void {
         self.allocator.free(self.type_entries);
@@ -391,6 +426,7 @@ pub const BPE = struct {
             }
         }
         self.vocabs_len = x;
+        self.char_symbols_end_at = self.total_selected;
     }
     fn keyLenDesc(context: *Self, a: Entry, b: Entry) bool {
         const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];
@@ -408,7 +444,8 @@ pub const BPE = struct {
         if (min > n) min = n;
 
         // Note: vị trí 0 bỏ trống để idx của selected_symbol > 0
-        for (self.selected_symbols[1..min]) |key| {
+        const end = self.char_symbols_end_at + min;
+        for (self.selected_symbols[self.char_symbols_end_at..end]) |key| {
             const key_str = out[0..pairDecode(key, out[0..], symbols)];
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
@@ -427,14 +464,14 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
-    fn printVocabGetEnd(self: Self, x: usize) usize {
+    fn printVocabGetEnd(self: Self, x: usize, offset: usize) usize {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
         const count = self.vocabs[x];
         const begin = x + 2; // trỏ tới nội dung
         const end = begin + self.vocabs[x + 1];
         var out_len: usize = 0;
-        for (self.vocabs[begin..end]) |idx| {
+        for (self.vocabs[begin + offset .. end]) |idx| {
             const key = symbols[idx];
             out_len += pairDecode(key, out[out_len..], symbols);
         }
@@ -450,7 +487,7 @@ pub const BPE = struct {
         var i: usize = 0;
 
         while (x < self.vocabs_len) {
-            x = self.printVocabGetEnd(x);
+            x = self.printVocabGetEnd(x, 0);
             if (i > n) break;
             i += 1;
             const sep = if (i % 2 == 1) "\t\t\t" else "\n";
