@@ -42,7 +42,7 @@ pub const AVG_KEY_LEN: usize = 15;
 
 pub const maxx_hash = std.math.maxInt(HashType);
 pub const maxx_index = std.math.maxInt(IndexType);
-pub const SYM_BOUND = @as(PairType, 2) << 22;
+pub const SYM_BOUND = @as(PairType, std.math.maxInt(u23));
 
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,

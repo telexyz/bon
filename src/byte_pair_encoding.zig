@@ -275,7 +275,7 @@ pub const BPE = struct {
             }
             i += 1;
         }
-        std.debug.print("\n\n\n>> small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} <<\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
+        std.debug.print("\n(( small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} ))\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
 
         // Sắp xếp entries vừa lọc theo thứ tự giảm dần của key's len
         std.sort.sort(Entry, self.type_entries, self, keyLenDesc);
