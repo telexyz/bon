@@ -59,8 +59,8 @@ inline fn isChar(key: PairType) bool {
 inline fn getUnicode(key: PairType) u21 {
     return @intCast(u21, key - SYM_BOUND);
 }
-pub fn pairDecode(pair: PairType, out: []u8, symbols: []const PairType) u3 {
-    const key = if (isSymbol(pair)) symbols[pair] else pair;
+pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) u6 {
+    const key = if (isSymbol(pair)) symbols_to_keys[pair] else pair;
 
     if (isChar(key)) {
         return std.unicode.utf8Encode(getUnicode(key), out) catch {
@@ -74,8 +74,8 @@ pub fn pairDecode(pair: PairType, out: []u8, symbols: []const PairType) u3 {
         const left = key >> 24;
         const right = key & 0x000000_ffffff;
         // std.debug.print("\n>> pair {d} {d} <<\n", .{ left, right });// DEBUG
-        const left_len = pairDecode(left, out, symbols);
-        const right_len = pairDecode(right, out[left_len..], symbols);
+        const left_len = pairDecode(left, out, symbols_to_keys);
+        const right_len = pairDecode(right, out[left_len..], symbols_to_keys);
         return left_len + right_len;
     }
 }
@@ -200,9 +200,10 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
 
             if (entry == null) {
-                // var out: [5]u8 = undefined;
-                // const len = Entry.pairStr(pair_key, out[0..], self.selectedSymbols());
-                std.debug.print("\n>> Ko tìm thấy count của candidate {d} <<\n", .{pair_key});
+                std.debug.print("\n>> Ko tìm thấy count của candidate {d}", .{pair_key});
+                var out: [MAX_KEY_LEN]u8 = undefined;
+                const len = pairDecode(pair_key, out[0..], self.getSelectedSymbols());
+                std.debug.print(":`{s}` <<\n", .{out[0..len]});
                 self.removeCandidateAt(index);
                 continue;
             }
