@@ -54,7 +54,7 @@ pub const BPE = struct {
 
     const Self = @This();
 
-    inline fn removeCandidate(self: *Self, idx: usize) void {
+    inline fn removeCandidateAt(self: *Self, idx: usize) void {
         self.candidates[idx] = self.candidates[self.total_candidates - 1];
         self.total_candidates -= 1;
     }
