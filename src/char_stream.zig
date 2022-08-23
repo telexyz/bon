@@ -209,7 +209,7 @@ pub fn main() !void {
     try bpe.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
     bpe.listVocabs(80);
     bpe.learn();
-    bpe.showSelected(1000);
+    bpe.showSelectedSymbols(1000);
 }
 
 // simple config

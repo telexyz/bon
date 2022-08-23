@@ -74,6 +74,9 @@ pub const BPE = struct {
         self.candidates[self.total_candidates] = pair_key;
         self.total_candidates += 1;
     }
+    inline fn getSelectedSymbols(self: Self) []const PairType {
+        return self.selected_symbols[0..self.total_selected];
+    }
 
     pub fn learn(self: *Self) void {
         var i: usize = 0;
@@ -105,7 +108,7 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
             if (entry == null) {
                 // var out: [5]u8 = undefined;
-                // const len = Entry.pairStr(pair_key, out[0..], self.selected_symbols);
+                // const len = Entry.pairStr(pair_key, out[0..], self.selectedSymbols());
                 std.debug.print("\n>> Ko tìm thấy count của candidate {d} <<\n", .{pair_key});
                 self.total_candidates -= 1;
                 self.candidates[index] = self.candidates[self.total_candidates];
@@ -246,21 +249,21 @@ pub const BPE = struct {
                 k += char_len; // nhảy tới char tiếp theo
                 chars_count.* += 1; // tăng len lên
             }
-            // tính cả GUARD_BYTE vào vocabs keys để chuẩn bị cho BPE
-            // self.vocabs[x] = GUARD_BYTE + SYM_BOUND;
-            // x += 1;
         }
         self.vocabs_len = x;
     }
 
-    pub fn showSelected(self: Self, n: IndexType) void {
+    pub fn showSelectedSymbols(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
+
         var out: [MAX_KEY_LEN]u8 = undefined;
-        const symbols = self.selected_symbols[0..];
+        const symbols = self.getSelectedSymbols();
+
         var min = self.total_selected;
         if (min > n) min = n;
+
+        // Note: vị trí 0 bỏ trống để idx của selected_symbol > 0
         for (self.selected_symbols[1..min]) |key| {
-            // std.debug.print("{d}-", .{key});
             const key_str = out[0..Entry.pairStr(key, out[0..], symbols)];
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
@@ -268,6 +271,7 @@ pub const BPE = struct {
         std.debug.print("\nTOTAL: {d} symbols\n", .{self.pairs_count.len});
     }
 
+    // Copy `keyStr()` từ str_hash_count.zig
     pub fn keyStr(self: Self, entry: Entry, ss_ptr: *HashType) []const u8 {
         const offset = entry.offset;
         if (offset <= 8) { // small string
@@ -278,10 +282,11 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
+    // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
     pub fn listVocabs(self: Self, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
         var out: [MAX_KEY_LEN]u8 = undefined;
-        const symbols = self.selected_symbols[0..];
+        const symbols = self.getSelectedSymbols();
 
         const n = if (max < self.len) max else self.len;
         var x: usize = 0;

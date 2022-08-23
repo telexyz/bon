@@ -58,7 +58,7 @@ pub const Entry = packed struct {
     pub fn setSelected(self: *Entry) void {
         self.offset = maxx_index;
     }
-    pub fn pairStr(pair: PairType, out: []u8, symbols: []PairType) u3 {
+    pub fn pairStr(pair: PairType, out: []u8, symbols: []const PairType) u3 {
         var key: PairType = pair;
         if (pair < SYM_BOUND) key = symbols[pair];
 
