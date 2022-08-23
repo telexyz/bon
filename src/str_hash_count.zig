@@ -99,21 +99,21 @@ test "Entry" {
 
     const a_key = std.unicode.utf8Decode("ầ") catch unreachable;
 
-    symbols[a] = counts.putCountReturnEntry(SYM_BOUND + a_key, 1).keyPair();
-    symbols[b] = counts.putCountReturnEntry(SYM_BOUND + 'b', 1).keyPair();
-    symbols[c] = counts.putCountReturnEntry(SYM_BOUND + 'c', 1).keyPair();
-    symbols[d] = counts.putCountReturnEntry(SYM_BOUND + 'd', 1).keyPair();
-    symbols[e] = counts.putCountReturnEntry(SYM_BOUND + 'e', 1).keyPair();
+    symbols[a] = counts.putCountgetEntry(SYM_BOUND + a_key, 1).keyPair();
+    symbols[b] = counts.putCountgetEntry(SYM_BOUND + 'b', 1).keyPair();
+    symbols[c] = counts.putCountgetEntry(SYM_BOUND + 'c', 1).keyPair();
+    symbols[d] = counts.putCountgetEntry(SYM_BOUND + 'd', 1).keyPair();
+    symbols[e] = counts.putCountgetEntry(SYM_BOUND + 'e', 1).keyPair();
 
     const ab = 5;
     const de = 6;
     const abc = 7;
     const abcde = 8;
 
-    symbols[ab] = counts.putCountReturnEntry((symbols[a] << 24) + b, 1).keyPair();
-    symbols[de] = counts.putCountReturnEntry((@as(PairType, d) << 24) + e, 1).keyPair();
-    symbols[abc] = counts.putCountReturnEntry((@as(PairType, ab) << 24) + c, 1).keyPair();
-    symbols[abcde] = counts.putCountReturnEntry((@as(PairType, abc) << 24) + de, 1).keyPair();
+    symbols[ab] = counts.putCountgetEntry((symbols[a] << 24) + b, 1).keyPair();
+    symbols[de] = counts.putCountgetEntry((@as(PairType, d) << 24) + e, 1).keyPair();
+    symbols[abc] = counts.putCountgetEntry((@as(PairType, ab) << 24) + c, 1).keyPair();
+    symbols[abcde] = counts.putCountgetEntry((@as(PairType, abc) << 24) + de, 1).keyPair();
 
     var out: [MAX_KEY_LEN]u8 = undefined;
     var len = Entry.pairStr(symbols[ab], out[0..], symbols[0..]);
@@ -230,7 +230,7 @@ pub fn HashCount(comptime cfg: Config) type {
         pub inline fn put(self: *Self, key: KeyType) void {
             _ = self.putCount(key, 1);
         }
-        pub fn putCountReturnEntry(self: *Self, key: KeyType, count: CountType) *Entry {
+        pub fn putCountgetEntry(self: *Self, key: KeyType, count: CountType) *Entry {
             const idx = self.putCount(key, count);
             return &self.entries[idx];
         }

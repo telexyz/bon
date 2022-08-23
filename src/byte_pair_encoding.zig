@@ -54,15 +54,9 @@ pub const BPE = struct {
 
     const Self = @This();
 
-    inline fn removeCandidateAt(self: *Self, idx: usize) void {
-        self.candidates[idx] = self.candidates[self.total_candidates - 1];
-        self.total_candidates -= 1;
-    }
-    inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
-        sym_entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
-        self.selected_symbols[self.total_selected] = sym_entry.keyPair();
-        self.total_selected += 1; // thêm 1 symbol mới được chọn
-    }
+    // Bộ từ vựng là các hàm nhỏ, dùng lại nhiều lần, inline để ko làm giảm tốc độ
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
+    // Bộ từ vụng cho keys của char và pair
     inline fn makeCharKey(char_str: []const u8) PairType {
         const unicode = std.unicode.utf8Decode(char_str) catch return 0;
         return unicode + SYM_BOUND;
@@ -70,16 +64,31 @@ pub const BPE = struct {
     inline fn makePairKey(prev_sym: IndexType, curr_sym: IndexType) PairType {
         return (@intCast(PairType, prev_sym) << 24) + curr_sym;
     }
-    inline fn addPairToCandidates(self: *Self, pair_key: PairType) void {
-        self.candidates[self.total_candidates] = pair_key;
-        self.total_candidates += 1;
+
+    // Bộ từ vựng cho selected symbols
+    inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
+        sym_entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
+        self.selected_symbols[self.total_selected] = sym_entry.keyPair();
+        self.total_selected += 1; // thêm 1 symbol mới được chọn
     }
     inline fn getSelectedSymbols(self: Self) []const PairType {
         return self.selected_symbols[0..self.total_selected];
     }
+
+    // Bộ từ vựng để handle candidates
+    inline fn removeCandidateAt(self: *Self, idx: usize) void {
+        self.candidates[idx] = self.candidates[self.total_candidates - 1];
+        self.total_candidates -= 1;
+    }
+    inline fn addToCandidates(self: *Self, pair_key: PairType) void {
+        self.candidates[self.total_candidates] = pair_key;
+        self.total_candidates += 1;
+    }
     inline fn getCandidates(self: Self) []const PairType {
         return self.candidates[0..self.total_candidates];
     }
+    // Dùng bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
+    // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     pub fn learn(self: *Self) void {
         var i: usize = 0;
@@ -236,7 +245,7 @@ pub const BPE = struct {
                     break; // bỏ qua phần còn lại, xử lý key tiếp theo
                 }
 
-                const char_entry = self.pairs_count.putCountReturnEntry(char_key, entry.count);
+                const char_entry = self.pairs_count.putCountgetEntry(char_key, entry.count);
                 if (char_entry.count == entry.count) self.selectSymbol(char_entry);
 
                 const curr_sym = @intCast(IndexType, char_entry.offset);
@@ -245,8 +254,8 @@ pub const BPE = struct {
 
                 if (prev_sym != no_prev_sym) {
                     const pair_key = makePairKey(prev_sym, curr_sym);
-                    const pair_entry = self.pairs_count.putCountReturnEntry(pair_key, entry.count);
-                    if (pair_entry.count == entry.count) self.addPairToCandidates(pair_key);
+                    const pair_entry = self.pairs_count.putCountgetEntry(pair_key, entry.count);
+                    if (pair_entry.count == entry.count) self.addToCandidates(pair_key);
                 }
 
                 prev_sym = curr_sym;
@@ -256,6 +265,11 @@ pub const BPE = struct {
         }
         self.vocabs_len = x;
     }
+    fn keyLenDesc(context: *Self, a: Entry, b: Entry) bool {
+        const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];
+        const bl = if (b.offset <= 8) b.offset else context.keys_bytes[b.offset - 1];
+        return al > bl;
+    } // `keyLenDesc()` dùng để sắp xếp vocabs theo key'len giảm dần
 
     pub fn showSelectedSymbols(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
@@ -312,11 +326,5 @@ pub const BPE = struct {
             const sep = if (i % 2 == 1) "\t\t\t" else "\n";
             std.debug.print("{s}", .{sep});
         }
-    }
-
-    fn keyLenDesc(context: *Self, a: Entry, b: Entry) bool {
-        const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];
-        const bl = if (b.offset <= 8) b.offset else context.keys_bytes[b.offset - 1];
-        return al > bl;
     }
 };
