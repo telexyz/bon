@@ -19,8 +19,8 @@
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
 
-// const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
-const max_selected_pairs = 5;
+const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
+// const max_selected_pairs = 50;
 const max_total_symbols = 900_000;
 const max_selected_symbols = 100_000 + max_selected_pairs; // Unicode: 144,697 characters
 const max_candidates = max_total_symbols - max_selected_symbols;
@@ -182,9 +182,10 @@ pub const BPE = struct {
         return self.candidates[0..self.total_candidates];
     }
     inline fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
+        // Điều chỉnh count của pair_reduc và pair_added
         self.pairs_count.getEntry(pair_reduc).?.count -= count;
         const entry = self.pairs_count.putCountgetEntry(pair_added, count);
-        if (entry.count == count) self.selectSymbol(entry);
+        if (entry.count == count) self.addToCandidates(pair_added); // nếu mới xuất hiện thì cho vào tập candidates
     }
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -221,9 +222,9 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
 
             if (entry == null) {
-                std.debug.print("\n>> Ko tìm thấy count của candidate {d}:`", .{pair_key});
-                printPair(pair_key, self.getSelectedSymbols());
-                std.debug.print("` <<\n", .{});
+                // std.debug.print("\n>> Ko tìm thấy count của candidate {d}:`", .{pair_key});
+                // printPair(pair_key, self.getSelectedSymbols());
+                // std.debug.print("` <<\n", .{});
                 // self.removeCandidateAt(index);
                 continue;
             }
@@ -262,9 +263,9 @@ pub const BPE = struct {
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
 
-        std.debug.print("\nRemove pair ", .{});
-        printPair(last_selected, self.getSelectedSymbols());
-        std.debug.print(":{d} ", .{self.pairs_count.get(last_selected)});
+        // std.debug.print("\nRemove pair ", .{});
+        // printPair(last_selected, self.getSelectedSymbols());
+        // std.debug.print(":{d} ", .{self.pairs_count.get(last_selected)});
 
         const left = getLeftSymbol(last_selected);
         const right = getRightSymbol(last_selected);
@@ -434,13 +435,15 @@ pub const BPE = struct {
         return al > bl;
     } // `keyLenDesc()` dùng để sắp xếp vocabs theo key'len giảm dần
 
+    pub inline fn totalSelectedPairs(self: Self) usize {
+        return self.total_selected - self.char_symbols_end_at;
+    }
     pub fn showSelectedSymbols(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
 
         var out: [MAX_KEY_LEN]u8 = undefined;
         const symbols = self.getSelectedSymbols();
-
-        var min = self.total_selected;
+        var min = self.totalSelectedPairs();
         if (min > n) min = n;
 
         // Note: vị trí 0 bỏ trống để idx của selected_symbol > 0
@@ -450,7 +453,7 @@ pub const BPE = struct {
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
 
-        std.debug.print("\nTOTAL: {d} symbols selected.\n", .{self.total_selected});
+        std.debug.print("\nTOTAL: {d} symbols selected.\n", .{self.totalSelectedPairs()});
     }
 
     // Copy `keyStr()` từ str_hash_count.zig
