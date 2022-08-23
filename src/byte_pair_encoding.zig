@@ -91,7 +91,7 @@ pub const BPE = struct {
 
             if (valid) {
                 // Loại bỏ candiate được chọn
-                self.removeCandidate(selected_index);
+                self.removeCandidateAt(selected_index);
 
                 // Kết nạp pair được chọn
                 const pair_key = self.candidates[selected_index];
@@ -114,7 +114,7 @@ pub const BPE = struct {
                 // var out: [5]u8 = undefined;
                 // const len = Entry.pairStr(pair_key, out[0..], self.selectedSymbols());
                 std.debug.print("\n>> Ko tìm thấy count của candidate {d} <<\n", .{pair_key});
-                self.removeCandidate(index);
+                self.removeCandidateAt(index);
                 continue;
             }
 
