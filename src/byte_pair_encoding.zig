@@ -54,6 +54,27 @@ pub const BPE = struct {
 
     const Self = @This();
 
+    inline fn removeCandidate(self: *Self, idx: usize) void {
+        self.candidates[idx] = self.candidates[self.total_candidates - 1];
+        self.total_candidates -= 1;
+    }
+    inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
+        sym_entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
+        self.selected_symbols[self.total_selected] = sym_entry.keyPair();
+        self.total_selected += 1; // thêm 1 symbol mới được chọn
+    }
+    inline fn makeCharKey(char_str: []const u8) PairType {
+        const unicode = std.unicode.utf8Decode(char_str) catch return 0;
+        return unicode + SYM_BOUND;
+    }
+    inline fn makePairKey(prev_sym: IndexType, curr_sym: IndexType) PairType {
+        return (@intCast(PairType, prev_sym) << 24) + curr_sym;
+    }
+    inline fn addPairToCandidates(self: *Self, pair_key: PairType) void {
+        self.candidates[self.total_candidates] = pair_key;
+        self.total_candidates += 1;
+    }
+
     pub fn learn(self: *Self) void {
         var i: usize = 0;
         // chọn cho đủ max_selected_pairs pairs
@@ -63,17 +84,13 @@ pub const BPE = struct {
             const valid = (selected_index != self.total_candidates);
 
             if (valid) {
-                const pair_key = self.candidates[selected_index];
-                const entry = self.pairs_count.getEntry(pair_key).?;
-
                 // Loại bỏ candiate được chọn
-                self.candidates[selected_index] = self.candidates[self.total_candidates - 1];
-                self.total_candidates -= 1;
+                self.removeCandidate(selected_index);
 
                 // Kết nạp pair được chọn
-                entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
-                self.selected_symbols[self.total_selected] = pair_key;
-                self.total_selected += 1; // thêm 1 pair mới được chọn
+                const pair_key = self.candidates[selected_index];
+                const entry = self.pairs_count.getEntry(pair_key).?;
+                self.selectSymbol(entry);
 
                 // loại bỏ pair được chọn khỏi vocabs
                 self.removeFromVocabs(pair_key);
@@ -234,23 +251,6 @@ pub const BPE = struct {
             // x += 1;
         }
         self.vocabs_len = x;
-    }
-    fn selectSymbol(self: *Self, sym_entry: *Entry) void {
-        sym_entry.offset = self.total_selected;
-        self.selected_symbols[self.total_selected] = sym_entry.keyPair();
-        self.total_selected += 1;
-    }
-    inline fn makeCharKey(char_str: []const u8) PairType {
-        const unicode = std.unicode.utf8Decode(char_str) catch return 0;
-        return unicode + SYM_BOUND;
-    }
-    inline fn makePairKey(prev_sym: IndexType, curr_sym: IndexType) PairType {
-        return (@intCast(PairType, prev_sym) << 24) + curr_sym;
-    }
-    inline fn addPairToCandidates(self: *Self, pair_key: PairType) void {
-        // Kết nạp pair vào tập ứng viên
-        self.candidates[self.total_candidates] = pair_key;
-        self.total_candidates += 1;
     }
 
     pub fn showSelected(self: Self, n: IndexType) void {
