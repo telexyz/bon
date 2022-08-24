@@ -5,7 +5,7 @@
 // * `hash` u64
 // * `count` là u32
 // * `offset` u24, trỏ tới vị trí đầu của key trong keys_bytes nếu key là string
-// => Total 15-bytes (21% cache-line)
+// => Total 15-bytes (23% cache-line)
 //
 // HashCount chỉ cần 2 thao tác là `insert` và `count`
 // HashCount cho phép nhiều threads truy cập
