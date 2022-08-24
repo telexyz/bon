@@ -184,7 +184,13 @@ pub const BPE = struct {
     inline fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
         // Điều chỉnh count của pair_reduc và pair_added
         const reduc_entry = self.pairs_count.getEntry(pair_reduc);
-        if (reduc_entry != null) reduc_entry.?.count -= count;
+        if (reduc_entry != null) {
+            reduc_entry.?.count -= count;
+        } else {
+            std.debug.print("\n>> Ko tìm thấy count của selected symbol {d}:`", .{pair_reduc});
+            printPair(pair_reduc, self.getSelectedSymbols());
+            std.debug.print("` <<", .{});
+        }
         const entry = self.pairs_count.putCountgetEntry(pair_added, count);
         if (entry.count == count) self.addToCandidates(pair_added); // nếu mới xuất hiện thì cho vào tập candidates
     }
@@ -198,45 +204,46 @@ pub const BPE = struct {
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
-            const selected_index = self.selectMaxCountPair();
-            const valid = (selected_index != self.total_candidates);
+            const index = self.selectMaxCountPairFromCandidates();
+            const valid = (index != maxx_index);
 
             if (valid) {
                 // Kết nạp pair được chọn
-                const pair_key = self.candidates[selected_index];
+                const pair_key = self.candidates[index];
                 const entry = self.pairs_count.getEntry(pair_key).?;
                 self.selectSymbol(entry);
 
                 // Loại bỏ candiate được chọn
-                self.removeCandidateAt(selected_index);
+                self.removeCandidateAt(index);
 
                 // loại bỏ pair được chọn khỏi vocabs
                 self.removeLastSelectedFromVocabs();
             } else break;
         }
     }
-    fn selectMaxCountPair(self: *Self) usize {
+    var notfound_candi_count: usize = 0;
+    fn selectMaxCountPairFromCandidates(self: *Self) usize {
         var max: CountType = 0;
-        var selected_index = self.total_candidates;
+        var index: usize = maxx_index;
+        var i: usize = 0;
 
-        for (self.getCandidates()) |pair_key, index| {
+        while (i < self.total_candidates) {
+            const pair_key = self.candidates[i];
             const entry = self.pairs_count.getEntry(pair_key);
-
             if (entry == null) {
-                // std.debug.print("\n>> Ko tìm thấy count của candidate {d}:`", .{pair_key});
-                // printPair(pair_key, self.getSelectedSymbols());
-                // std.debug.print("` <<\n", .{});
-                // self.removeCandidateAt(index);
+                notfound_candi_count += 1;
+                std.debug.print(" {d}:", .{notfound_candi_count});
+                printPair(pair_key, self.getSelectedSymbols());
+                self.removeCandidateAt(i);
                 continue;
             }
-
-            const count = entry.?.count;
-            if (count > max) {
-                max = count;
-                selected_index = index;
+            if (entry.?.count > max) {
+                max = entry.?.count;
+                index = i;
             }
+            i += 1;
         }
-        return selected_index;
+        return index;
     }
 
     // Phần chạy chậm và phức tạp nhất của BPE

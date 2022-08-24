@@ -76,13 +76,13 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 Xem https://github.com/telexyz/turbo/issues
 
-- Áp dụng multi-threading + SIMD cho BPE v2
+- Áp dụng multi-threading + SIMD cho BPE Learn v2
 
 ## [ DONE ]
 
-- BPE v2, tổ chức dữ liệu tốt hơn, nhanh hơn YouTokenToMe multi-threading `~2x`.
+- BPE Learn v2, tổ chức dữ liệu tốt hơn, nhanh hơn YouTokenToMe multi-threading `~2x`.
 
-- BPE v1, naive impl, tốc độ = fastBPE, chậm hơn YouTokenToMe multi-threading 7.35x.
+- BPE Learn v1, naive impl, tốc độ = fastBPE, chậm hơn YouTokenToMe multi-threading 7.35x.
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 
