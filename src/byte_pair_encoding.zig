@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs = if (builtin.mode == .Debug) 500 else 20_000;
+const max_selected_pairs = if (builtin.mode == .Debug) 500 else 5_000;
 const max_total_symbols = 800_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
 const max_selected_symbols = total_chars + max_selected_pairs;
@@ -35,7 +35,7 @@ inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
     return maxx_symbol + (@intCast(PairType, prev_sym) << 16) + curr_sym;
 }
 inline fn isSymbol(pair: PairType) bool {
-    return pair > total_chars and pair < maxx_symbol;
+    return (!isChar(pair)) and pair < maxx_symbol;
 }
 inline fn getLeftSymbol(pair: PairType) PairType {
     std.debug.assert(pair > maxx_symbol);
@@ -146,8 +146,8 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
-            printPair(pair_reduc, self.getSelectedSymbols());
+            // std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
+            // printPair(pair_reduc, self.getSelectedSymbols());
         }
         const entry = self.pairs_count.putCount(pair_added, count);
         if (entry.count == count) { // nếu mới xuất hiện thì cho vào tập candidates
@@ -196,8 +196,8 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
             if (entry == null) {
                 notfound_candi_count += 1;
-                std.debug.print(" {d}:", .{notfound_candi_count});
-                printPair(pair_key, self.getSelectedSymbols());
+                // std.debug.print(" {d}:", .{notfound_candi_count});
+                // printPair(pair_key, self.getSelectedSymbols());
                 self.removeCandidateAt(i);
                 continue;
             }
@@ -247,8 +247,8 @@ pub const BPE = struct {
 
         var x: usize = 0;
         while (x < self.vocabs_len) {
-            while (self.vocabs[x] == 0) : (x += 1) {}
-            const first_char_idx = x + 2; // bỏ qua 2 phần tử lưu key count và key len
+            while (self.vocabs[x] == maxx_symbol) : (x += 1) {}
+            const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
             var last_char_idx = first_char_idx + key_len_ptr.* - 1;
@@ -256,7 +256,7 @@ pub const BPE = struct {
             x = first_char_idx;
             while (x < last_char_idx) : (x += 1) {
                 if (left == self.vocabs[x] and right == self.vocabs[x + 1]) { // tìm thấy pair
-                    // _ = self.printVocabGetEnd(first_char_idx - 2, x - first_char_idx); // DEBUG
+                    // _ = self.printVocabGetEnd(first_char_idx - 3, x - first_char_idx); // DEBUG
 
                     if (x > first_char_idx) {
                         const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
@@ -271,17 +271,17 @@ pub const BPE = struct {
                         const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
                         const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
                         self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
-                        while (y < last_char_idx) : (y += 1) { // dồn toa
+                        while (y < last_char_idx) { // dồn toa
                             self.vocabs[y] = self.vocabs[y + 1];
+                            y += 1;
                         }
-                        self.vocabs[last_char_idx] = 0; // toa cuối rỗng
+                        self.vocabs[last_char_idx] = maxx_symbol; // toa cuối rỗng
                         last_char_idx -= 1;
                         key_len_ptr.* -= 1;
                     }
                 }
             }
             x = first_char_idx + key_len_ptr.*; // trỏ tới key tiếp theo
-            if (x > 100) break; // DEBUG
         }
     }
     // Kết thúc phần liên quan tới BPE learn
@@ -343,7 +343,7 @@ pub const BPE = struct {
 
             self.vocabs[x] = @intCast(SymbolType, key_count >> 16); // 2 phần tử đầu chứa count
             self.vocabs[x + 1] = @intCast(SymbolType, key_count & 0x0000_ffff);
-            const chars_count = &self.vocabs[x + 2]; // phần tử thứ 2 chứa len
+            const chars_count = &self.vocabs[x + 2]; // phần tử thứ 3 chứa len
             chars_count.* = 0;
             x += 3; // trỏ tới đầu nội dung
 

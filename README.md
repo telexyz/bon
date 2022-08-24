@@ -83,7 +83,7 @@ More https://github.com/telexyz/turbo/issues
 
 - BPE Learn v3, initial chars là byte (`u8`) thay vì unicode (`u21`) để định danh symbols từ `u24` xuống `u16`.
 
-- BPE Learn v2, tổ chức dữ liệu tốt hơn, nhanh hơn YouTokenToMe multi-threading `~2x`.
+- BPE Learn v2, tổ chức dữ liệu tốt hơn.
 
 - BPE Learn v1, naive impl, tốc độ = fastBPE, chậm hơn YouTokenToMe multi-threading 7.35x.
 

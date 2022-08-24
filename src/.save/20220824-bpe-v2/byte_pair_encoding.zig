@@ -317,7 +317,6 @@ pub const BPE = struct {
                 }
             }
             x = first_char_idx + key_len_ptr.*; // trỏ tới key tiếp theo
-            if (x > 100) break; // DEBUG
         }
     }
     // Kết thúc phần liên quan tới BPE learn
