@@ -198,16 +198,16 @@ test "HashCount for bpe" {
     const x: IndexType = 111;
     try std.testing.expectEqual(counters.get(x), 0);
     // std.debug.print("\n{any}\n", .{counters.entries});
-    counters.put(x);
+    _ = counters.putCount(x, 1);
     // std.debug.print("\n{any}\n", .{counters.entries});
     try std.testing.expectEqual(counters.get(x), 1);
-    counters.put(x);
+    _ = counters.putCount(x, 1);
     // std.debug.print("\n{any}\n", .{counters.entries});
     try std.testing.expectEqual(@as(CountType, 2), counters.get(x));
 
     const y: IndexType = 888;
     try std.testing.expectEqual(counters.get(y), 0);
-    counters.put(y);
-    counters.put(y);
+    _ = counters.putCount(y, 1);
+    _ = counters.putCount(y, 1);
     try std.testing.expectEqual(counters.get(y), 2);
 }

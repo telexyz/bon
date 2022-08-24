@@ -27,22 +27,23 @@ const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 inline fn makeCharKey(byte: u8) PairType { // Cách làm đơn giản nhất là coi chars là byte
     return @intCast(PairType, byte);
 }
-inline fn isChar(key: PairType) bool {
-    return key < total_chars; // vì  chars là byte nên nếu key là char thì sẽ < 256
+inline fn isChar(pair: PairType) bool {
+    return pair < total_chars; // vì chars là byte nên nếu pair là char thì sẽ < 256
 }
 inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
-    // pair key luôn > maxx_symbol
+    // pair key luôn >= maxx_symbol
     return maxx_symbol + (@intCast(PairType, prev_sym) << 16) + curr_sym;
 }
 inline fn isSymbol(pair: PairType) bool {
     return pair > total_chars and pair < maxx_symbol;
-    // => phải luôn đảm bảo self.total_selected < maxx_symbol
 }
-inline fn getLeftSymbol(key: PairType) PairType {
-    return key >> 16;
+inline fn getLeftSymbol(pair: PairType) PairType {
+    std.debug.assert(pair > maxx_symbol);
+    return (pair - maxx_symbol) >> 16;
 }
-inline fn getRightSymbol(key: PairType) PairType {
-    return key & 0x0000_ffff;
+inline fn getRightSymbol(pair: PairType) PairType {
+    std.debug.assert(pair > maxx_symbol);
+    return (pair - maxx_symbol) & 0x0000_ffff;
 }
 fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
     var out: [MAX_KEY_LEN]u8 = undefined;
@@ -145,7 +146,7 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            std.debug.print("\n>> Ko tìm thấy count của selected symbol {d}:", .{pair_reduc});
+            std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
             printPair(pair_reduc, self.getSelectedSymbols());
         }
         const entry = self.pairs_count.putCount(pair_added, count);
