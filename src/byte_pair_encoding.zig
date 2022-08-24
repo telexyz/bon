@@ -18,6 +18,7 @@
 
 const std = @import("std");
 const shc = @import("str_hash_count.zig");
+const phc = @import("pair_hash_count.zig");
 
 const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
 // const max_selected_pairs = 50;
@@ -25,16 +26,16 @@ const max_total_symbols = 900_000;
 const max_selected_symbols = 100_000 + max_selected_pairs; // Unicode: 144,697 characters
 const max_candidates = max_total_symbols - max_selected_symbols;
 
-const PairCount = shc.HashCount(.{ .capacity = max_total_symbols, .for_bpe = true });
+const PairCount = phc.HashCount(max_total_symbols);
 
-const Entry = shc.Entry;
-const HashType = shc.HashType;
-const IndexType = shc.IndexType;
-const CountType = shc.CountType;
-const GUARD_BYTE = shc.GUARD_BYTE;
-const PairType = shc.PairType;
+const Entry = phc.Entry;
+const HashType = phc.HashType;
+const IndexType = phc.IndexType;
+const CountType = phc.CountType;
+const GUARD_BYTE = phc.GUARD_BYTE;
+const PairType = phc.KeyType;
 const maxx_index = shc.maxx_index;
-const SYM_BOUND = shc.SYM_BOUND;
+const SYM_BOUND = phc.SYM_BOUND;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
@@ -147,7 +148,7 @@ pub const BPE = struct {
 
     allocator: std.mem.Allocator,
     total_types: usize,
-    type_entries: []Entry,
+    type_entries: []shc.Entry,
     keys_bytes: []const u8,
 
     vocabs: []IndexType,
@@ -161,8 +162,8 @@ pub const BPE = struct {
     // Bộ từ vựng cho selected symbols
     inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
         std.debug.assert(self.total_selected < SYM_BOUND); // để đảm bảo symbol key < char key
-        sym_entry.offset = self.total_selected; // đánh dấu vị trí được kết nạp
-        self.selected_symbols[self.total_selected] = sym_entry.keyPair();
+        sym_entry.symbol = self.total_selected; // đánh dấu vị trí được kết nạp
+        self.selected_symbols[self.total_selected] = sym_entry.key;
         self.total_selected += 1; // thêm 1 symbol mới được chọn
     }
     inline fn getSelectedSymbols(self: Self) []const PairType {
@@ -331,7 +332,7 @@ pub const BPE = struct {
         self.allocator.free(self.candidates);
     }
 
-    pub fn init(self: *Self, allocator: std.mem.Allocator, totals_entries: usize, entries: []const Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
+    pub fn init(self: *Self, allocator: std.mem.Allocator, totals_entries: usize, entries: []const shc.Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         self.allocator = allocator;
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
@@ -342,7 +343,7 @@ pub const BPE = struct {
         self.total_candidates = 0;
         self.candidates = try self.allocator.alloc(PairType, max_candidates);
 
-        self.type_entries = try self.allocator.alloc(Entry, self.total_types);
+        self.type_entries = try self.allocator.alloc(shc.Entry, self.total_types);
         try self.pairs_count.init(self.allocator);
 
         var i: IndexType = 0;
@@ -364,13 +365,13 @@ pub const BPE = struct {
         std.debug.print("\n(( small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} ))\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
 
         // Sắp xếp entries vừa lọc theo thứ tự giảm dần của key's len
-        std.sort.sort(Entry, self.type_entries, self, keyLenDesc);
+        std.sort.sort(shc.Entry, self.type_entries, self, keyLenDesc);
 
         // Khởi tạo vocabs
         self.vocabs = try self.allocator.alloc(IndexType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
 
         var x: usize = 0;
-        var ss: HashType = undefined;
+        var ss: shc.HashType = undefined;
         const ss_ptr = &ss;
 
         for (self.type_entries) |type_entry| {
@@ -418,7 +419,7 @@ pub const BPE = struct {
                 // Add char_entry lần đầu tiên gặp vào danh sách các symbols được chọn
 
                 // Phần tử vocabs là symbol được chọn được định danh bằng idx trong mảng selected_symbols
-                const curr_sym = @intCast(IndexType, char_entry.offset); // idx này được tham chiếm trong offset
+                const curr_sym = @intCast(IndexType, char_entry.symbol);
                 self.vocabs[x] = curr_sym; // ghi current symbol vào vocabs
                 x += 1;
 
@@ -437,7 +438,7 @@ pub const BPE = struct {
         self.vocabs_len = x;
         self.char_symbols_end_at = self.total_selected;
     }
-    fn keyLenDesc(context: *Self, a: Entry, b: Entry) bool {
+    fn keyLenDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
         const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];
         const bl = if (b.offset <= 8) b.offset else context.keys_bytes[b.offset - 1];
         return al > bl;
@@ -465,7 +466,7 @@ pub const BPE = struct {
     }
 
     // Copy `keyStr()` từ str_hash_count.zig
-    pub fn keyStr(self: Self, entry: Entry, ss_ptr: *HashType) []const u8 {
+    pub fn keyStr(self: Self, entry: shc.Entry, ss_ptr: *shc.HashType) []const u8 {
         const offset = entry.offset;
         if (offset <= 8) { // small string
             ss_ptr.* = entry.hash *% 0x2040003d780970bd;

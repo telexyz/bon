@@ -32,7 +32,6 @@ const builtin = @import("builtin");
 pub const HashType = u64;
 pub const CountType = u32;
 pub const IndexType = u24;
-pub const PairType = u48;
 
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
@@ -42,32 +41,21 @@ pub const AVG_KEY_LEN: usize = 15;
 
 pub const maxx_hash = std.math.maxInt(HashType);
 pub const maxx_index = std.math.maxInt(IndexType);
-pub const SYM_BOUND = @as(PairType, std.math.maxInt(u23));
 
 pub const Entry = packed struct {
     hash: HashType = maxx_hash,
     count: CountType = 0,
     offset: IndexType = 0,
-
-    pub fn keyPair(self: Entry) PairType {
-        return @intCast(PairType, self.hash *% 0x2040003d780970bd);
-    }
 };
 
-pub const Config = struct {
-    capacity: usize,
-    for_bpe: bool,
-};
-
-pub fn HashCount(comptime cfg: Config) type {
-    const bits = std.math.log2_int(u64, cfg.capacity);
+pub fn HashCount(capacity: IndexType) type {
+    const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
-    const size = (@as(usize, 2) << bits) + cfg.capacity;
-    const KeyType = if (cfg.for_bpe) PairType else []const u8;
+    const size = (@as(usize, 2) << bits) + capacity;
+    const KeyType = []const u8;
 
     std.debug.assert(size < MAX_CAPACITY);
-    std.debug.assert(size > cfg.capacity);
-    // std.debug.assert(cfg.capacity * AVG_KEY_LEN < MAX_CAPACITY);
+    std.debug.assert(size > capacity);
 
     return struct {
         const lock_init = if (builtin.single_threaded) {} else false;
@@ -90,9 +78,7 @@ pub fn HashCount(comptime cfg: Config) type {
 
         pub fn deinit(self: *Self) void {
             self.allocator.free(self.entries);
-            if (!cfg.for_bpe) {
-                self.allocator.free(self.keys_bytes);
-            }
+            self.allocator.free(self.keys_bytes);
         }
 
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
@@ -108,12 +94,10 @@ pub fn HashCount(comptime cfg: Config) type {
             self.spinlock = lock_init;
             self.allocator = init_allocator;
 
-            if (!cfg.for_bpe) {
-                var n: usize = cfg.capacity * AVG_KEY_LEN;
-                if (n > std.math.maxInt(IndexType)) n = std.math.maxInt(IndexType);
-                self.keys_bytes = try self.allocator.alloc(u8, n);
-                std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
-            }
+            var n: usize = capacity * AVG_KEY_LEN;
+            if (n > std.math.maxInt(IndexType)) n = std.math.maxInt(IndexType);
+            self.keys_bytes = try self.allocator.alloc(u8, n);
+            std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
 
             self.entries = try self.allocator.alloc(Entry, size);
             std.mem.set(Entry, self.entries, .{ .hash = maxx_hash, .count = 0, .offset = 0 });
@@ -137,32 +121,18 @@ pub fn HashCount(comptime cfg: Config) type {
         }
         // x == (x * 0x517cc1b727220a95) * 0x2040003d780970bd // wrapping_mul
         inline fn _hash(key: KeyType) HashType {
-            if (cfg.for_bpe) {
-                return @intCast(HashType, key) *% 0x517cc1b727220a95;
-            } else {
-                if (key.len <= 8) {
-                    var value: HashType = 0;
-                    for (key) |byte, i| {
-                        value += @intCast(HashType, byte) << @intCast(u6, i) * 8;
-                    }
-                    return value *% 0x517cc1b727220a95;
-                } else {
-                    return std.hash.Wyhash.hash(key[0], key);
-                }
+            if (key.len <= 8) {
+                var value: HashType = 0;
+                for (key) |byte, i| value += @intCast(HashType, byte) << @intCast(u6, i) * 8;
+                return value *% 0x517cc1b727220a95;
             }
+            return std.hash.Wyhash.hash(key[0], key);
         }
 
-        pub inline fn put(self: *Self, key: KeyType) void {
-            _ = self.putCount(key, 1);
-        }
-        pub fn putCountgetEntry(self: *Self, key: KeyType, count: CountType) *Entry {
-            const idx = self.putCount(key, count);
-            return &self.entries[idx];
-        }
-        pub fn putCount(self: *Self, key: KeyType, count: CountType) IndexType {
-            if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return maxx_index; // reject
+        pub fn put(self: *Self, key: KeyType) void {
+            if (key.len > MAX_KEY_LEN) return; // reject
 
-            var it: Entry = .{ .hash = _hash(key), .count = count };
+            var it: Entry = .{ .hash = _hash(key), .count = 1 };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
 
@@ -173,22 +143,19 @@ pub fn HashCount(comptime cfg: Config) type {
                 }
             }
 
-            var entry = &self.entries[i];
             var ss: HashType = undefined;
             const ss_ptr = &ss;
-
-            while (entry.hash == it.hash) {
-                // for_bpe cần hash = nhau, key ngắn cần offset == key.len, còn ko so sánh cả key
-                const found = cfg.for_bpe or entry.offset == key.len or (std.mem.eql(u8, self.keyStr(entry, ss_ptr), key));
-
+            var entry = &self.entries[i];
+            while (entry.hash == it.hash) : (i += 1) {
+                // key ngắn cần offset == key.len, còn ko so sánh cả key
+                const found = (entry.offset == key.len) or
+                    (std.mem.eql(u8, self.keyStr(entry, ss_ptr), key));
                 if (found) { // key đã tồn tại từ trước
-                    entry.count += count; // xáo trộn duy nhất là thay đổi giá trị count
+                    entry.count += 1; // xáo trộn duy nhất là thay đổi giá trị count
                     self.recordStats(i - _i);
-                    return i;
+                    return;
                 }
-
-                i += 1;
-                entry = &self.entries[i];
+                entry = &self.entries[i + 1];
             }
 
             { // Chỉ dùng lock khi có xáo trộn dữ liệu lớn
@@ -197,21 +164,19 @@ pub fn HashCount(comptime cfg: Config) type {
 
                 // key lần đầu xuất hiện, ghi lại offset
                 // for_bpe key đã được mã hoá trong hash nên ko cần ghi lại
-                if (!cfg.for_bpe) {
-                    if (key.len <= 8) {
-                        it.offset = @intCast(IndexType, key.len);
-                    } else {
-                        var ending = self.keys_bytes_len;
-                        self.keys_bytes[ending] = @intCast(u8, key.len);
-                        it.offset = @intCast(IndexType, ending + 1);
+                if (key.len <= 8) {
+                    it.offset = @intCast(IndexType, key.len);
+                } else {
+                    var ending = self.keys_bytes_len;
+                    self.keys_bytes[ending] = @intCast(u8, key.len);
+                    it.offset = @intCast(IndexType, ending + 1);
+                    ending += 1;
+                    for (key) |byte| {
+                        self.keys_bytes[ending] = byte;
                         ending += 1;
-                        for (key) |byte| {
-                            self.keys_bytes[ending] = byte;
-                            ending += 1;
-                        }
-                        self.keys_bytes[ending] = GUARD_BYTE;
-                        self.keys_bytes_len = ending + 1;
                     }
+                    self.keys_bytes[ending] = GUARD_BYTE;
+                    self.keys_bytes_len = ending + 1;
                 }
 
                 while (true) : (i += 1) {
@@ -225,20 +190,15 @@ pub fn HashCount(comptime cfg: Config) type {
                     if (tmp.offset == 0) { // ô rỗng, dừng thuật toán
                         self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                         self.recordStats(i - _i);
-                        return i;
+                        return;
                     }
                     it = tmp;
                 } // while
-            } // Mutex
+            } // spinlock context
         }
 
         pub fn get(self: Self, key: KeyType) CountType {
-            const entry = self.getEntry(key);
-            if (entry == null) return 0 else return entry.?.count;
-        }
-
-        pub fn getEntry(self: Self, key: KeyType) ?*Entry {
-            if (!cfg.for_bpe and key.len > MAX_KEY_LEN) return null;
+            if (key.len > MAX_KEY_LEN) return 0;
             const hash = _hash(key);
             var i = hash >> shift;
 
@@ -248,17 +208,13 @@ pub fn HashCount(comptime cfg: Config) type {
             var ss: HashType = undefined;
             const ss_ptr = &ss;
 
-            while (entry.hash == hash) {
-                const found = cfg.for_bpe or std.mem.eql(u8, self.keyStr(entry, ss_ptr), key);
-                if (found) {
-                    return entry;
-                }
-
-                i += 1;
-                entry = &self.entries[i];
+            while (entry.hash == hash) : (i += 1) {
+                const found = std.mem.eql(u8, self.keyStr(entry, ss_ptr), key);
+                if (found) return entry.count;
+                entry = &self.entries[i + 1];
             }
 
-            return null;
+            return 0;
         }
 
         pub fn validate(self: *Self) bool {
@@ -275,7 +231,7 @@ pub fn HashCount(comptime cfg: Config) type {
                     }
                     prev = curr;
 
-                    const hash = if (cfg.for_bpe) _hash(entry.keyPair()) else _hash(self.keyStr(entry, ss_ptr));
+                    const hash = _hash(self.keyStr(entry, ss_ptr));
                     if (curr != hash) {
                         std.debug.print("\n!! hash ko trùng với key !!\n", .{});
 
@@ -301,7 +257,7 @@ pub fn HashCount(comptime cfg: Config) type {
 }
 
 test "HashCount for string" {
-    const HC1024 = HashCount(.{ .capacity = 1024, .for_bpe = false });
+    const HC1024 = HashCount(1024);
     var counters: HC1024 = undefined;
     try counters.init(std.testing.allocator);
     defer counters.deinit();
@@ -313,37 +269,4 @@ test "HashCount for string" {
     try std.testing.expectEqual(@as(CountType, 2), counters.get("a"));
     counters.put("b");
     try std.testing.expectEqual(@as(CountType, 1), counters.get("b"));
-}
-
-test "HashCount for bpe" {
-    const HC4 = HashCount(.{ .capacity = 4, .for_bpe = true });
-    var counters: HC4 = undefined;
-    try counters.init(std.testing.allocator);
-    defer counters.deinit();
-
-    const x: IndexType = 111;
-    try std.testing.expectEqual(counters.get(x), 0);
-    // std.debug.print("\n{any}\n", .{counters.entries});
-    counters.put(x);
-    // std.debug.print("\n{any}\n", .{counters.entries});
-    try std.testing.expectEqual(counters.get(x), 1);
-    counters.put(x);
-    // std.debug.print("\n{any}\n", .{counters.entries});
-    try std.testing.expectEqual(@as(CountType, 2), counters.get(x));
-
-    const y: IndexType = 888;
-    try std.testing.expectEqual(counters.get(y), 0);
-    counters.put(y);
-    counters.put(y);
-    try std.testing.expectEqual(counters.get(y), 2);
-}
-
-pub fn main() !void {
-    const HC1024 = HashCount(.{ .capacity = 1024, .for_bpe = true });
-    var counters: HC1024 = undefined;
-    try counters.init(std.heap.c_allocator);
-    defer counters.deinit();
-    const x: IndexType = 111;
-    counters.put(x);
-    _ = counters.get(x);
 }
