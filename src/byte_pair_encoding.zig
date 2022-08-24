@@ -146,8 +146,8 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            // std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
-            // printPair(pair_reduc, self.getSelectedSymbols());
+            std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
+            printPair(pair_reduc, self.getSelectedSymbols());
         }
         const entry = self.pairs_count.putCount(pair_added, count);
         if (entry.count == count) { // nếu mới xuất hiện thì cho vào tập candidates
@@ -180,6 +180,8 @@ pub const BPE = struct {
                 // Loại bỏ candiate được chọn
                 self.removeCandidateAt(index);
 
+                // std.debug.print("\n\nLẦN CHỌN THỨ {d}\n", .{i});
+
                 // loại bỏ pair được chọn khỏi vocabs
                 self.removeLastSelectedFromVocabs();
             } else break;
@@ -196,8 +198,8 @@ pub const BPE = struct {
             const entry = self.pairs_count.getEntry(pair_key);
             if (entry == null) {
                 notfound_candi_count += 1;
-                // std.debug.print(" {d}:", .{notfound_candi_count});
-                // printPair(pair_key, self.getSelectedSymbols());
+                std.debug.print(" {d}:", .{notfound_candi_count});
+                printPair(pair_key, self.getSelectedSymbols());
                 self.removeCandidateAt(i);
                 continue;
             }
@@ -247,7 +249,9 @@ pub const BPE = struct {
 
         var x: usize = 0;
         while (x < self.vocabs_len) {
-            while (self.vocabs[x] == maxx_symbol) : (x += 1) {}
+            while (self.vocabs[x] == maxx_symbol and x < self.vocabs_len) : (x += 1) {}
+            if (x >= self.vocabs_len) break;
+
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
@@ -256,7 +260,7 @@ pub const BPE = struct {
             x = first_char_idx;
             while (x < last_char_idx) : (x += 1) {
                 if (left == self.vocabs[x] and right == self.vocabs[x + 1]) { // tìm thấy pair
-                    // _ = self.printVocabGetEnd(first_char_idx - 3, x - first_char_idx); // DEBUG
+                    // _ = self.printVocabGetEnd(first_char_idx - 3, 0); // DEBUG
 
                     if (x > first_char_idx) {
                         const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
@@ -271,17 +275,18 @@ pub const BPE = struct {
                         const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
                         const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
                         self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
-                        while (y < last_char_idx) { // dồn toa
-                            self.vocabs[y] = self.vocabs[y + 1];
-                            y += 1;
-                        }
-                        self.vocabs[last_char_idx] = maxx_symbol; // toa cuối rỗng
-                        last_char_idx -= 1;
-                        key_len_ptr.* -= 1;
                     }
-                }
+
+                    while (y < last_char_idx) { // dồn toa
+                        self.vocabs[y] = self.vocabs[y + 1];
+                        y += 1;
+                    }
+                    self.vocabs[last_char_idx] = maxx_symbol; // toa cuối rỗng
+                    last_char_idx -= 1;
+                    key_len_ptr.* -= 1;
+                } // found pair
             }
-            x = first_char_idx + key_len_ptr.*; // trỏ tới key tiếp theo
+            x = last_char_idx + 1; // trỏ tới key tiếp theo
         }
     }
     // Kết thúc phần liên quan tới BPE learn
@@ -414,13 +419,13 @@ pub const BPE = struct {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
         const begin = x + 3; // trỏ tới nội dung
-        const end = begin + self.vocabs[x + 2];
+        const end = begin + self.vocabs[begin - 1];
         const count = self.getCountFromFirstCharIdx(begin);
         var out_len: usize = 0;
         for (self.vocabs[begin + offset .. end]) |idx| {
             out_len += pairDecode(idx, out[out_len..], symbols);
         }
-        std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
+        std.debug.print("{d}`{s}`:{d: <6}", .{ end - begin, out[0..out_len], count });
         return end;
     }
     // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
