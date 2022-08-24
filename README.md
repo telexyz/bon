@@ -74,9 +74,12 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 ## [ DOING ]
 
-Xem https://github.com/telexyz/turbo/issues
+- Dùng intial symbols là byte (`u8`) thay vì unicode char (`u21`) để đơn giản hoá việc chọn và định danh symbols từ `u24` xuống `u16`. Cần impl lại HashCount cho `symbol pairs` (`u32`) để tối ưu và chữa lỗi #13
 
 - Áp dụng multi-threading + SIMD cho BPE Learn v2
+
+More https://github.com/telexyz/turbo/issues
+
 
 ## [ DONE ]
 
