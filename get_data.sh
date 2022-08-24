@@ -24,3 +24,5 @@ open vietai_sat.txt.7z
 # cat combined.txt.7z.a* > combined.txt.7z
 # rm combined.txt.7z.a*
 # open combined.txt.7z
+
+split -l 2500000 fb_comments.txt fb_comments_

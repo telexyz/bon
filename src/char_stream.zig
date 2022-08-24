@@ -185,14 +185,17 @@ pub fn main() !void {
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
 
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles_small.tx"});
-            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_small.tx"});
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_aa"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ab"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
+            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
 
             try scanFile("utf8tv.txt");
-            thread0.join();
+
+            // thread0.join();
             thread1.join();
-            // thread2.join();
-            // thread3.join();
+            thread2.join();
+            thread3.join();
         },
         .ReleaseSafe => {},
         .ReleaseFast => {

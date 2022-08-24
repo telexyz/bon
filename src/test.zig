@@ -12,4 +12,5 @@ test "all" {
     _ = @import("lookup_tables.zig");
     _ = @import("str_hash_count.zig");
     _ = @import("test_am_tiet.zig");
+    _ = @import("byte_pair_encoding.zig");
 }

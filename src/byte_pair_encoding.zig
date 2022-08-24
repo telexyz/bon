@@ -1,29 +1,12 @@
-//! Input: chuỗi vocabs có BYTE_GUARD ở cuối, mảng count[n] chứa count của từng key trong vocabs.
-//! Output: selected_symbols theo thuật toán BPE
-//! 
-//! Định danh symbols bằng u24 (~16.7m):
-//! * Chứa chars ở phần cuối u24, 
-//! * chứa selected_symbols ở phần còn lại (hashtable < 2^23 entries).
-//!
-//! Thao tác tốn kém nhất là việc scan vocab để merge pair vừa được chọn. Pair được chọn là pair
-//! cặp symbols liền nhau có số lần xuất hiện trong vocab lớn nhất. 
-//! => Thể hiện lại vocabs bởi symbol_ids sẽ giúp scan nhanh hơn.
-//! 
-//! Mỗi key khi được merge sẽ giảm đi 1 symbol, tới khi chỉ còn 1 symbol thì ko cần quan tâm nữa
-//! => Loại key 1 symbol ra khởi vocab. Nên sort vocabs theo key's len desc để tráo keys ở cuối vocabs vào vị trí key bị loại dễ thành công hơn
-//! Ô đầu tiên của key bị loại được mark 1 bit riêng và có key len để nhảy qua giúp scan nhanh.
-//!
-//! Để scan pair thì mỗi lần lần cần so sánh 2 cặp u24, tức là 6-bytes hay 3 cặp u16. Dùng SIMD mỗi lần so sánh sẽ được ít nhất x5 lần so với scalar code.
-//! 
-
 const std = @import("std");
+const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs = 5104; // = 20000 - 14896 // giống config của yttm trong ./run.sh
-// const max_selected_pairs = 50;
-const max_total_symbols = 900_000;
-const max_selected_symbols = 100_000 + max_selected_pairs; // Unicode: 144,697 characters
+const max_selected_pairs = if (builtin.mode == .Debug) 500 else 20_000;
+const max_total_symbols = 800_000;
+const total_chars = 256; // coi chars là byte nên có 256 chars
+const max_selected_symbols = total_chars + max_selected_pairs;
 const max_candidates = max_total_symbols - max_selected_symbols;
 
 const PairCount = phc.HashCount(max_total_symbols);
@@ -34,37 +17,32 @@ const IndexType = phc.IndexType;
 const CountType = phc.CountType;
 const GUARD_BYTE = phc.GUARD_BYTE;
 const PairType = phc.KeyType;
-const maxx_index = shc.maxx_index;
-const SYM_BOUND = phc.SYM_BOUND;
+const SymbolType = phc.SymbolType;
+const maxx_index = phc.maxx_index;
+const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
-inline fn makeCharKey(char_str: []const u8) PairType { // char key luôn < maxx_index
-    const unicode = std.unicode.utf8Decode(char_str) catch return 0;
-    const char_key = unicode + SYM_BOUND; // SYM_BOUND để tách char ra khỏi pairs được lựa chọn sau này
-    std.debug.assert(char_key < maxx_index);
-    return char_key;
-}
-inline fn makePairKey(prev_sym: IndexType, curr_sym: IndexType) PairType { // pair key luôn > maxx_index
-    const pair_key = (@intCast(PairType, prev_sym) << 24) + curr_sym;
-    std.debug.assert(pair_key > maxx_index);
-    return pair_key;
-}
-inline fn isSymbol(pair: PairType) bool {
-    return pair < SYM_BOUND; // => phải luôn đảm bảo self.total_selected < SYM_BOUND
+inline fn makeCharKey(byte: u8) PairType { // Cách làm đơn giản nhất là coi chars là byte
+    return @intCast(PairType, byte);
 }
 inline fn isChar(key: PairType) bool {
-    return key < maxx_index and key > SYM_BOUND;
+    return key < total_chars; // vì  chars là byte nên nếu key là char thì sẽ < 256
 }
-inline fn getUnicode(key: PairType) u21 {
-    return @intCast(u21, key - SYM_BOUND);
+inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
+    // pair key luôn > maxx_symbol
+    return maxx_symbol + (@intCast(PairType, prev_sym) << 16) + curr_sym;
+}
+inline fn isSymbol(pair: PairType) bool {
+    return pair > total_chars and pair < maxx_symbol;
+    // => phải luôn đảm bảo self.total_selected < maxx_symbol
 }
 inline fn getLeftSymbol(key: PairType) PairType {
-    return key >> 24;
+    return key >> 16;
 }
 inline fn getRightSymbol(key: PairType) PairType {
-    return key & 0x000000_ffffff;
+    return key & 0x0000_ffff;
 }
 fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
     var out: [MAX_KEY_LEN]u8 = undefined;
@@ -76,64 +54,44 @@ pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) 
     const key = if (isSymbol(pair)) symbols_to_keys[pair] else pair;
 
     if (isChar(key)) {
-        return std.unicode.utf8Encode(getUnicode(key), out) catch {
-            // std.debug.print("\n>> Lỗi utf8Encode at char {d} <<\n", .{charcode}); // DEBUG
-            // Hiển thị char ko encode được bằng dấu `?`
-            out[0] = '?';
-            return 1;
-            // unreachable;
-        };
+        out[0] = @intCast(u8, key);
+        return 1;
     } else {
         const left = getLeftSymbol(key);
         const right = getRightSymbol(key);
-        // std.debug.print("\n>> pair {d} {d} <<\n", .{ left, right });// DEBUG
         const left_len = pairDecode(left, out, symbols_to_keys);
         const right_len = pairDecode(right, out[left_len..], symbols_to_keys);
         return left_len + right_len;
     }
 }
 test "pairDecode" {
-    var counts: shc.HashCount(.{ .capacity = 10, .for_bpe = true }) = undefined;
+    var counts: phc.HashCount(10) = undefined;
     try counts.init(std.heap.c_allocator);
     defer counts.deinit();
-    var symbols: [10]PairType = undefined;
+    var symbols: [300]PairType = undefined;
 
-    const a = 0;
-    const b = 1;
-    const c = 2;
-    const d = 3;
-    const e = 4;
+    const ab = 261;
+    const de = 262;
+    const abc = 263;
+    const abcde = 264;
 
-    const a_key = std.unicode.utf8Decode("ầ") catch unreachable;
-
-    symbols[a] = counts.putCountgetEntry(makeCharKey(a_key), 1).keyPair();
-    symbols[b] = counts.putCountgetEntry(makeCharKey('b'), 1).keyPair();
-    symbols[c] = counts.putCountgetEntry(makeCharKey('c'), 1).keyPair();
-    symbols[d] = counts.putCountgetEntry(makeCharKey('d'), 1).keyPair();
-    symbols[e] = counts.putCountgetEntry(makeCharKey('e'), 1).keyPair();
-
-    const ab = 5;
-    const de = 6;
-    const abc = 7;
-    const abcde = 8;
-
-    symbols[ab] = counts.putCountgetEntry(makePairKey(symbols[a], b), 1).keyPair();
-    symbols[de] = counts.putCountgetEntry(makePairKey(d, e), 1).keyPair();
-    symbols[abc] = counts.putCountgetEntry(makePairKey(ab, c), 1).keyPair();
-    symbols[abcde] = counts.putCountgetEntry(makePairKey(abc, de), 1).keyPair();
+    symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1).key;
+    symbols[de] = counts.putCount(makePairKey('d', 'e'), 1).key;
+    symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1).key;
+    symbols[abcde] = counts.putCount(makePairKey(abc, de), 1).key;
 
     var out: [MAX_KEY_LEN]u8 = undefined;
-    var len = Entry.pairDecode(symbols[ab], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầb");
+    var len = pairDecode(symbols[ab], out[0..], symbols[0..]);
+    try std.testing.expectEqualStrings(out[0..len], "ab");
 
-    len = Entry.pairDecode(symbols[de], out[0..], symbols[0..]);
+    len = pairDecode(symbols[de], out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "de");
 
-    len = Entry.pairDecode(symbols[abc], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầbc");
+    len = pairDecode(symbols[abc], out[0..], symbols[0..]);
+    try std.testing.expectEqualStrings(out[0..len], "abc");
 
-    len = Entry.pairDecode(symbols[abcde], out[0..], symbols[0..]);
-    try std.testing.expectEqualStrings(out[0..len], "ầbcde");
+    len = pairDecode(symbols[abcde], out[0..], symbols[0..]);
+    try std.testing.expectEqualStrings(out[0..len], "abcde");
 }
 // Dùng bộ từ vựng trên để đảm bảo tính vẹn toàn của mã hoá char, pair, sym
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -143,15 +101,14 @@ pub const BPE = struct {
     total_candidates: usize,
 
     selected_symbols: []PairType,
-    char_symbols_end_at: usize,
-    total_selected: IndexType,
+    total_selected: SymbolType,
 
     allocator: std.mem.Allocator,
     total_types: usize,
     type_entries: []shc.Entry,
     keys_bytes: []const u8,
 
-    vocabs: []IndexType,
+    vocabs: []SymbolType,
     vocabs_len: usize,
     pairs_count: PairCount,
 
@@ -161,7 +118,7 @@ pub const BPE = struct {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // Bộ từ vựng cho selected symbols
     inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
-        std.debug.assert(self.total_selected < SYM_BOUND); // để đảm bảo symbol key < char key
+        std.debug.assert(self.total_selected < maxx_index);
         sym_entry.symbol = self.total_selected; // đánh dấu vị trí được kết nạp
         self.selected_symbols[self.total_selected] = sym_entry.key;
         self.total_selected += 1; // thêm 1 symbol mới được chọn
@@ -188,12 +145,17 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            std.debug.print("\n>> Ko tìm thấy count của selected symbol {d}:`", .{pair_reduc});
+            std.debug.print("\n>> Ko tìm thấy count của selected symbol {d}:", .{pair_reduc});
             printPair(pair_reduc, self.getSelectedSymbols());
-            std.debug.print("` <<", .{});
         }
-        const entry = self.pairs_count.putCountgetEntry(pair_added, count);
-        if (entry.count == count) self.addToCandidates(pair_added); // nếu mới xuất hiện thì cho vào tập candidates
+        const entry = self.pairs_count.putCount(pair_added, count);
+        if (entry.count == count) { // nếu mới xuất hiện thì cho vào tập candidates
+            // std.debug.print("\n>> Thêm candi {x} ", .{pair_added});
+            self.addToCandidates(pair_added);
+        }
+    }
+    inline fn getCountFromFirstCharIdx(self: Self, idx: usize) CountType {
+        return (@intCast(CountType, self.vocabs[idx - 3]) << 16) + self.vocabs[idx - 2];
     }
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -286,7 +248,7 @@ pub const BPE = struct {
         while (x < self.vocabs_len) {
             while (self.vocabs[x] == 0) : (x += 1) {}
             const first_char_idx = x + 2; // bỏ qua 2 phần tử lưu key count và key len
-            const count = self.vocabs[first_char_idx - 2];
+            const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
             var last_char_idx = first_char_idx + key_len_ptr.* - 1;
 
@@ -337,7 +299,7 @@ pub const BPE = struct {
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
 
-        self.total_selected = 1; // bắt đầu bằng 1 để đảm bảo pair's value > maxx_index
+        self.total_selected = total_chars; // 256 phần tử đầu dùng để định danh char
         self.selected_symbols = try self.allocator.alloc(PairType, max_selected_symbols);
 
         self.total_candidates = 0;
@@ -346,7 +308,7 @@ pub const BPE = struct {
         self.type_entries = try self.allocator.alloc(shc.Entry, self.total_types);
         try self.pairs_count.init(self.allocator);
 
-        var i: IndexType = 0;
+        var i: usize = 0;
         var ss_puts: usize = 0;
         var ss_count: usize = 0;
         var ss_bytes: usize = 0;
@@ -368,7 +330,7 @@ pub const BPE = struct {
         std.sort.sort(shc.Entry, self.type_entries, self, keyLenDesc);
 
         // Khởi tạo vocabs
-        self.vocabs = try self.allocator.alloc(IndexType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
+        self.vocabs = try self.allocator.alloc(SymbolType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
 
         var x: usize = 0;
         var ss: shc.HashType = undefined;
@@ -378,65 +340,36 @@ pub const BPE = struct {
             const key_str = self.keyStr(type_entry, ss_ptr);
             const key_count = type_entry.count;
 
-            self.vocabs[x] = @intCast(IndexType, key_count); // phần tử đầu chứa count
-            const chars_count: *IndexType = &self.vocabs[x + 1]; // phần tử thứ 2 chứa len
-
+            self.vocabs[x] = @intCast(SymbolType, key_count >> 16); // 2 phần tử đầu chứa count
+            self.vocabs[x + 1] = @intCast(SymbolType, key_count & 0x0000_ffff);
+            const chars_count = &self.vocabs[x + 2]; // phần tử thứ 2 chứa len
             chars_count.* = 0;
+            x += 3; // trỏ tới đầu nội dung
+
+            var prev_char: u8 = 0;
             var k: usize = 0;
-            x += 2; // trỏ tới đầu nội dung
-
-            const no_prev_sym = maxx_index;
-            var prev_sym: IndexType = no_prev_sym;
-
             // Xử lý từng char trong key_str
-            while (k < key_str.len) {
-                // Lấy độ dài utf8 char
-                const char_len: usize = switch (key_str[k]) {
-                    0b0000_0000...0b0111_1111 => 1,
-                    0b1100_0000...0b1101_1111 => 2,
-                    0b1110_0000...0b1110_1111 => 3,
-                    0b1111_0000...0b1111_0111 => 4,
-                    else => 0,
-                };
-                if (char_len == 0) {
-                    // std.debug.print("\n>> Lỗi utf8 at char `{c}` của key '{s}'<<\n", .{ key_str[k], key_str });
-                    break; // bỏ qua phần còn lại, xử lý key tiếp theo
+            while (k < key_str.len) : (k += 1) {
+                const char = key_str[k];
+                if (char == 0) {
+                    std.debug.print("\n>> Lỗi có byte = 0 tại {d} của `{s}` <<\n", .{ k, key_str });
+                    break; // bỏ qua phần còn lại để xử lý key tiếp theo
                 }
 
-                const char_end = k + char_len;
-                if (char_end > key_str.len) {
-                    std.debug.print("\n>> Lỗi ko đủ ký tự để utf8Decoder `{s}` <<\n", .{key_str[k..char_end]});
-                    break; // bỏ qua phần còn lại, xử lý key tiếp theo
-                }
-
-                const char_key = makeCharKey(key_str[k..char_end]);
-                if (char_key == 0) {
-                    std.debug.print("\n>> Lỗi utf8Decode at `{s}` <<\n", .{key_str[k..char_end]});
-                    break; // bỏ qua phần còn lại, xử lý key tiếp theo
-                }
-                const char_entry = self.pairs_count.putCountgetEntry(char_key, key_count);
-                if (char_entry.count == key_count) self.selectSymbol(char_entry);
-                // Add char_entry lần đầu tiên gặp vào danh sách các symbols được chọn
-
-                // Phần tử vocabs là symbol được chọn được định danh bằng idx trong mảng selected_symbols
-                const curr_sym = @intCast(IndexType, char_entry.symbol);
-                self.vocabs[x] = curr_sym; // ghi current symbol vào vocabs
+                self.vocabs[x] = char; // ghi current char vào vocabs
+                chars_count.* += 1;
                 x += 1;
 
-                if (prev_sym != no_prev_sym) { // tồn tại previous symbol
-                    const pair_key = makePairKey(prev_sym, curr_sym); // tạo cặp với current symbol
-                    const pair_entry = self.pairs_count.putCountgetEntry(pair_key, key_count);
-                    if (pair_entry.count == key_count) self.addToCandidates(pair_key);
+                if (prev_char != 0) { // tồn tại previous char
+                    const pair_key = makePairKey(prev_char, char);
+                    const pair_entry = self.pairs_count.putCount(pair_key, key_count);
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
+                    if (pair_entry.count == key_count) self.addToCandidates(pair_key);
                 }
-
-                prev_sym = curr_sym;
-                k += char_len; // nhảy tới char tiếp theo
-                chars_count.* += 1; // tăng len lên
+                prev_char = char;
             }
         }
         self.vocabs_len = x;
-        self.char_symbols_end_at = self.total_selected;
     }
     fn keyLenDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
         const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];
@@ -445,7 +378,7 @@ pub const BPE = struct {
     } // `keyLenDesc()` dùng để sắp xếp vocabs theo key'len giảm dần
 
     pub inline fn totalSelectedPairs(self: Self) usize {
-        return self.total_selected - self.char_symbols_end_at;
+        return self.total_selected - total_chars;
     }
     pub fn showSelectedSymbols(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
@@ -456,8 +389,8 @@ pub const BPE = struct {
         if (min > n) min = n;
 
         // Note: vị trí 0 bỏ trống để idx của selected_symbol > 0
-        const end = self.char_symbols_end_at + min;
-        for (self.selected_symbols[self.char_symbols_end_at..end]) |key| {
+        const end = total_chars + min;
+        for (self.selected_symbols[total_chars..end]) |key| {
             const key_str = out[0..pairDecode(key, out[0..], symbols)];
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
@@ -479,13 +412,12 @@ pub const BPE = struct {
     fn printVocabGetEnd(self: Self, x: usize, offset: usize) usize {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
-        const count = self.vocabs[x];
-        const begin = x + 2; // trỏ tới nội dung
-        const end = begin + self.vocabs[x + 1];
+        const begin = x + 3; // trỏ tới nội dung
+        const end = begin + self.vocabs[x + 2];
+        const count = self.getCountFromFirstCharIdx(begin);
         var out_len: usize = 0;
         for (self.vocabs[begin + offset .. end]) |idx| {
-            const key = symbols[idx];
-            out_len += pairDecode(key, out[out_len..], symbols);
+            out_len += pairDecode(idx, out[out_len..], symbols);
         }
         std.debug.print("`{s}`:{d: <6}", .{ out[0..out_len], count });
         return end;
@@ -497,13 +429,11 @@ pub const BPE = struct {
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
         var i: usize = 0;
-
-        while (x < self.vocabs_len) {
+        while (x < self.vocabs_len) : (i += 1) {
             x = self.printVocabGetEnd(x, 0);
             if (i > n) break;
-            i += 1;
-            const sep = if (i % 2 == 1) "\t\t\t" else "\n";
-            std.debug.print("{s}", .{sep});
+            const separator = if (i % 2 == 1) "\t\t\t" else "\n";
+            std.debug.print("{s}", .{separator});
         }
     }
 };

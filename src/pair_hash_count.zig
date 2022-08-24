@@ -4,11 +4,10 @@ const builtin = @import("builtin");
 pub const HashType = u32;
 pub const CountType = u32;
 pub const IndexType = u24;
-pub const KeyType = u48;
-pub const SymbolType = u24;
+pub const KeyType = u32;
+pub const SymbolType = u16;
 
 pub const MAX_CAPACITY: usize = std.math.maxInt(IndexType);
-pub const SYM_BOUND = @as(KeyType, std.math.maxInt(u23));
 
 pub const maxx_hash = std.math.maxInt(HashType);
 pub const maxx_index = std.math.maxInt(IndexType);
@@ -18,7 +17,7 @@ pub const Entry = struct {
     hash: HashType, //     u32
     count: CountType, //   u32
     key: KeyType, //       u32
-    symbol: SymbolType, // u16 = 15-bytes (23% cache-line)
+    symbol: SymbolType, // u16 = 14-bytes (21% cache-line)
 };
 
 pub fn HashCount(capacity: IndexType) type {
@@ -75,13 +74,10 @@ pub fn HashCount(capacity: IndexType) type {
         }
 
         inline fn _hash(key: KeyType) HashType {
-            return @intCast(HashType, std.hash.Wyhash.hash(3, std.mem.asBytes(&key)) >> 32);
+            return std.hash.Murmur2_32.hashUint32(key);
         }
 
-        pub inline fn put(self: *Self, key: KeyType) void {
-            _ = self.putCountgetEntry(key, 1);
-        }
-        pub fn putCountgetEntry(self: *Self, key: KeyType, count: CountType) *Entry {
+        pub fn putCount(self: *Self, key: KeyType, count: CountType) *Entry {
             var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .symbol = maxx_symbol };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
