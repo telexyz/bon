@@ -26,3 +26,5 @@ open vietai_sat.txt.7z
 # open combined.txt.7z
 
 split -l 2500000 fb_comments.txt fb_comments_
+
+w

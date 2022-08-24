@@ -146,7 +146,7 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            std.debug.print("\n>> Ko tìm thấy count của selected symbol {x}:", .{pair_reduc});
+            std.debug.print("\n>> Ko tìm thấy count của nearby symbol {x}:", .{pair_reduc});
             printPair(pair_reduc, self.getSelectedSymbols());
         }
         const entry = self.pairs_count.putCount(pair_added, count);
@@ -332,8 +332,8 @@ pub const BPE = struct {
         }
         std.debug.print("\n(( small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} ))\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
 
-        // Sắp xếp entries vừa lọc theo thứ tự giảm dần của key's len
-        std.sort.sort(shc.Entry, self.type_entries, self, keyLenDesc);
+        // Sắp xếp entries vừa lọc
+        std.sort.sort(shc.Entry, self.type_entries, self, keyCountDesc);
 
         // Khởi tạo vocabs
         self.vocabs = try self.allocator.alloc(SymbolType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
@@ -376,6 +376,10 @@ pub const BPE = struct {
             }
         }
         self.vocabs_len = x;
+    }
+    fn keyCountDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
+        _ = context;
+        return a.count > b.count;
     }
     fn keyLenDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
         const al = if (a.offset <= 8) a.offset else context.keys_bytes[a.offset - 1];

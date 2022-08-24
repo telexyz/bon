@@ -172,10 +172,7 @@ pub fn main() !void {
     // const default_allocator = std.heap.page_allocator;
 
     try type_counters.init(default_allocator);
-    defer type_counters.deinit();
-
     try syll_counters.init(default_allocator);
-    defer syll_counters.deinit();
 
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
@@ -190,7 +187,8 @@ pub fn main() !void {
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
 
-            try scanFile("utf8tv.txt");
+            // try scanFile("utf8tv.txt");
+            try scanFile("../data/news_titles_small");
 
             // thread0.join();
             // thread1.join();
@@ -216,8 +214,11 @@ pub fn main() !void {
 
     var bpe: BPE = undefined;
     defer bpe.deinit();
-
     try bpe.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
+
+    type_counters.deinit();
+    syll_counters.deinit();
+
     bpe.listVocabs(80);
     bpe.learn();
     bpe.showSelectedSymbols(1000);
