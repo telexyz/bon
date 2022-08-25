@@ -32,18 +32,20 @@ inline fn isChar(pair: PairType) bool {
 }
 inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
     // pair key luôn >= maxx_symbol
-    return maxx_symbol + (@intCast(PairType, prev_sym) << 16) + curr_sym;
+    const key = (@intCast(PairType, prev_sym) << 16) + curr_sym;
+    std.debug.assert(key >= maxx_symbol);
+    return key;
 }
 inline fn isSymbol(pair: PairType) bool {
     return (!isChar(pair)) and pair < maxx_symbol;
 }
 inline fn getLeftSymbol(pair: PairType) PairType {
     std.debug.assert(pair > maxx_symbol);
-    return (pair - maxx_symbol) >> 16;
+    return pair >> 16;
 }
 inline fn getRightSymbol(pair: PairType) PairType {
     std.debug.assert(pair > maxx_symbol);
-    return (pair - maxx_symbol) & 0x0000_ffff;
+    return pair & 0x0000_ffff;
 }
 fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
     var out: [MAX_KEY_LEN]u8 = undefined;
@@ -53,6 +55,7 @@ fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
 }
 pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) u6 {
     const key = if (isSymbol(pair)) symbols_to_keys[pair] else pair;
+    // std.debug.print("\n> {d} -> {d}", .{ pair, key });
 
     if (isChar(key)) {
         out[0] = @intCast(u8, key);
@@ -60,6 +63,7 @@ pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) 
     } else {
         const left = getLeftSymbol(key);
         const right = getRightSymbol(key);
+        // std.debug.print("\n> l:{d} r:{d}", .{ left, right });
         const left_len = pairDecode(left, out, symbols_to_keys);
         const right_len = pairDecode(right, out[left_len..], symbols_to_keys);
         return left_len + right_len;
@@ -75,24 +79,30 @@ test "pairDecode" {
     const de = 262;
     const abc = 263;
     const abcde = 264;
+    const abcde_abcde = 265;
 
     symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1).key;
     symbols[de] = counts.putCount(makePairKey('d', 'e'), 1).key;
     symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1).key;
     symbols[abcde] = counts.putCount(makePairKey(abc, de), 1).key;
+    symbols[abcde_abcde] = counts.putCount(makePairKey(abcde, abcde), 1).key;
 
     var out: [MAX_KEY_LEN]u8 = undefined;
-    var len = pairDecode(symbols[ab], out[0..], symbols[0..]);
+    var len: usize = 0;
+    len = pairDecode(ab, out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "ab");
 
-    len = pairDecode(symbols[de], out[0..], symbols[0..]);
+    len = pairDecode(de, out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "de");
 
-    len = pairDecode(symbols[abc], out[0..], symbols[0..]);
+    len = pairDecode(abc, out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "abc");
 
-    len = pairDecode(symbols[abcde], out[0..], symbols[0..]);
+    len = pairDecode(abcde, out[0..], symbols[0..]);
     try std.testing.expectEqualStrings(out[0..len], "abcde");
+
+    len = pairDecode(abcde_abcde, out[0..], symbols[0..]);
+    try std.testing.expectEqualStrings(out[0..len], "abcdeabcde");
 }
 // Dùng bộ từ vựng trên để đảm bảo tính vẹn toàn của mã hoá char, pair, sym
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -146,14 +156,14 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
+            // Lỗi này xuất hiện thường là do hàm equal của pair_hash_count chưa chuẩn
             std.debug.print("\n>> Ko tìm thấy count của nearby symbol {d}:", .{pair_reduc});
             printPair(pair_reduc, self.getSelectedSymbols());
+            unreachable;
         }
         const entry = self.pairs_count.putCount(pair_added, count);
-        if (entry.count == count) { // nếu mới xuất hiện thì cho vào tập candidates
-            // std.debug.print("\n>> Thêm candi {x} ", .{pair_added});
-            self.addToCandidates(pair_added);
-        }
+        // nếu mới xuất hiện thì cho vào tập candidates
+        if (entry.count == count) self.addToCandidates(pair_added);
     }
     inline fn getCountFromFirstCharIdx(self: Self, idx: usize) CountType {
         return (@intCast(CountType, self.vocabs[idx - 3]) << 16) + self.vocabs[idx - 2];
@@ -180,8 +190,6 @@ pub const BPE = struct {
                 // Loại bỏ candiate được chọn
                 self.removeCandidateAt(index);
 
-                // std.debug.print("\n\nLẦN CHỌN THỨ {d}\n", .{i});
-
                 // loại bỏ pair được chọn khỏi vocabs
                 self.removeLastSelectedFromVocabs();
             } else break;
@@ -196,10 +204,10 @@ pub const BPE = struct {
             const pair_key = self.candidates[i];
             const entry = self.pairs_count.getEntry(pair_key);
             if (entry == null) {
-                std.debug.print(" /{d}:", .{pair_key});
+                // Lỗi này xuất hiện thường là do hàm equal của pair_hash_count chưa chuẩn
+                std.debug.print("\nLỗi pairs_count ko tìm thấy key {d}:", .{pair_key});
                 printPair(pair_key, self.getSelectedSymbols());
-                self.removeCandidateAt(i);
-                continue;
+                unreachable;
             }
             if (entry.?.count > max) {
                 max = entry.?.count;
@@ -413,7 +421,7 @@ pub const BPE = struct {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
         const begin = x + 3; // trỏ tới nội dung
-        const end = begin + self.vocabs[begin - 1];
+        const end = begin + (self.vocabs[begin - 1] & 0x00ff);
         const count = self.getCountFromFirstCharIdx(begin);
         var out_len: usize = 0;
         for (self.vocabs[begin + offset .. end]) |idx| {

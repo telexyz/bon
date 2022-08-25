@@ -68,7 +68,7 @@ More https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v3, initial chars là byte (`u8`) thay vì unicode (`u21`) để định danh symbols từ `u24` xuống `u16`.
+- BPE Learn v3, initial chars là byte (`u8`) thay vì unicode (`u21`).
 
 - BPE Learn v2, tổ chức dữ liệu tốt hơn.
 
