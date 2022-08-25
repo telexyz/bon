@@ -163,8 +163,8 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
 // => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
 //
 // UPDATE 25/08/2022: Cài đặt lại BPE ở bước 1/ và thay đổi cách tổ chức dữ liệu vocabs
-// 9m27s để lọc 5k BPE (Total 6m18.254s - 20s)
-// => chậm hơn youtokentome 6.3 lần
+// 6m53s = 413s để lọc 5.1k BPE (Total 7m13s - 20s)
+// => chậm hơn youtokentome 4.3 lần
 
 pub fn main() !void {
     // Use c_allocator to run Valgrind mem leak check

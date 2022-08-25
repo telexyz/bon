@@ -3,7 +3,7 @@ const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs = if (builtin.mode == .Debug) 500 else 5_000;
+const max_selected_pairs = if (builtin.mode == .Debug) 500 else 5104;
 const max_total_symbols = 800_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
 const max_selected_symbols = total_chars + max_selected_pairs;
@@ -168,6 +168,16 @@ pub const BPE = struct {
     inline fn getCountFromFirstCharIdx(self: Self, idx: usize) CountType {
         return (@intCast(CountType, self.vocabs[idx - 3]) << 16) + self.vocabs[idx - 2];
     }
+    inline fn getLenFromFirstCharIdx(self: Self, idx: usize) usize {
+        return self.vocabs[idx - 1] & 0x00ff;
+    }
+    inline fn getEndFromFirstCharIdx(self: Self, idx: usize) usize {
+        return idx + self.getLenFromFirstCharIdx(idx);
+    }
+    inline fn getBoundFromFirstCharIdx(self: Self, idx: usize) usize {
+        return idx + (self.vocabs[idx - 1] >> 8);
+    }
+
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -249,13 +259,11 @@ pub const BPE = struct {
 
         var x: usize = 0;
         while (x < self.vocabs_len) {
-            while (self.vocabs[x] == maxx_symbol and x < self.vocabs_len) : (x += 1) {}
-            if (x >= self.vocabs_len) break;
-
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
-            var last_char_idx = first_char_idx + key_len_ptr.* - 1;
+            var key_bound = self.getBoundFromFirstCharIdx(first_char_idx);
+            var last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
 
             x = first_char_idx;
             while (x < last_char_idx) : (x += 1) {
@@ -281,12 +289,11 @@ pub const BPE = struct {
                         self.vocabs[y] = self.vocabs[y + 1];
                         y += 1;
                     }
-                    self.vocabs[last_char_idx] = maxx_symbol; // toa cuối rỗng
                     last_char_idx -= 1;
                     key_len_ptr.* -= 1;
                 } // found pair
             }
-            x = last_char_idx + 1; // trỏ tới key tiếp theo
+            x = key_bound; // trỏ tới key tiếp theo
         }
     }
     // Kết thúc phần liên quan tới BPE learn
@@ -348,8 +355,8 @@ pub const BPE = struct {
 
             self.vocabs[x] = @intCast(SymbolType, key_count >> 16); // 2 phần tử đầu chứa count
             self.vocabs[x + 1] = @intCast(SymbolType, key_count & 0x0000_ffff);
-            const chars_count = &self.vocabs[x + 2]; // phần tử thứ 3 chứa len
-            chars_count.* = 0;
+            const key_len_ptr = &self.vocabs[x + 2]; // phần tử thứ 3 chứa len
+            key_len_ptr.* = 0;
             x += 3; // trỏ tới đầu nội dung
 
             var k: usize = 0;
@@ -362,7 +369,7 @@ pub const BPE = struct {
                 }
 
                 self.vocabs[x] = char; // ghi current char vào vocabs
-                chars_count.* += 1;
+                key_len_ptr.* += 1;
                 x += 1;
 
                 if (k > 0) { // có previous char
@@ -371,7 +378,9 @@ pub const BPE = struct {
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
                     if (pair_entry.count == key_count) self.addToCandidates(pair_key);
                 }
-            }
+            } // End: Xử lý từng char trong key_str
+            const len = key_len_ptr.*;
+            key_len_ptr.* = (len << 8) + len;
         }
         self.vocabs_len = x;
     }
@@ -421,7 +430,7 @@ pub const BPE = struct {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
         const begin = x + 3; // trỏ tới nội dung
-        const end = begin + (self.vocabs[begin - 1] & 0x00ff);
+        const end = self.getEndFromFirstCharIdx(begin);
         const count = self.getCountFromFirstCharIdx(begin);
         var out_len: usize = 0;
         for (self.vocabs[begin + offset .. end]) |idx| {
