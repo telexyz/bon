@@ -6,12 +6,13 @@
 // 02m00s để lọc 1k BPE symbols (naive impl) => 5.1k cần 10m
 // => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
 //
-// UPDATE 25/08/2022: Cài đặt lại BPE Learn v3
-// 6m53s = 413s để lọc 5.1k BPE (Total 7m13s - 20s)
+// 25/08/2022: Cài đặt lại BPE Learn v3
+// 413s để lọc 5.1k BPE (Total 7m13s - 20s)
 // => chậm hơn youtokentome 4.3 lần
 //
-// 289s cho SIMDify BPE Learn v3 (5m9s - 20s)
-// => Nhanh hơn bản scalar 1.43x
+// 26/08/2022:
+// 274s cho SIMDify BPE Learn v3 (4m54s - 20s)
+// => Nhanh hơn bản scalar 1.5x
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -225,7 +226,7 @@ pub fn main() !void {
     bpe.listVocabs(200);
     bpe.learn();
     bpe.showSelectedSymbols(1000);
-    bpe.listVocabs(200);
+    // bpe.listVocabs(200);
     bpe.pairs_count.showStats();
 }
 

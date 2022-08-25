@@ -223,7 +223,7 @@ pub const BPE = struct {
                 self.removeCandidateAt(index);
 
                 // loại bỏ pair được chọn khỏi vocabs
-                self.removeLastSelectedFromVocabs();
+                self.mergeLastSelectedPair();
             } else break;
         }
     }
@@ -254,7 +254,7 @@ pub const BPE = struct {
         return index;
     }
 
-    // `removeLastSelectedFromVocabs` là phần chạy chậm và phức tạp nhất của BPE
+    // `mergeLastSelectedPair` là phần chạy chậm và phức tạp nhất của BPE
     // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
     // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
     //
@@ -279,95 +279,125 @@ pub const BPE = struct {
     // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
     // nên cần chính xác tuyệt đối!
     //
-    fn removeLastSelectedFromVocabs(self: *Self) void {
+    fn mergeLastSelectedPair(self: *Self) void {
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
         const left = getLeftSymbol(last_selected);
         const right = getRightSymbol(last_selected);
         std.debug.assert(left < maxx_index);
         std.debug.assert(right < maxx_index);
-        const left_lookup = @splat(32, left);
-        const right_lookup = @splat(32, right);
+
+        const left_lookup_32 = @splat(32, left);
+        const right_lookup_32 = @splat(32, right);
+        const left_lookup_16 = @splat(16, left);
+        const right_lookup_16 = @splat(16, right);
 
         var x: usize = 0;
         while (x < self.vocabs_len) {
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
-            var last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
+            const last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
             const key_bound = self.getBoundFromFirstCharIdx(first_char_idx);
 
             if (first_char_idx == last_char_idx) { // key chỉ có 1 symbol
                 x = key_bound;
                 continue;
             }
+
             const count = self.getCountFromFirstCharIdx(first_char_idx);
+            const key_len = self.getLenFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
 
+            // std.debug.print("\nMerge ", .{});
+            // printPair(left, self.getSelectedSymbols());
+            // std.debug.print("+", .{});
+            // printPair(right, self.getSelectedSymbols());
+            // std.debug.print(" for ", .{});
+            // _ = self.printVocabGetBound(x, 0);
+
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
-            var input: std.meta.Vector(32, u16) = self.vocabs[first_char_idx..][0..32].*; // 32 x SymbolType
+            if (key_len <= 16) {
+                const input: std.meta.Vector(16, u16) = self.vocabs[first_char_idx..][0..16].*;
+                const left_match_vec = input == left_lookup_16; // Zig Vector `==` op
+                const left_match_bin = @ptrCast(*const u16, &(left_match_vec)).*;
+                const right_match_vec = input == right_lookup_16;
+                const right_match_bin = @ptrCast(*const u16, &(right_match_vec)).*;
+                const match_bin = left_match_bin & (right_match_bin >> 1);
+                var match_begin = @ctz(u16, match_bin);
 
-            const left_match_vec = input == left_lookup; // Zig Vector `==` op
-            const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
-
-            const right_match_vec = input == right_lookup; // Zig Vector `==` op
-            const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
-
-            const match_bin = left_match_bin & (right_match_bin >> 1);
-            var match_begin = @ctz(u32, match_bin);
-            const key_len = self.getLenFromFirstCharIdx(first_char_idx);
-
-            if (match_begin < 32 and match_begin < key_len) {
-                //              match happened inside the key
-
-                // std.debug.print("\nMerge ", .{});
-                // printPair(left, self.getSelectedSymbols());
-                // std.debug.print("+", .{});
-                // printPair(right, self.getSelectedSymbols());
-                // std.debug.print(" for ", .{});
-                // _ = self.printVocabGetBound(x, 0);
-
-                var matchs_count: usize = 0;
-                while (match_begin < key_len) : (match_begin += 1) {
-                    //        finding next matched that happen inside the key
-                    while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
-                    if (match_begin >= key_len) break;
-
+                if (match_begin < 16 and match_begin < key_len) { // match happened inside the key
                     // std.debug.print("\nleft  {b: >32}\nright {b: >32}\n      {b: >32} => {d}, {any}, {any}\n", .{ left_match_bin, right_match_bin, match_bin, match_begin, left_match_vec[match_begin], right_match_vec[match_begin + 1] });
 
-                    x = match_begin + first_char_idx - matchs_count;
-                    var y = x + 1;
-                    std.debug.assert(left == self.vocabs[x]);
-                    std.debug.assert(right == self.vocabs[y]);
+                    self.mergeMatching(match_begin, key_len, match_bin, //
+                        first_char_idx, last_char_idx, key_len_ptr, //
+                        last_symbol_idx, count, left, right);
+                }
+            } else {
+                const input: std.meta.Vector(32, u16) = self.vocabs[first_char_idx..][0..32].*;
+                const left_match_vec = input == left_lookup_32; // Zig Vector `==` op
+                const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
+                const right_match_vec = input == right_lookup_32;
+                const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
+                const match_bin = left_match_bin & (right_match_bin >> 1);
+                var match_begin = @ctz(u32, match_bin);
 
-                    if (x > first_char_idx) { // có sym phía
-                        const prev_to_left = self.vocabs[x - 1];
-                        const prev_pair_reduc = makePairKey(prev_to_left, self.vocabs[x]);
-                        const prev_paid_added = makePairKey(prev_to_left, last_symbol_idx);
-                        self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
-                    }
-
-                    if (y < last_char_idx) { // còn sym phía sau
-                        const next_to_right = self.vocabs[y + 1];
-                        const next_pair_reduc = makePairKey(self.vocabs[y], next_to_right);
-                        const next_paid_added = makePairKey(last_symbol_idx, next_to_right);
-                        self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
-                    }
-
-                    while (y < last_char_idx) : (y += 1) { // dồn toa
-                        self.vocabs[y] = self.vocabs[y + 1];
-                    }
-                    self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
-                    last_char_idx -= 1;
-                    key_len_ptr.* -= 1;
-
-                    self.vocabs[x] = last_symbol_idx;
-
-                    matchs_count += 1;
-                    match_begin += 1; // để bỏ qua symbol đã được
-                } // while match_begin
+                if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
+                    self.mergeMatching(match_begin, key_len, match_bin, //
+                        first_char_idx, last_char_idx, key_len_ptr, //
+                        last_symbol_idx, count, left, right);
+                }
             }
 
             x = key_bound; // trỏ tới key tiếp theo
         }
+    }
+
+    fn mergeMatching(
+        self: *Self,
+        _match_begin: usize,
+        key_len: usize,
+        match_bin: anytype,
+        first_char_idx: usize,
+        _last_char_idx: usize,
+        key_len_ptr: *SymbolType,
+        last_symbol_idx: SymbolType,
+        count: CountType,
+        left: PairType,
+        right: PairType,
+    ) void {
+        var matchs_count: usize = 0;
+        var match_begin = _match_begin;
+        var last_char_idx = _last_char_idx;
+
+        while (match_begin < key_len) : (match_begin += 1) {
+            while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
+            if (match_begin >= key_len) break;
+
+            const x = match_begin + first_char_idx - matchs_count;
+            var y = x + 1;
+            std.debug.assert(left == self.vocabs[x]);
+            std.debug.assert(right == self.vocabs[y]);
+
+            if (x > first_char_idx) { // có sym phía trước
+                const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
+                const prev_paid_added = makePairKey(self.vocabs[x - 1], last_symbol_idx);
+                self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
+            }
+
+            if (y < last_char_idx) { // còn sym phía sau
+                const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
+                const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
+                self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
+            }
+
+            while (y < last_char_idx) : (y += 1) self.vocabs[y] = self.vocabs[y + 1]; // dồn toa
+            self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
+            self.vocabs[x] = last_symbol_idx;
+            last_char_idx -= 1;
+            key_len_ptr.* -= 1;
+
+            matchs_count += 1;
+            match_begin += 1; // để bỏ qua symbol đã được merged
+        } // while match_begin
     }
     // Kết thúc phần liên quan tới BPE learn
     // - - - - - - - - - - - - - - - - - - -
