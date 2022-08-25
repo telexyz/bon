@@ -260,10 +260,15 @@ pub const BPE = struct {
         var x: usize = 0;
         while (x < self.vocabs_len) {
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
+            var last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
+            const key_bound = self.getBoundFromFirstCharIdx(first_char_idx);
+
+            if (first_char_idx == last_char_idx) { // key chỉ có 1 symbol
+                x = key_bound;
+                continue;
+            }
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
-            var key_bound = self.getBoundFromFirstCharIdx(first_char_idx);
-            var last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
 
             x = first_char_idx;
             while (x < last_char_idx) : (x += 1) {
@@ -426,7 +431,7 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
-    fn printVocabGetEnd(self: Self, x: usize, offset: usize) usize {
+    fn printVocabGetBound(self: Self, x: usize, offset: usize) usize {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
         const begin = x + 3; // trỏ tới nội dung
@@ -437,7 +442,7 @@ pub const BPE = struct {
             out_len += pairDecode(idx, out[out_len..], symbols);
         }
         std.debug.print("{d}`{s}`:{d: <6}", .{ end - begin, out[0..out_len], count });
-        return end;
+        return self.getBoundFromFirstCharIdx(begin);
     }
     // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
     pub fn listVocabs(self: Self, max: usize) void {
@@ -446,11 +451,9 @@ pub const BPE = struct {
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
         var i: usize = 0;
-        while (x < self.vocabs_len) : (i += 1) {
-            x = self.printVocabGetEnd(x, 0);
-            if (i > n) break;
-            const separator = if (i % 2 == 1) "\t\t\t" else "\n";
-            std.debug.print("{s}", .{separator});
+        while (x < self.vocabs_len and i < n) : (i += 1) {
+            x = self.printVocabGetBound(x, 0);
+            if (i % 2 == 1) std.debug.print("\n", .{}) else std.debug.print(" \t\t\t", .{});
         }
     }
 };
