@@ -122,7 +122,7 @@ pub fn HashCount(capacity: IndexType) type {
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                 const tmp = self.entries[i];
                 self.entries[i] = it;
-                if (tmp.symbol == maxx_symbol) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == maxx_hash and tmp.key == 0) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
 
