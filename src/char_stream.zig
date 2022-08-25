@@ -1,3 +1,15 @@
+// Performance Stats (2.3GB input data)
+// - - - - - - - - -
+// 05s để tách tokens
+// 20s để phân tích syllable
+// 03s để count types ko phải syllables
+// 02m00s để lọc 1k BPE symbols (naive impl) => 5.1k cần 10m
+// => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
+//
+// UPDATE 25/08/2022: Cài đặt lại BPE ở bước 1/ và thay đổi cách tổ chức dữ liệu vocabs
+// 6m53s = 413s để lọc 5.1k BPE (Total 7m13s - 20s)
+// => chậm hơn youtokentome 4.3 lần
+
 const std = @import("std");
 const builtin = @import("builtin");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
@@ -153,18 +165,6 @@ fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
 
     if (show_info) cmn.printSyllParts(syll);
 }
-
-// Performance Stats (2.3GB input data)
-// - - - - - - - - -
-// 05s để tách tokens
-// 20s để phân tích syllable
-// 03s để count types ko phải syllables
-// 02m00s để lọc 1k BPE symbols (naive impl) => 5.1k cần 10m
-// => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
-//
-// UPDATE 25/08/2022: Cài đặt lại BPE ở bước 1/ và thay đổi cách tổ chức dữ liệu vocabs
-// 6m53s = 413s để lọc 5.1k BPE (Total 7m13s - 20s)
-// => chậm hơn youtokentome 4.3 lần
 
 pub fn main() !void {
     // Use c_allocator to run Valgrind mem leak check
