@@ -21,6 +21,7 @@ const SymbolType = phc.SymbolType;
 const maxx_index = phc.maxx_index;
 const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
+const inSet = @import("char_stream.zig").inSet;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -256,6 +257,8 @@ pub const BPE = struct {
         const right = getRightSymbol(last_selected);
         std.debug.assert(left < maxx_index);
         std.debug.assert(right < maxx_index);
+        const left_lookup = @splat(32, left);
+        const right_lookup = @splat(32, right);
 
         var x: usize = 0;
         while (x < self.vocabs_len) {
@@ -270,18 +273,46 @@ pub const BPE = struct {
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
 
-            x = first_char_idx;
-            while (x < last_char_idx) : (x += 1) {
-                var y = x + 1;
-                if (left == self.vocabs[x] and right == self.vocabs[y]) { // tìm thấy pair
+            // 3/ Dùng SIMD để tìm kiếm pair theo mẻ
+            var input: std.meta.Vector(32, u16) = self.vocabs[first_char_idx..][0..32].*; // 32 x SymbolType
+
+            const left_match_vec = input == left_lookup; // Zig Vector `==` op
+            const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
+
+            const right_match_vec = input == right_lookup; // Zig Vector `==` op
+            const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
+
+            const match_bin = left_match_bin & (right_match_bin >> 1);
+            var match_begin = @ctz(u32, match_bin);
+            const key_len = self.getLenFromFirstCharIdx(first_char_idx);
+
+            if (match_begin < 32 and match_begin < key_len) {
+                //              match happened inside the key
+
+                // std.debug.print("\nRemove ", .{});
+                // printPair(last_selected, self.getSelectedSymbols());
+                // std.debug.print(" from ", .{});
+                // _ = self.printVocabGetBound(x, 0);
+
+                var matchs_count: usize = 0;
+                while (match_begin < key_len) : (match_begin += 1) {
+                    //        finding next matched that happen inside the key
+                    while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
+                    if (match_begin >= key_len) break;
+
+                    // std.debug.print("\nleft  {b: >32}\nright {b: >32}\n      {b: >32} => {d}, {any}, {any}\n", .{ left_match_bin, right_match_bin, match_bin, match_begin, left_match_vec[match_begin], right_match_vec[match_begin + 1] });
+
+                    x = match_begin + first_char_idx - matchs_count;
+                    std.debug.assert(left == self.vocabs[x]);
+                    var y = x + 1;
+                    std.debug.assert(right == self.vocabs[y]);
+
                     if (x > first_char_idx) { // có sym phía
                         const prev_to_left = self.vocabs[x - 1];
                         const prev_pair_reduc = makePairKey(prev_to_left, self.vocabs[x]);
                         const prev_paid_added = makePairKey(prev_to_left, last_symbol_idx);
                         self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
                     }
-
-                    self.vocabs[x] = last_symbol_idx;
 
                     if (y < last_char_idx) { // còn sym phía sau
                         const next_to_right = self.vocabs[y + 1];
@@ -290,14 +321,19 @@ pub const BPE = struct {
                         self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
                     }
 
-                    while (y < last_char_idx) { // dồn toa
+                    while (y < last_char_idx) : (y += 1) { // dồn toa
                         self.vocabs[y] = self.vocabs[y + 1];
-                        y += 1;
                     }
                     last_char_idx -= 1;
                     key_len_ptr.* -= 1;
-                } // found pair
+
+                    self.vocabs[x] = last_symbol_idx;
+
+                    matchs_count += 1;
+                    match_begin += 1; // để bỏ qua symbol đã được
+                } // while match_begin
             }
+
             x = key_bound; // trỏ tới key tiếp theo
         }
     }
