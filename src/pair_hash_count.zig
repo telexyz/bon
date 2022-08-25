@@ -213,3 +213,22 @@ test "HashCount for bpe" {
     _ = counters.putCount(y, 1);
     try std.testing.expectEqual(counters.get(y), 2);
 }
+
+// FxHasher https://nnethercote.github.io/2021/12/08/a-brutally-effective-hash-function-in-rust.html
+// (Are you wondering where the constant 0x517cc1b727220a95 comes from?
+// 0xffff_ffff_ffff_ffff / 0x517c_c1b7_2722_0a95 = π.)
+//
+// Với key cùng type với hash, dùng FxHasher sẽ map 1-1 giữa key và hash nên ko cần lưu riêng giá trị key.
+// => Đặc biệt tiện lợi để hash small string (len <= 8)
+//
+// Với u64: x == (x *% 0x517cc1b727220a95) *% 0x2040003d780970bd // wrapping_mul
+// Với u32: 0xffff_ffff / π = 1367130551
+//
+// https://lemire.me/blog/2017/09/18/computing-the-inverse-of-odd-integers
+//
+test "u32 fxhash" {
+    std.debug.print("\nTODO: Tìm giá trị còn lại của u32 để có wrapping mul giống u64\n> VAL {d}\n", .{(@as(u32, 3456) *% 1367130551) *% 2654435769});
+    // var i: u32 = 0;
+    // const max = std.math.maxInt(u32);
+    // while (i < max) : (i += 1) {}
+}
