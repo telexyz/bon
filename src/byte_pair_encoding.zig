@@ -1,3 +1,24 @@
+//! Input: Mảng vocabs: []u16 lưu các key dưới dạng mảng symbols
+//!
+//! `key` = key_count_u16_0|key_count_u16_1|key_bound_byte-key_len_byte|symbol_u16_0|symbol_u16_1 ...
+//! `key_count` là u32 nên cần 2 ô u16 để lưu
+//!
+//! Vì `key_len` < 256 nên ô chứa  key_len được chia làm đôi, nửa đầu lưu key_bound, nửa sau lưu key_len để
+//! Lúc khởi tạo key_bound = key_lend. Lúc rút gọn symbols thì key_len giảm dần, lúc này dùng key_bound
+//! để nhảy tới key ngay tiếp theo.
+//!
+//! Output: selected symbols theo thuật toán BPE Learn:
+//!
+//! * 1/ Khởi tạo tập symbols là các 255 bytes (coi chars là byte). VD: a, b, c, d, ... 1, 2, 3, 4
+//! * 2/ Lặp lại `k` lần:
+//!   - 2.1/ Chọn ra cặp symbol liền nhau có count là lớn nhất `ab` chẳng hạn.
+//!   - 2.2/ Tạo thêm symbol mới `ab`
+//!   - 2.3/ Thay thế toàn bộ sự xuất hiện liền kề của `a` và `b` trong vocabs bằng `ab`
+//!
+//! BPE-Dropout: ở 2.1/ drop ngẫu nhiên từng pair trong tập candidates với xác suất 0.1% (1000 loại 1)
+//! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
+//! Chi tiết tại https://github.com/VProv/BPE-Dropout
+
 const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
@@ -229,7 +250,7 @@ pub const BPE = struct {
         return index;
     }
 
-    // Phần chạy chậm và phức tạp nhất của BPE
+    // `removeLastSelectedFromVocabs` là phần chạy chậm và phức tạp nhất của BPE
     // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
     // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
     //
@@ -242,15 +263,19 @@ pub const BPE = struct {
     // Thì new_key = 'abxe' và trừ count của 'bc' và 'de' đi 100
     // và tăng count cặp `bx` và `xe` thêm 100.
     //
-    // 2/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 threads.
+    // 2/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
+    // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
+    // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
+    //
+    // 3/ Remove nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
+    // Cần xử lý trường hợp nhập nhằng. VD: key = "abcd", và pairs to be removed là "ab", "bc"
+    // Trong trường hợp này chỉ remove được "ab"
+    //
+    // 4/ Chia vocabs thành n phần, mỗi phần scan riêng trong 1 thread.
     // => Cần cài đặt spinlock ở việc tăng giảm count vì lúc này count được +/- số lớn
     // nên cần chính xác tuyệt đối!
     //
-    // 3/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
-    // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
-    // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
     fn removeLastSelectedFromVocabs(self: *Self) void {
-        // Bước 1/
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
         const left = getLeftSymbol(last_selected);
@@ -273,7 +298,7 @@ pub const BPE = struct {
             const count = self.getCountFromFirstCharIdx(first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
 
-            // 3/ Dùng SIMD để tìm kiếm pair theo mẻ
+            // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             var input: std.meta.Vector(32, u16) = self.vocabs[first_char_idx..][0..32].*; // 32 x SymbolType
 
             const left_match_vec = input == left_lookup; // Zig Vector `==` op
@@ -421,7 +446,8 @@ pub const BPE = struct {
                 }
             } // End: Xử lý từng char trong key_str
             const len = key_len_ptr.*;
-            key_len_ptr.* = (len << 8) + len;
+            key_len_ptr.* = (len << 8) + len; // key_bound|key_len
+            // Lúc khởi tạo key_bound = key_lend
         }
         self.vocabs_len = x;
     }
