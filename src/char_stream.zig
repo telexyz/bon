@@ -10,8 +10,8 @@
 // 6m53s = 413s để lọc 5.1k BPE (Total 7m13s - 20s)
 // => chậm hơn youtokentome 4.3 lần
 //
-// 253s cho SIMDify BPE Learn v3 (4m33s - 20s)
-// => Nhanh hơn bản scalar 1.5x
+// 289s cho SIMDify BPE Learn v3 (5m9s - 20s)
+// => Nhanh hơn bản scalar 1.43x
 
 const std = @import("std");
 const builtin = @import("builtin");

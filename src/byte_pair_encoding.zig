@@ -227,6 +227,10 @@ pub const BPE = struct {
             } else break;
         }
     }
+
+    // Nâng cấp: chọn k phần tử có count lớn nhất từ candidates để chuẩn bị cho
+    // 3/ Remove nhiều pairs cùng 1 lần scan vocabs.
+    // https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
     fn selectMaxCountPairFromCandidates(self: *Self) usize {
         var max: CountType = 0;
         var index: usize = maxx_index;
@@ -314,9 +318,11 @@ pub const BPE = struct {
             if (match_begin < 32 and match_begin < key_len) {
                 //              match happened inside the key
 
-                // std.debug.print("\nRemove ", .{});
-                // printPair(last_selected, self.getSelectedSymbols());
-                // std.debug.print(" from ", .{});
+                // std.debug.print("\nMerge ", .{});
+                // printPair(left, self.getSelectedSymbols());
+                // std.debug.print("+", .{});
+                // printPair(right, self.getSelectedSymbols());
+                // std.debug.print(" for ", .{});
                 // _ = self.printVocabGetBound(x, 0);
 
                 var matchs_count: usize = 0;
@@ -328,8 +334,8 @@ pub const BPE = struct {
                     // std.debug.print("\nleft  {b: >32}\nright {b: >32}\n      {b: >32} => {d}, {any}, {any}\n", .{ left_match_bin, right_match_bin, match_bin, match_begin, left_match_vec[match_begin], right_match_vec[match_begin + 1] });
 
                     x = match_begin + first_char_idx - matchs_count;
-                    std.debug.assert(left == self.vocabs[x]);
                     var y = x + 1;
+                    std.debug.assert(left == self.vocabs[x]);
                     std.debug.assert(right == self.vocabs[y]);
 
                     if (x > first_char_idx) { // có sym phía
@@ -349,6 +355,7 @@ pub const BPE = struct {
                     while (y < last_char_idx) : (y += 1) { // dồn toa
                         self.vocabs[y] = self.vocabs[y + 1];
                     }
+                    self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
                     last_char_idx -= 1;
                     key_len_ptr.* -= 1;
 
