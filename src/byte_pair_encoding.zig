@@ -7,7 +7,7 @@ const max_selected_pairs = if (builtin.mode == .Debug) 500 else 5_000;
 const max_total_symbols = 800_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
 const max_selected_symbols = total_chars + max_selected_pairs;
-const max_candidates = max_total_symbols - max_selected_symbols;
+const max_candidates = max_total_symbols - total_chars;
 
 const PairCount = phc.HashCount(max_total_symbols);
 
@@ -146,7 +146,7 @@ pub const BPE = struct {
         if (reduc_entry != null) {
             reduc_entry.?.count -= count;
         } else {
-            std.debug.print("\n>> Ko tìm thấy count của nearby symbol {x}:", .{pair_reduc});
+            std.debug.print("\n>> Ko tìm thấy count của nearby symbol {d}:", .{pair_reduc});
             printPair(pair_reduc, self.getSelectedSymbols());
         }
         const entry = self.pairs_count.putCount(pair_added, count);
@@ -187,7 +187,6 @@ pub const BPE = struct {
             } else break;
         }
     }
-    var notfound_candi_count: usize = 0;
     fn selectMaxCountPairFromCandidates(self: *Self) usize {
         var max: CountType = 0;
         var index: usize = maxx_index;
@@ -197,8 +196,7 @@ pub const BPE = struct {
             const pair_key = self.candidates[i];
             const entry = self.pairs_count.getEntry(pair_key);
             if (entry == null) {
-                notfound_candi_count += 1;
-                std.debug.print(" {d}:", .{notfound_candi_count});
+                std.debug.print(" /{d}:", .{pair_key});
                 printPair(pair_key, self.getSelectedSymbols());
                 self.removeCandidateAt(i);
                 continue;
@@ -236,14 +234,8 @@ pub const BPE = struct {
         // Bước 1/
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
-
-        // std.debug.print("\nRemove pair ", .{});
-        // printPair(last_selected, self.getSelectedSymbols());
-        // std.debug.print(":{d} ", .{self.pairs_count.get(last_selected)});
-
         const left = getLeftSymbol(last_selected);
         const right = getRightSymbol(last_selected);
-
         std.debug.assert(left < maxx_index);
         std.debug.assert(right < maxx_index);
 
@@ -259,21 +251,21 @@ pub const BPE = struct {
 
             x = first_char_idx;
             while (x < last_char_idx) : (x += 1) {
-                if (left == self.vocabs[x] and right == self.vocabs[x + 1]) { // tìm thấy pair
-                    // _ = self.printVocabGetEnd(first_char_idx - 3, 0); // DEBUG
-
-                    if (x > first_char_idx) {
-                        const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
-                        const prev_paid_added = makePairKey(self.vocabs[x - 1], last_symbol_idx);
+                var y = x + 1;
+                if (left == self.vocabs[x] and right == self.vocabs[y]) { // tìm thấy pair
+                    if (x > first_char_idx) { // có sym phía
+                        const prev_to_left = self.vocabs[x - 1];
+                        const prev_pair_reduc = makePairKey(prev_to_left, self.vocabs[x]);
+                        const prev_paid_added = makePairKey(prev_to_left, last_symbol_idx);
                         self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
                     }
 
                     self.vocabs[x] = last_symbol_idx;
-                    var y = x + 1;
 
                     if (y < last_char_idx) { // còn sym phía sau
-                        const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
-                        const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
+                        const next_to_right = self.vocabs[y + 1];
+                        const next_pair_reduc = makePairKey(self.vocabs[y], next_to_right);
+                        const next_paid_added = makePairKey(last_symbol_idx, next_to_right);
                         self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
                     }
 
@@ -352,7 +344,6 @@ pub const BPE = struct {
             chars_count.* = 0;
             x += 3; // trỏ tới đầu nội dung
 
-            var prev_char: u8 = 0;
             var k: usize = 0;
             // Xử lý từng char trong key_str
             while (k < key_str.len) : (k += 1) {
@@ -366,13 +357,12 @@ pub const BPE = struct {
                 chars_count.* += 1;
                 x += 1;
 
-                if (prev_char != 0) { // tồn tại previous char
-                    const pair_key = makePairKey(prev_char, char);
+                if (k > 0) { // có previous char
+                    const pair_key = makePairKey(key_str[k - 1], char);
                     const pair_entry = self.pairs_count.putCount(pair_key, key_count);
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
                     if (pair_entry.count == key_count) self.addToCandidates(pair_key);
                 }
-                prev_char = char;
             }
         }
         self.vocabs_len = x;
