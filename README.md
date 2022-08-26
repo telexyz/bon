@@ -84,13 +84,13 @@ https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe `1.75x`
+- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe khoảng `1.7x`
 
 - BPE Learn v1, v2; naive impl, tốc độ = fastBPE.
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 
-- Cài đặt (Almost-)Concurrent Hash Count (modest-lock) cho string <= 64 bytes
+- Cài đặt Concurrent Hash Count (modest-lock) cho string <= 64 bytes
 
 - Đưa token được phân tách trong `char_stream` vào bộ phân tích âm tiết
 
