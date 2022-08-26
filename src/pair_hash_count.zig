@@ -224,8 +224,12 @@ test "HashCount for bpe" {
 //
 // https://lemire.me/blog/2017/09/18/computing-the-inverse-of-odd-integers
 //
-test "u32 fxhash" {
-    std.debug.print("\nTODO: Tìm giá trị còn lại của u32 để có wrapping mul giống u64\n> VAL {d}\n", .{(@as(u32, 3456) *% 1367130551) *% 2654435769});
+test "TODO" {
+    std.debug.print( //
+        "\n\n" ++
+        "  * Tìm giá trị còn lại của u32 để có wrapping mul giống u64\n" ++
+        "\n", .{});
+    // std.debug.print("> VAL {d}\n", .{(@as(u32, 3456) *% 1367130551) *% 2654435769});
     // var i: u32 = 0;
     // const max = std.math.maxInt(u32);
     // while (i < max) : (i += 1) {}

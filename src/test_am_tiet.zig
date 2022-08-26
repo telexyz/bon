@@ -88,7 +88,13 @@ test "gịu qùa quô gìa gía gíu" {
     try expectSyll("cuôc", .c, .uoz, .c, ._none, false);
 }
 
-// TODO: Test nốt chỗ dưới này và test các tokens ko phải syllable (tự sinh)
+test "TODO" {
+    std.debug.print( //
+        "\n\n" ++
+        "  * Test các âm tiết có sự biến đổi\n" ++
+        "  * Test các tokens ko phải syllable (tự sinh)\n" ++
+        "\n", .{});
+}
 
 // q + ui => q + uy
 const qui_quy = " qui quim quin quinh quiu quì quìa quìm quìn quình quìu quí quía quích quím quín quính quíp quít quíu quĩ quỉ quị quịch quĩm quỉm quịm quĩn quỉn quịn quĩnh quỉnh quịnh quịp quĩu quỉu quịu";
