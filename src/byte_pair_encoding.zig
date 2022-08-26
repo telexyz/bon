@@ -244,18 +244,12 @@ pub const BPE = struct {
         while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
         defer std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
 
-        // Điều chỉnh count của pair_reduc và pair_added
+        // Điều chỉnh count của pair_reduc
         const reduc_entry = self.pairs_count.getEntry(pair_reduc);
-        if (reduc_entry != null) {
-            reduc_entry.?.count -= count;
-        } else {
-            // Lỗi này xuất hiện thường là do hàm equal của pair_hash_count chưa chuẩn
-            std.debug.print("\n>> Ko tìm thấy count của nearby symbol {d}:", .{pair_reduc});
-            printPair(pair_reduc, self.getSelectedSymbols());
-            unreachable;
-        }
-        // nếu mới xuất hiện thì cho vào tập candidates
+        reduc_entry.?.count -= count;
+
         const entry = self.pairs_count.putCount(pair_added, count);
+        // nếu pair_added mới xuất hiện thì cho vào tập candidates
         if (entry.count == count) self.addToNewCandidates(pair_added);
     }
 
@@ -506,29 +500,20 @@ pub const BPE = struct {
         }
     }
 
-    inline fn lastSelectedSymbols(self: Self) []const PairType {
-        const n = self.total_selected;
-        return self.selected_symbols[n - pairs_batch .. n];
-    }
-    inline fn belongsToLastSelectedSymbols(self: Self, pair_key: PairType) bool {
-        for (self.lastSelectedSymbols()) |key| if (key == pair_key) return true;
-        return false;
-    }
     fn mergeMatching(self: *Self, _match_begin: usize, key_len: usize, match_bin: anytype, first_char_idx: usize, last_char_idx: usize, key_len_ptr: *SymbolType, count: CountType, vocabs: []SymbolType) void {
         //
         var match_begin = _match_begin;
 
         while (match_begin < key_len) : (match_begin += 1) {
-            while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
-            if (match_begin == key_len) break;
+            if (!inSet(match_bin, match_begin)) continue;
 
             const x = match_begin + first_char_idx;
             var y = x + 1;
 
             const pair_key = makePairKey(vocabs[x], vocabs[y]);
             const new_symbol = self.pairs_count.getEntry(pair_key).?.symbol;
-
-            std.debug.assert(self.belongsToLastSelectedSymbols(pair_key));
+            std.debug.assert(self.selected_symbols[new_symbol] == pair_key);
+            std.debug.assert(new_symbol >= self.total_selected - pairs_batch);
 
             if (x > first_char_idx) { // có symbol phía trước
                 const prev_pair_reduc = makePairKey(vocabs[x - 1], vocabs[x]);
@@ -544,7 +529,6 @@ pub const BPE = struct {
 
             vocabs[x] = new_symbol; // merge pair `vocabs[x,y]` thành `new_symbol`
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
-            match_begin += 2; // để bỏ qua symbol đã được merged
 
             // Xem xét candidate mới là 2 pairs vừa được merged nằm sát nhau
             if (match_begin >= 2 and inSet(match_bin, match_begin - 2)) {
@@ -552,10 +536,13 @@ pub const BPE = struct {
                 const entry = self.pairs_count.putCount(new_pair, count);
                 if (entry.count == count) self.addToNewCandidates(new_pair);
             }
+
+            match_begin += 1; // để bỏ qua symbol đã được merged
         } // while match_begin
 
         match_begin = key_len - 1;
         var _last_char_idx = last_char_idx;
+        //
         while (match_begin >= _match_begin) {
             if (inSet(match_bin, match_begin)) {
                 const x = first_char_idx + match_begin;
@@ -567,6 +554,7 @@ pub const BPE = struct {
             }
             if (match_begin == 0) break else match_begin -= 1;
         }
+        //
         if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại cả key là 4 ô
     }
 
