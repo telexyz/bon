@@ -462,6 +462,13 @@ pub const BPE = struct {
             const key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
             const key_len_ptr = &vocabs[first_char_idx - 1];
 
+            // std.debug.print("\nMerge ", .{});
+            // printPair(left, self.getSelectedSymbols());
+            // std.debug.print("+", .{});
+            // printPair(right, self.getSelectedSymbols());
+            // std.debug.print(" for ", .{});
+            // _ = self.printVocabGetBound(x, 0);
+
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             if (key_len <= 16) {
                 const input: std.meta.Vector(16, u16) = vocabs[first_char_idx..][0..16].*;
@@ -472,10 +479,13 @@ pub const BPE = struct {
                 const match_bin = left_match_bin & (right_match_bin >> 1);
                 var match_begin = @ctz(u16, match_bin);
 
-                if (match_begin < key_len) // match happened inside the key
+                if (match_begin < key_len) { // match happened inside the key
+                    // std.debug.print("\nleft  {b: >32}\nright {b: >32}\n      {b: >32} => {d}, {any}, {any}\n", .{ left_match_bin, right_match_bin, match_bin, match_begin, left_match_vec[match_begin], right_match_vec[match_begin + 1] });
+
                     self.mergeMatching(match_begin, key_len, match_bin, //
                         first_char_idx, last_char_idx, key_len_ptr, //
                         last_symbol_idx, count, left, right, vocabs);
+                }
             } else {
                 const input: std.meta.Vector(32, u16) = vocabs[first_char_idx..][0..32].*;
                 const left_match_vec = input == left_lookup_32; // Zig Vector `==` op
@@ -485,11 +495,13 @@ pub const BPE = struct {
                 const match_bin = left_match_bin & (right_match_bin >> 1);
                 var match_begin = @ctz(u32, match_bin);
 
-                if (match_begin < 32 and match_begin < key_len) // match happened inside the key
+                if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
                     self.mergeMatching(match_begin, key_len, match_bin, //
                         first_char_idx, last_char_idx, key_len_ptr, //
                         last_symbol_idx, count, left, right, vocabs);
+                }
             }
+
             x = key_bound; // trỏ tới key tiếp theo
         }
     }
