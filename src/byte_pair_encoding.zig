@@ -19,6 +19,24 @@
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
 
+// Performance Stats (2.3GB input data)
+// - - - - - - - - -
+// 05s để tách tokens
+// 20s để phân tích syllable
+// 03s để count types ko phải syllables
+// 02m00s 1k BPE Learn V1 (naive impl) => 5.1k cần 10m
+// => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
+//
+// 25/08/2022: Cài đặt BPE Learn v3
+// 413s để lọc 5.1k BPE (Total 7m13s - 20s)
+// => chậm hơn youtokentome 4.3 lần
+//
+// 26/08/2022:
+// 274s cho SIMDify BPE Learn v3 (4m54s - 20s)
+// => Nhanh hơn bản scalar 1.5x
+// `274s` cho `5.1k` lượt quét vocabs => 5.4s cho 100 lượt quét
+// => Khoảng vài trăm lượt quét nên dồn vocabs một lần! Vừa tăng tốc vừa giảm mem.
+
 const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
@@ -43,6 +61,7 @@ const maxx_index = phc.maxx_index;
 const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 const inSet = @import("char_stream.zig").inSet;
+const no_scans_renew_vocabs: usize = 200;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -143,6 +162,7 @@ pub const BPE = struct {
 
     vocabs: []SymbolType,
     vocabs_len: usize,
+    merged_vocabs_len: usize,
     pairs_count: PairCount,
 
     const Self = @This();
@@ -211,26 +231,38 @@ pub const BPE = struct {
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
             const index = self.selectMaxCountPairFromCandidates();
-            const valid = (index != maxx_index);
+            if (index == maxx_index) break; // not a valid index
 
-            if (valid) {
-                // Kết nạp pair được chọn
-                const pair_key = self.candidates[index];
-                const entry = self.pairs_count.getEntry(pair_key).?;
-                self.selectSymbol(entry);
+            if (i % no_scans_renew_vocabs == no_scans_renew_vocabs - 1) {
+                // Show stats info
+                const blank = self.vocabs_len - self.merged_vocabs_len;
+                const blank_percent = blank * 100 / self.vocabs_len;
+                const select_percent = i * 100 / max_selected_pairs;
+                std.debug.print(
+                    "\n* BPE Learn ({d: >2}%) vocab blanks {d} ({d: >2}%) candidates {d}",
+                    .{ select_percent, blank, blank_percent, self.total_candidates },
+                );
+            }
 
-                // Loại bỏ candiate được chọn
-                self.removeCandidateAt(index);
+            // Kết nạp pair được chọn
+            const pair_key = self.candidates[index];
+            const entry = self.pairs_count.getEntry(pair_key).?;
+            self.selectSymbol(entry);
 
-                // loại bỏ pair được chọn khỏi vocabs
-                self.mergeLastSelectedPair();
-            } else break;
+            // Loại bỏ candiate được chọn
+            self.removeCandidateAt(index);
+
+            // loại bỏ pair được chọn khỏi vocabs
+            self.mergeLastSelectedPair();
         }
     }
 
-    // Nâng cấp: chọn k phần tử có count lớn nhất từ candidates để chuẩn bị cho
+    // Next: chọn k phần tử có count lớn nhất từ candidates để chuẩn bị cho
     // 3/ Remove nhiều pairs cùng 1 lần scan vocabs.
     // https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
+    //
+    // Note: Càng nhiều symbols được chọn số lượng candidates tăng lên nhanh chongs.
+    // => Cần đo xem thời gian selectMaxCountPairFromCandidatesMa chiếm nhiều time ko?
     fn selectMaxCountPairFromCandidates(self: *Self) usize {
         var max: CountType = 0;
         var index: usize = maxx_index;
@@ -364,7 +396,6 @@ pub const BPE = struct {
         left: PairType,
         right: PairType,
     ) void {
-        var matchs_count: usize = 0;
         var match_begin = _match_begin;
         var last_char_idx = _last_char_idx;
 
@@ -372,8 +403,10 @@ pub const BPE = struct {
             while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
             if (match_begin >= key_len) break;
 
-            const x = match_begin + first_char_idx - matchs_count;
+            const matchs_count = _last_char_idx - last_char_idx;
+            const x = match_begin + first_char_idx - matchs_count; // điều chỉnh dồn toa (bên dưới)
             var y = x + 1;
+
             std.debug.assert(left == self.vocabs[x]);
             std.debug.assert(right == self.vocabs[y]);
 
@@ -390,12 +423,13 @@ pub const BPE = struct {
             }
 
             while (y < last_char_idx) : (y += 1) self.vocabs[y] = self.vocabs[y + 1]; // dồn toa
-            self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
-            self.vocabs[x] = last_symbol_idx;
-            last_char_idx -= 1;
-            key_len_ptr.* -= 1;
 
-            matchs_count += 1;
+            self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
+            self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
+            self.vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
+
+            last_char_idx -= 1;
+            key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
             match_begin += 1; // để bỏ qua symbol đã được merged
         } // while match_begin
     }
@@ -487,6 +521,7 @@ pub const BPE = struct {
             // Lúc khởi tạo key_bound = key_lend
         }
         self.vocabs_len = x;
+        self.merged_vocabs_len = x;
     }
     fn keyCountDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
         _ = context;

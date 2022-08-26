@@ -1,19 +1,3 @@
-// Performance Stats (2.3GB input data)
-// - - - - - - - - -
-// 05s để tách tokens
-// 20s để phân tích syllable
-// 03s để count types ko phải syllables
-// 02m00s để lọc 1k BPE symbols (naive impl) => 5.1k cần 10m
-// => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
-//
-// 25/08/2022: Cài đặt lại BPE Learn v3
-// 413s để lọc 5.1k BPE (Total 7m13s - 20s)
-// => chậm hơn youtokentome 4.3 lần
-//
-// 26/08/2022:
-// 274s cho SIMDify BPE Learn v3 (4m54s - 20s)
-// => Nhanh hơn bản scalar 1.5x
-
 const std = @import("std");
 const builtin = @import("builtin");
 const parseSyllable = @import("am_tiet.zig").parseSyllable;
