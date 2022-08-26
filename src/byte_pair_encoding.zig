@@ -306,20 +306,14 @@ pub const BPE = struct {
 
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
-            // chọn pair có count lớn nhất
+            //
             _new_candidates += self.total_new_candidates;
             self.finalizeCandidates();
-            const index = self.candidates[self.total_candidates - 1];
 
-            if (index == maxx_index) break; // not a valid index
-
-            // Kết nạp pair được chọn
-            const pair_key = self.candidates[index];
+            self.total_candidates -= 1; // Loại bỏ candiate được chọn
+            const pair_key = self.candidates[self.total_candidates];
             const entry = self.pairs_count.getEntry(pair_key).?;
-            self.selectSymbol(entry);
-
-            // Loại bỏ candiate được chọn
-            self.removeCandidateAt(index);
+            self.selectSymbol(entry); // Kết nạp pair được chọn
 
             // loại bỏ pair được chọn khỏi vocabs
             const merge_start_time = std.time.milliTimestamp();
