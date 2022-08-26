@@ -56,23 +56,37 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 ```
 (( BPE selected symbols ))
 
-'in':582    'on':552    'er':537    'ar':467    'an':381    'al':317    'en':299    'am':278    'es':264    'or':258    'il':228    'ia':218    'Đ':210     'TP':210    'el':198    'ic':191    'one':175   'st':174    'HC':169    'Ph':165    'ur':163    'HCM':161   'pp':158    'ac':157    'le':151    'it':150    'ok':149    'ea':148    'ho':146    'ra':144    'US':131    'ol':130    'id':126    'gu':126    'yr':125    'VN':124    'ing':121   'us':118    'et':109    'op':106    'ro':98     'Mo':94     'art':94    'USD':93    'ch':92     'ap':91     'Phone':91  'arc':89    'em':88     'iPhone':86     'Ch':84     'yria':84   'Syria':84  'Ar':83     'ter':83    'as':82     'ir':81     'ace':80    'Barc':79   'gue':77    'bo':76     'ex':74     'Lea':73    'mp':72     'League':72     'at':71     'ard':70    'ines':70   'ore':69    'Phil':69   'ipp':69    'Sing':69   'Singap':69     'Singapore':68  'ama':67    'App':67    'Philipp':67    'Philippines':67    'nd':66     'IS':66     'Apple':66  'og':65     'os':65     'sen':65    'ad':64     'Face':64   'li':63     'ot':63     'up':62     'Barca':62  'Cit':61    'Arsen':61  'Arsenal':61    'om':60     'inho':60   'els':59    'City':59   'ber':58    'Mour':57   'Mourinho':57   'ru':56     'ri':55     'Ro':55     'ed':53     'TT':52     'For':53    'book':53   'ik':52     'Cam':52    'ĐT':52     'ig':51     'ut':51     'GT':51     'ô':51  'ab':50     'Chels':50  'and':50    'Chelsea':50    'ba':48     'ĐH':48     'stan':48   'ide':48    'ly':47     'Vi':47     'HL':47     'ain':47    'te':46     'ov':46     'Top':46    'ine':45    'HLV':45    'ier':44    'mart':44   'Viet':44   'is':43     'ust':43    'ideo':43   'Pr':42     'un':41     'gy':41     'ero':41    'gyz':41    'hot':41    'gyzstan':41    'Kyr':41    'Kyrgyzstan':41     'ph':40     'ess':40    'Tru':40    'Trump':40  'Prem':39   'ey':39     'Premier':39 'Ob':39    'HH':39     'Obama':39  'ent':39
+'in':582    'on':552    'er':537    'ar':467    'an':381    'al':317    'en':299    'am':278    'es':264    'or':258    'il':228    'ia':218    'Đ':210     'TP':210    'el':198    'ic':191    'one':175   'st':174
+'HC':169    'Ph':165    'ur':163    'HCM':161   'pp':158    'ac':157    'le':151    'it':150    'ok':149
+'ea':148    'ho':146    'ra':144    'US':131    'ol':130    'id':126    'gu':126    'yr':125    'VN':124
+'ing':121   'us':118    'et':109    'op':106    'ro':98     'Mo':94     'art':94    'USD':93    'ch':92
+'ap':91     'Phone':91  'arc':89    'em':88     'iPhone':86 'Ch':84     'yria':84   'Syria':84
+'Ar':83     'ter':83    'as':82     'ir':81     'ace':80    'Barc':79   'gue':77    'bo':76     'ex':74
+'Lea':73    'mp':72     'League':72 'at':71     'ard':70    'ines':70   'ore':69    'Phil':69
+'ipp':69    'Sing':69   'Singap':69 'Singapore':68          'ama':67    'App':67    'Philipp':67
+'Philippines':67        'nd':66     'IS':66     'Apple':66  'og':65     'os':65     'sen':65    'ad':64
+'Face':64   'li':63     'ot':63     'up':62     'Barca':62  'Cit':61    'Arsen':61  'Arsenal':61
+'om':60     'inho':60   'els':59    'City':59   'ber':58    'Mour':57   'Mourinho':57           'ru':56
+'ri':55     'Ro':55     'ed':53     'TT':52     'For':53    'book':53   'ik':52     'Cam':52    'ĐT':52
+'ig':51     'ut':51     'GT':51     'ô':51      'ab':50     'Chels':50  'and':50    'Chelsea':50    'ba':48
+'ĐH':48     'stan':48   'ide':48    'ly':47     'Vi':47     'HL':47     'ain':47    'te':46     'ov':46
+'Top':46    'ine':45    'HLV':45    'ier':44    'mart':44   'Viet':44   'is':43     'ust':43    'ideo':43
+'Pr':42     'un':41     'gy':41     'ero':41    'gyz':41    'hot':41    'gyzstan':41            'Kyr':41
+'Kyrgyzstan':41         'ph':40     'ess':40    'Tru':40    'Trump':40  'Prem':39   'ey':39     'Premier':39
 ```
 
 ## [ DOING ]
 
-- Áp dụng multi-threading + SIMD cho BPE Learn v3
+- BPE Learn v4: Gộp nhiều pairs trong cùng 1 lần scan, tốc độ tăng tỷ lệ thuận với số pairs được gộp
 
 More https://github.com/telexyz/turbo/issues
 
 
 ## [ DONE ]
 
-- BPE Learn v3, initial chars là byte (`u8`) thay vì unicode (`u21`).
+- BPE Learn v4, multi-threading + SIMD, nhanh hơn YouTokenToMe `1.75x`
 
-- BPE Learn v2, tổ chức dữ liệu tốt hơn.
-
-- BPE Learn v1, naive impl, tốc độ = fastBPE, chậm hơn YouTokenToMe multi-threading 7.35x.
+- BPE Learn v1, naive impl, tốc độ = fastBPE.
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 

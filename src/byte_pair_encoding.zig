@@ -47,21 +47,23 @@
 //
 // [ Enhancements ]
 //
-// E1/ Khoảng vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens
+// E1/ Sau vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens
 // (( BPE Learn: total_select_time 157s total_merge_time 102s ))
 // => Tăng tốc ~14% -> Scan vocabs trên 1 miền bộ nhớ liên tục đã rất hiệu quả kể cả có khoảng rỗng
 //    giữa 2 key, nên việc dồn keys, loại bỏ khoảng trống ko có nhiều tác dụng.
 //
-// E2/ Select max candidate chiếm 3/5 thời gian chạy => Tìm 1 cách chọn hiệu quả hơn!
+// E2/ Mảng chính `candidates` chỉ giữ `max_selected_pairs` có count lớn nhất.
+// Mảng phụ `new_candidates` chứa các candidates mới xuất hiện trong lần scan vocabs vừa diễn ra
+// Sau mỗi lần scans ta khởi tạo lại `candidates`.
+// (( BPE Learn: total_select_time 1s; total_merge_time 108s ))
+// => Tăng tốc 2.5x so với E1
 //
-//  E2a/ Mảng chính `candidates` chỉ giữ `max_selected_pairs` có count lớn nhất.
-//  Mảng phụ `new_candidates` chứa các candidates mới xuất hiện trong lần scan vocabs vừa diễn ra
-//  Sau mỗi lần scans ta khởi tạo lại `candidates`.
-//  (( BPE Learn: total_select_time 1s; total_merge_time 108s ))
-//  => Tăng tốc 2.5x
+// E3/ multi-threading cho `mergeLastSelectedPair()`
+// (( BPE Learn: total_merge_time 55s ))
+// => Tăng tốc 2x so với E2; nhanh hơn youtokentome 1.75x
 //
-//  E2b/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
-//  Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
+// E4/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
+// Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -195,6 +197,10 @@ pub const BPE = struct {
     merged_vocabs_len: usize,
     pairs_count: PairCount,
 
+    chunk1: usize,
+    chunk2: usize,
+    chunk3: usize,
+
     const Self = @This();
 
     // Bộ từ vựng là các hàm nhỏ, dùng lại nhiều lần, inline để ko làm giảm tốc độ
@@ -278,7 +284,7 @@ pub const BPE = struct {
 
     // BPE learn gồm 2 bước: selectMaxCountPair() và removeLastSelectedFromVocabs()
     // Lặp lại 2 bước trên `max_selected_pairs` lần để chọn ra các symbols để tách token
-    pub fn learn(self: *Self) void {
+    pub fn learn(self: *Self) !void {
         var i: usize = 0;
         // Time measure
         var merge_time: i64 = 0;
@@ -286,6 +292,7 @@ pub const BPE = struct {
         var _new_candidates: usize = 0;
 
         // Show progress at beginning
+        try self.shinkVocabs(); // để xác định self.chunk1,2,3
         _ = self.showStatsgetBlankPercent(0, self.total_new_candidates, merge_time);
 
         // chọn cho đủ max_selected_pairs pairs
@@ -306,7 +313,14 @@ pub const BPE = struct {
 
             // loại bỏ pair được chọn khỏi vocabs
             const merge_start_time = std.time.milliTimestamp();
-            self.mergeLastSelectedPair(self.vocabs, 0, self.vocabs_len);
+            const fun = mergeLastSelectedPair;
+            var thread3 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, 0, self.chunk1 });
+            var thread2 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, self.chunk1, self.chunk2 });
+            var thread1 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, self.chunk2, self.chunk3 });
+            self.mergeLastSelectedPair(self.vocabs, self.chunk3, self.vocabs_len);
+            thread1.join();
+            thread2.join();
+            thread3.join();
             merge_time += std.time.milliTimestamp() - merge_start_time;
 
             if (i % 150 == 149) {
@@ -549,9 +563,17 @@ pub const BPE = struct {
     }
 
     fn shinkVocabs(self: *Self) !void {
-        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len);
+        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + MAX_KEY_LEN);
         var x: usize = 0;
         var y: usize = 0;
+
+        self.chunk1 = self.merged_vocabs_len / 4;
+        self.chunk2 = 2 * self.chunk1;
+        self.chunk3 = 3 * self.chunk1;
+
+        var update_chunk1 = true;
+        var update_chunk2 = true;
+        var update_chunk3 = true;
 
         while (x < self.vocabs_len) {
             //
@@ -568,18 +590,24 @@ pub const BPE = struct {
                 y += 3; // trỏ tới đầu key mới và copy phần nội dung của key
                 std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
 
-                // _ = self.printVocabGetBound(self.vocabs, x, 0);
-                // std.debug.print(" -> ", .{});
-                // _ = self.printVocabGetBound(new_vocabs, y - 3, 0);
-                // std.debug.print("\n", .{});
-
                 y += len; // nhảy tới cuối new vocabs
+
+                if (update_chunk1 and y > self.chunk1) {
+                    update_chunk1 = false;
+                    self.chunk1 = y;
+                }
+                if (update_chunk2 and y > self.chunk2) {
+                    update_chunk2 = false;
+                    self.chunk2 = y;
+                }
+                if (update_chunk3 and y > self.chunk3) {
+                    update_chunk3 = false;
+                    self.chunk3 = y;
+                }
             }
             //
             x = key_bound; // nhảy tới key tiếp theo
         }
-        // self.listVocabs(self.vocabs, self.vocabs_len, 10); // @@@ Kiểm tra old vocabs
-        // self.listVocabs(new_vocabs, y, 10); // @@@ Kiểm tra new vocabs
 
         self.allocator.free(self.vocabs);
         self.vocabs = new_vocabs;
