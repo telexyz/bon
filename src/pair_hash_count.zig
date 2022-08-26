@@ -71,6 +71,11 @@ pub fn HashCount(capacity: IndexType) type {
             self.total_probs += probs;
             self.total_puts += 1;
             if (probs > self.max_probs) self.max_probs = probs;
+            if (self.max_probs > 500) {
+                const percent = (self.len * 100) / size;
+                std.debug.print("!!! pair_hash_count.zig:  capacity ko đủ lớn; hastable đầy {d}% !!!", .{percent});
+                unreachable;
+            }
         }
 
         inline fn _hash(key: KeyType) HashType {

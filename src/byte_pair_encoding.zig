@@ -46,19 +46,30 @@
 // (( BPE Learn: total_select_time 158s total_merge_time 116s ))
 //
 // [ Enhancements ]
-// * Khoảng vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens. Vừa tăng tốc vừa giảm mem.
+//
+// E1/ Khoảng vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens
 // (( BPE Learn: total_select_time 157s total_merge_time 102s ))
+// => Tăng tốc ~14% -> Scan vocabs trên 1 miền bộ nhớ liên tục là rất hiệu quả.
 //
-// * Select max candidate chiếm 3/5 thời gian chạy => Tìm 1 cách chọn hiệu quả hơn!
+// E2/ Select max candidate chiếm 3/5 thời gian chạy => Tìm 1 cách chọn hiệu quả hơn!
 //
+//  E2a/ Mảng chính `candidates` chỉ giữ `max_selected_pairs` có count lớn nhất.
+//  Mảng phụ `new_candidates` chứa các candidates mới xuất hiện trong lần scan vocabs vừa diễn ra
+//  Sau mỗi lần scans ta khởi tạo lại `candidates`.
+//  (( BPE Learn: total_select_time 3s; total_merge_time 119s ))
+//  => Tăng tốc 2.3x (select 52x)
+//
+//  E2b/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
+//  Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
 
 const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs = if (builtin.mode == .Debug) 500 else 5104;
-const max_total_symbols = 800_000;
+const max_selected_pairs: usize = if (builtin.mode == .Debug) 500 else 5104;
+const max_total_candidates = (6 * max_selected_pairs) / 5;
+const max_total_symbols = 1_500_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
 const max_selected_symbols = total_chars + max_selected_pairs;
 const max_candidates = max_total_symbols - total_chars;
@@ -76,7 +87,6 @@ const maxx_index = phc.maxx_index;
 const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 const inSet = @import("char_stream.zig").inSet;
-const scans_chunk: usize = 200;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -164,8 +174,12 @@ test "pairDecode" {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 pub const BPE = struct {
+    candis_count: []CountType,
     candidates: []PairType,
     total_candidates: usize,
+
+    new_candis: []PairType,
+    total_new_candis: usize,
 
     selected_symbols: []PairType,
     total_selected: SymbolType,
@@ -200,9 +214,12 @@ pub const BPE = struct {
         self.candidates[idx] = self.candidates[self.total_candidates - 1];
         self.total_candidates -= 1;
     }
-    inline fn addToCandidates(self: *Self, pair_key: PairType) void {
-        self.candidates[self.total_candidates] = pair_key;
-        self.total_candidates += 1;
+    inline fn resetNewCandidates(self: *Self) void {
+        self.total_new_candis = 0;
+    }
+    inline fn addToNewCandidates(self: *Self, pair_key: PairType) void {
+        self.new_candis[self.total_new_candis] = pair_key;
+        self.total_new_candis += 1;
     }
     inline fn getCandidates(self: Self) []const PairType {
         return self.candidates[0..self.total_candidates];
@@ -220,7 +237,7 @@ pub const BPE = struct {
         }
         const entry = self.pairs_count.putCount(pair_added, count);
         // nếu mới xuất hiện thì cho vào tập candidates
-        if (entry.count == count) self.addToCandidates(pair_added);
+        if (entry.count == count) self.addToNewCandidates(pair_added);
     }
 
     // Vocabs Helpers
@@ -264,12 +281,14 @@ pub const BPE = struct {
         var merge_time: i64 = 0;
         var total_select_time: i64 = 0;
         var total_merge_time: i64 = 0;
-
+        var _new_candis: usize = 0;
+        _ = self.showStatsgetBlankPercent(0, self.total_new_candis, select_time, merge_time);
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
+            _new_candis += self.total_new_candis;
             const select_start_time = std.time.milliTimestamp();
-            const index = self.selectMaxCountPairFromCandidates();
+            const index = self.finalizeCandidatesGetMaxCountIdx();
             select_time += std.time.milliTimestamp() - select_start_time;
 
             if (index == maxx_index) break; // not a valid index
@@ -287,104 +306,141 @@ pub const BPE = struct {
             self.mergeLastSelectedPair();
             merge_time += std.time.milliTimestamp() - merge_start_time;
 
-            if (i % scans_chunk == scans_chunk - 1) {
+            if (i % 150 == 149) {
                 const progress = i * 100 / max_selected_pairs;
-                const blank_percent = self.showStatsgetBlankPercent(progress, select_time, merge_time);
+                const blank_percent = self.showStatsgetBlankPercent(progress, _new_candis, select_time, merge_time);
 
                 total_select_time += select_time;
                 total_merge_time += merge_time;
 
-                select_time = 0; // reset timers
+                select_time = 0; // reset timers, and counters
                 merge_time = 0;
+                _new_candis = 0;
 
-                if (blank_percent >= 5) { // 5% change then merge vocabs
+                if (blank_percent >= 3) { // 3% change then merge vocabs
                     self.shinkVocabs() catch unreachable;
                 }
             }
         }
 
-        std.debug.print("\n\n(( BPE Learn: total_select_time {d}s total_merge_time {d}s ))", .{ @divTrunc(total_select_time, 1000), @divTrunc(total_merge_time, 1000) });
+        _ = self.showStatsgetBlankPercent(100, 0, select_time, merge_time);
+
+        std.debug.print("\n\n(( BPE Learn: total_select_time {d}s; total_merge_time {d}s ))", .{ @divTrunc(total_select_time, 1000), @divTrunc(total_merge_time, 1000) });
     }
-    fn showStatsgetBlankPercent(self: Self, progress: usize, select_time: i64, merge_time: i64) usize {
+    fn showStatsgetBlankPercent(self: Self, progress: usize, _new_candis: usize, select_time: i64, merge_time: i64) usize {
         const blank = self.vocabs_len - self.merged_vocabs_len;
         const blank_percent = blank * 100 / self.vocabs_len;
         std.debug.print(
-            "\n* BPE Learn ({d:0>2}%)  blanks {d: >8} ({d:0>2}%) candidates {d: >6};" ++
-                "   select {d}s merge {d}s",
-            .{
-                progress,                     blank,                       blank_percent, self.total_candidates, //
-                @divTrunc(select_time, 1000), @divTrunc(merge_time, 1000),
-            },
+            "\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%) total_candis {d: >5}  new_candi {d: >5};" ++
+                "   select {d}s   merge {d}s",
+            .{ progress, blank, blank_percent, self.total_candidates, _new_candis, @divTrunc(select_time, 1000), @divTrunc(merge_time, 1000) },
         );
         return blank_percent;
     }
-    fn shinkVocabs(self: *Self) !void {
-        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len);
-        var x: usize = 0;
-        var y: usize = 0;
 
-        while (x < self.vocabs_len) {
-            //
-            const begin = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
-            const len = getLenFromFirstCharIdx(self.vocabs, begin);
-            const key_bound = getBoundFromFirstCharIdx(self.vocabs, begin);
-
-            if (len > 1) { // chỉ ghi nhận những key có nhiều hơn 1 symbols
-                // copy count
-                new_vocabs[y] = self.vocabs[x];
-                new_vocabs[y + 1] = self.vocabs[x + 1];
-                new_vocabs[y + 2] = makeKeyBoundKeyLen(@intCast(SymbolType, len));
-
-                y += 3; // trỏ tới đầu key mới và copy phần nội dung của key
-                std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
-
-                // _ = self.printVocabGetBound(self.vocabs, x, 0);
-                // std.debug.print(" -> ", .{});
-                // _ = self.printVocabGetBound(new_vocabs, y - 3, 0);
-                // std.debug.print("\n", .{});
-
-                y += len; // nhảy tới cuối new vocabs
+    fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
+        // Update giá trị mảng candis_count để tiện cho việc lựa chọn sau này
+        var min_count: CountType = std.math.maxInt(CountType);
+        var min_idx: usize = undefined;
+        for (self.getCandidates()) |pair_key, idx| {
+            const count = self.pairs_count.get(pair_key);
+            self.candis_count[idx] = count;
+            if (count < min_count) {
+                min_count = count;
+                min_idx = idx;
             }
-            //
-            x = key_bound; // nhảy tới key tiếp theo
         }
 
-        // self.listVocabs(self.vocabs, self.vocabs_len, 10); // @@@ Kiểm tra old vocabs
-        // self.listVocabs(new_vocabs, y, 10); // @@@ Kiểm tra new vocabs
-
-        self.allocator.free(self.vocabs);
-        self.vocabs = new_vocabs;
-        self.vocabs_len = y;
-        self.merged_vocabs_len = y;
+        var x: usize = 0;
+        while (x < self.total_new_candis) : (x += 1) {
+            const new_pair_key = self.new_candis[x];
+            const count = self.pairs_count.get(new_pair_key);
+            const not_enough_candidates = (self.total_candidates < max_total_candidates);
+            if (not_enough_candidates) { // Nếu chưa chọn đủ số lượng thì thêm vô tư
+                self.candidates[self.total_candidates] = new_pair_key;
+                self.candis_count[self.total_candidates] = count;
+                if (count < min_count) {
+                    min_count = count;
+                    min_idx = self.total_candidates;
+                }
+                self.total_candidates += 1;
+            } else if (count > min_count) { // hoặc tìm được ứng cử viên tốt hơn
+                self.candidates[min_idx] = new_pair_key;
+                self.candis_count[min_idx] = count;
+                min_count = count;
+                var idx: usize = 0;
+                while (idx < self.total_candidates) : (idx += 1) {
+                    const c = self.candis_count[idx];
+                    if (c < min_count) {
+                        min_count = c;
+                        min_idx = idx;
+                    }
+                }
+            }
+        }
+        self.resetNewCandidates();
+        // Return max_idx
+        var max_count: CountType = 0;
+        var max_idx: usize = maxx_index;
+        var idx: usize = 0;
+        while (idx < self.total_candidates) : (idx += 1) {
+            const count = self.candis_count[idx];
+            if (count > max_count) {
+                max_count = count;
+                max_idx = idx;
+            }
+        }
+        return max_idx;
     }
 
-    // Next: chọn k phần tử có count lớn nhất từ candidates để chuẩn bị cho
-    // 3/ Remove nhiều pairs cùng 1 lần scan vocabs.
-    // https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
-    //
-    // Note: Càng nhiều symbols được chọn số lượng candidates tăng lên nhanh chongs.
-    // => Cần đo xem thời gian selectMaxCountPairFromCandidatesMa chiếm nhiều time ko?
-    fn selectMaxCountPairFromCandidates(self: *Self) usize {
+    fn selectMaxCountPairIdxFromCandidates(self: Self) !usize {
+        if (self.total_candidates > 45_000) {
+            // Chia làm 3 chunks chạy trên 3 threads
+            const chunk1 = self.total_candidates / 3;
+            const chunk2 = 2 * chunk1;
+
+            var idx: usize = undefined;
+            var idx1: usize = undefined;
+            var idx2: usize = undefined;
+
+            var thread1 = try std.Thread.spawn(.{}, selectMaxByChunk, .{ self, 0, chunk1, &idx1 });
+            var thread2 = try std.Thread.spawn(.{}, selectMaxByChunk, .{ self, chunk1, chunk2, &idx2 });
+            self.selectMaxByChunk(chunk2, self.total_candidates, &idx);
+            thread1.join();
+
+            var max = self.pairs_count.get(self.candidates[idx]);
+            const max1 = self.pairs_count.get(self.candidates[idx1]);
+            if (max < max1) {
+                max = max1;
+                idx = idx1;
+            }
+
+            thread2.join();
+            const max2 = self.pairs_count.get(self.candidates[idx2]);
+            if (max < max2) idx = idx2;
+
+            return idx;
+        } else {
+            var idx: usize = undefined;
+            self.selectMaxByChunk(0, self.total_candidates, &idx);
+            return idx;
+        }
+    }
+
+    fn selectMaxByChunk(self: Self, begin: usize, end: usize, idx_ptr: *usize) void {
         var max: CountType = 0;
         var index: usize = maxx_index;
-        var i: usize = 0;
-
-        while (i < self.total_candidates) {
+        var i: usize = begin;
+        while (i < end) {
             const pair_key = self.candidates[i];
-            const entry = self.pairs_count.getEntry(pair_key);
-            if (entry == null) {
-                // Lỗi này xuất hiện thường là do hàm equal của pair_hash_count chưa chuẩn
-                std.debug.print("\nLỗi pairs_count ko tìm thấy key {d}:", .{pair_key});
-                printPair(pair_key, self.getSelectedSymbols());
-                unreachable;
-            }
-            if (entry.?.count > max) {
-                max = entry.?.count;
+            const entry = self.pairs_count.getEntry(pair_key).?;
+            if (entry.count > max) {
+                max = entry.count;
                 index = i;
             }
             i += 1;
         }
-        return index;
+        idx_ptr.* = index;
     }
 
     // `mergeLastSelectedPair` là phần chạy chậm và phức tạp nhất của BPE
@@ -536,6 +592,45 @@ pub const BPE = struct {
             if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
         } // while match_begin
     }
+
+    fn shinkVocabs(self: *Self) !void {
+        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len);
+        var x: usize = 0;
+        var y: usize = 0;
+
+        while (x < self.vocabs_len) {
+            //
+            const begin = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
+            const len = getLenFromFirstCharIdx(self.vocabs, begin);
+            const key_bound = getBoundFromFirstCharIdx(self.vocabs, begin);
+
+            if (len > 1) { // chỉ ghi nhận những key có nhiều hơn 1 symbols
+                // copy count
+                new_vocabs[y] = self.vocabs[x];
+                new_vocabs[y + 1] = self.vocabs[x + 1];
+                new_vocabs[y + 2] = makeKeyBoundKeyLen(@intCast(SymbolType, len));
+
+                y += 3; // trỏ tới đầu key mới và copy phần nội dung của key
+                std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
+
+                // _ = self.printVocabGetBound(self.vocabs, x, 0);
+                // std.debug.print(" -> ", .{});
+                // _ = self.printVocabGetBound(new_vocabs, y - 3, 0);
+                // std.debug.print("\n", .{});
+
+                y += len; // nhảy tới cuối new vocabs
+            }
+            //
+            x = key_bound; // nhảy tới key tiếp theo
+        }
+        // self.listVocabs(self.vocabs, self.vocabs_len, 10); // @@@ Kiểm tra old vocabs
+        // self.listVocabs(new_vocabs, y, 10); // @@@ Kiểm tra new vocabs
+
+        self.allocator.free(self.vocabs);
+        self.vocabs = new_vocabs;
+        self.vocabs_len = y;
+        self.merged_vocabs_len = y;
+    }
     // Kết thúc phần liên quan tới BPE learn
     // - - - - - - - - - - - - - - - - - - -
 
@@ -556,7 +651,11 @@ pub const BPE = struct {
         self.selected_symbols = try self.allocator.alloc(PairType, max_selected_symbols);
 
         self.total_candidates = 0;
-        self.candidates = try self.allocator.alloc(PairType, max_candidates);
+        self.candidates = try self.allocator.alloc(PairType, max_total_candidates);
+        self.candis_count = try self.allocator.alloc(CountType, max_total_candidates);
+
+        self.total_new_candis = 0;
+        self.new_candis = try self.allocator.alloc(PairType, max_candidates);
 
         self.type_entries = try self.allocator.alloc(shc.Entry, self.total_types);
         try self.pairs_count.init(self.allocator);
@@ -616,7 +715,7 @@ pub const BPE = struct {
                     const pair_key = makePairKey(key_str[k - 1], char);
                     const pair_entry = self.pairs_count.putCount(pair_key, key_count);
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
-                    if (pair_entry.count == key_count) self.addToCandidates(pair_key);
+                    if (pair_entry.count == key_count) self.addToNewCandidates(pair_key);
                 }
             } // End: Xử lý từng char trong key_str
             const len = key_len_ptr.*;
