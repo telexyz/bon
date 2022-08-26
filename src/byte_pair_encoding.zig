@@ -19,8 +19,12 @@
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
 
+// - - - - - - - - - - - - - - - - - -
 // Performance Stats (2.3GB input data)
-// - - - - - - - - -
+// - - - - - - - - - - - - - - - - - -
+//
+// 20/08/2022: Cài đặt BPE Learn v1
+// - - - - - - - - - - - - - - - -
 // 05s để tách tokens
 // 20s để phân tích syllable
 // 03s để count types ko phải syllables
@@ -28,14 +32,25 @@
 // => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
 //
 // 25/08/2022: Cài đặt BPE Learn v3
+// - - - - - - - - - - - - - - - -
 // 413s để lọc 5.1k BPE (Total 7m13s - 20s)
 // => chậm hơn youtokentome 4.3 lần
 //
-// 26/08/2022:
+// 26/08/2022: Perf Tuning
+// - - - - - - - - - - - -
 // 274s cho SIMDify BPE Learn v3 (4m54s - 20s)
 // => Nhanh hơn bản scalar 1.5x
 // `274s` cho `5.1k` lượt quét vocabs => 5.4s cho 100 lượt quét
-// => Khoảng vài trăm lượt quét nên dồn vocabs một lần! Vừa tăng tốc vừa giảm mem.
+//
+// [ Timming ]
+// (( BPE Learn: total_select_time 158s total_merge_time 116s ))
+//
+// [ Enhancements ]
+// * Khoảng vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens. Vừa tăng tốc vừa giảm mem.
+// (( BPE Learn: total_select_time 157s total_merge_time 102s ))
+//
+// * Select max candidate chiếm 3/5 thời gian chạy => Tìm 1 cách chọn hiệu quả hơn!
+//
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -61,7 +76,7 @@ const maxx_index = phc.maxx_index;
 const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 const inSet = @import("char_stream.zig").inSet;
-const no_scans_renew_vocabs: usize = 200;
+const scans_chunk: usize = 200;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -207,19 +222,36 @@ pub const BPE = struct {
         // nếu mới xuất hiện thì cho vào tập candidates
         if (entry.count == count) self.addToCandidates(pair_added);
     }
-    inline fn getCountFromFirstCharIdx(self: Self, idx: usize) CountType {
-        return (@intCast(CountType, self.vocabs[idx - 3]) << 16) + self.vocabs[idx - 2];
-    }
-    inline fn getLenFromFirstCharIdx(self: Self, idx: usize) usize {
-        return self.vocabs[idx - 1] & 0x00ff;
-    }
-    inline fn getEndFromFirstCharIdx(self: Self, idx: usize) usize {
-        return idx + self.getLenFromFirstCharIdx(idx);
-    }
-    inline fn getBoundFromFirstCharIdx(self: Self, idx: usize) usize {
-        return idx + (self.vocabs[idx - 1] >> 8);
-    }
 
+    // Vocabs Helpers
+    inline fn makeKeyBoundKeyLen(len: SymbolType) SymbolType {
+        return (len << 8) + len; // key_bound|key_len
+    }
+    inline fn getCountFromFirstCharIdx(vocabs: []SymbolType, idx: usize) CountType {
+        return (@intCast(CountType, vocabs[idx - 3]) << 16) + vocabs[idx - 2];
+    }
+    inline fn getLenFromFirstCharIdx(vocabs: []SymbolType, idx: usize) usize {
+        return vocabs[idx - 1] & 0x00ff;
+    }
+    inline fn getEndFromFirstCharIdx(vocabs: []SymbolType, idx: usize) usize {
+        return idx + getLenFromFirstCharIdx(vocabs, idx);
+    }
+    inline fn getBoundFromFirstCharIdx(vocabs: []SymbolType, idx: usize) usize {
+        return idx + (vocabs[idx - 1] >> 8);
+    }
+    fn printVocabGetBound(self: Self, vocabs: []SymbolType, x: usize, offset: usize) usize {
+        const symbols = self.getSelectedSymbols();
+        var out: [MAX_KEY_LEN]u8 = undefined;
+        const begin = x + 3; // trỏ tới nội dung
+        const end = getEndFromFirstCharIdx(vocabs, begin);
+        const count = getCountFromFirstCharIdx(vocabs, begin);
+        var out_len: usize = 0;
+        for (vocabs[begin + offset .. end]) |idx| {
+            out_len += pairDecode(idx, out[out_len..], symbols);
+        }
+        std.debug.print("{d}`{s}`:{d}", .{ end - begin, out[0..out_len], count });
+        return getBoundFromFirstCharIdx(vocabs, begin);
+    }
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
@@ -227,22 +259,20 @@ pub const BPE = struct {
     // Lặp lại 2 bước trên `max_selected_pairs` lần để chọn ra các symbols để tách token
     pub fn learn(self: *Self) void {
         var i: usize = 0;
+        // Time measure
+        var select_time: i64 = 0;
+        var merge_time: i64 = 0;
+        var total_select_time: i64 = 0;
+        var total_merge_time: i64 = 0;
+
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
+            const select_start_time = std.time.milliTimestamp();
             const index = self.selectMaxCountPairFromCandidates();
-            if (index == maxx_index) break; // not a valid index
+            select_time += std.time.milliTimestamp() - select_start_time;
 
-            if (i % no_scans_renew_vocabs == no_scans_renew_vocabs - 1) {
-                // Show stats info
-                const blank = self.vocabs_len - self.merged_vocabs_len;
-                const blank_percent = blank * 100 / self.vocabs_len;
-                const select_percent = i * 100 / max_selected_pairs;
-                std.debug.print(
-                    "\n* BPE Learn ({d: >2}%) vocab blanks {d} ({d: >2}%) candidates {d}",
-                    .{ select_percent, blank, blank_percent, self.total_candidates },
-                );
-            }
+            if (index == maxx_index) break; // not a valid index
 
             // Kết nạp pair được chọn
             const pair_key = self.candidates[index];
@@ -253,8 +283,79 @@ pub const BPE = struct {
             self.removeCandidateAt(index);
 
             // loại bỏ pair được chọn khỏi vocabs
+            const merge_start_time = std.time.milliTimestamp();
             self.mergeLastSelectedPair();
+            merge_time += std.time.milliTimestamp() - merge_start_time;
+
+            if (i % scans_chunk == scans_chunk - 1) {
+                const progress = i * 100 / max_selected_pairs;
+                const blank_percent = self.showStatsgetBlankPercent(progress, select_time, merge_time);
+
+                total_select_time += select_time;
+                total_merge_time += merge_time;
+
+                select_time = 0; // reset timers
+                merge_time = 0;
+
+                if (blank_percent >= 5) { // 5% change then merge vocabs
+                    self.shinkVocabs() catch unreachable;
+                }
+            }
         }
+
+        std.debug.print("\n\n(( BPE Learn: total_select_time {d}s total_merge_time {d}s ))", .{ @divTrunc(total_select_time, 1000), @divTrunc(total_merge_time, 1000) });
+    }
+    fn showStatsgetBlankPercent(self: Self, progress: usize, select_time: i64, merge_time: i64) usize {
+        const blank = self.vocabs_len - self.merged_vocabs_len;
+        const blank_percent = blank * 100 / self.vocabs_len;
+        std.debug.print(
+            "\n* BPE Learn ({d:0>2}%)  blanks {d: >8} ({d:0>2}%) candidates {d: >6};" ++
+                "   select {d}s merge {d}s",
+            .{
+                progress,                     blank,                       blank_percent, self.total_candidates, //
+                @divTrunc(select_time, 1000), @divTrunc(merge_time, 1000),
+            },
+        );
+        return blank_percent;
+    }
+    fn shinkVocabs(self: *Self) !void {
+        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len);
+        var x: usize = 0;
+        var y: usize = 0;
+
+        while (x < self.vocabs_len) {
+            //
+            const begin = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
+            const len = getLenFromFirstCharIdx(self.vocabs, begin);
+            const key_bound = getBoundFromFirstCharIdx(self.vocabs, begin);
+
+            if (len > 1) { // chỉ ghi nhận những key có nhiều hơn 1 symbols
+                // copy count
+                new_vocabs[y] = self.vocabs[x];
+                new_vocabs[y + 1] = self.vocabs[x + 1];
+                new_vocabs[y + 2] = makeKeyBoundKeyLen(@intCast(SymbolType, len));
+
+                y += 3; // trỏ tới đầu key mới và copy phần nội dung của key
+                std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
+
+                // _ = self.printVocabGetBound(self.vocabs, x, 0);
+                // std.debug.print(" -> ", .{});
+                // _ = self.printVocabGetBound(new_vocabs, y - 3, 0);
+                // std.debug.print("\n", .{});
+
+                y += len; // nhảy tới cuối new vocabs
+            }
+            //
+            x = key_bound; // nhảy tới key tiếp theo
+        }
+
+        // self.listVocabs(self.vocabs, self.vocabs_len, 10); // @@@ Kiểm tra old vocabs
+        // self.listVocabs(new_vocabs, y, 10); // @@@ Kiểm tra new vocabs
+
+        self.allocator.free(self.vocabs);
+        self.vocabs = new_vocabs;
+        self.vocabs_len = y;
+        self.merged_vocabs_len = y;
     }
 
     // Next: chọn k phần tử có count lớn nhất từ candidates để chuẩn bị cho
@@ -327,16 +428,16 @@ pub const BPE = struct {
         var x: usize = 0;
         while (x < self.vocabs_len) {
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
-            const last_char_idx = self.getEndFromFirstCharIdx(first_char_idx) - 1;
-            const key_bound = self.getBoundFromFirstCharIdx(first_char_idx);
+            const last_char_idx = getEndFromFirstCharIdx(self.vocabs, first_char_idx) - 1;
+            const key_bound = getBoundFromFirstCharIdx(self.vocabs, first_char_idx);
 
             if (first_char_idx == last_char_idx) { // key chỉ có 1 symbol
                 x = key_bound;
                 continue;
             }
 
-            const count = self.getCountFromFirstCharIdx(first_char_idx);
-            const key_len = self.getLenFromFirstCharIdx(first_char_idx);
+            const count = getCountFromFirstCharIdx(self.vocabs, first_char_idx);
+            const key_len = getLenFromFirstCharIdx(self.vocabs, first_char_idx);
             const key_len_ptr = &self.vocabs[first_char_idx - 1];
 
             // std.debug.print("\nMerge ", .{});
@@ -425,12 +526,14 @@ pub const BPE = struct {
             while (y < last_char_idx) : (y += 1) self.vocabs[y] = self.vocabs[y + 1]; // dồn toa
 
             self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
-            self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
             self.vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
 
             last_char_idx -= 1;
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
             match_begin += 1; // để bỏ qua symbol đã được merged
+
+            self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
+            if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
         } // while match_begin
     }
     // Kết thúc phần liên quan tới BPE learn
@@ -517,7 +620,7 @@ pub const BPE = struct {
                 }
             } // End: Xử lý từng char trong key_str
             const len = key_len_ptr.*;
-            key_len_ptr.* = (len << 8) + len; // key_bound|key_len
+            key_len_ptr.* = makeKeyBoundKeyLen(len); // key_bound|key_len
             // Lúc khởi tạo key_bound = key_lend
         }
         self.vocabs_len = x;
@@ -565,28 +668,15 @@ pub const BPE = struct {
         return self.keys_bytes[offset..ending];
     }
 
-    fn printVocabGetBound(self: Self, x: usize, offset: usize) usize {
-        const symbols = self.getSelectedSymbols();
-        var out: [MAX_KEY_LEN]u8 = undefined;
-        const begin = x + 3; // trỏ tới nội dung
-        const end = self.getEndFromFirstCharIdx(begin);
-        const count = self.getCountFromFirstCharIdx(begin);
-        var out_len: usize = 0;
-        for (self.vocabs[begin + offset .. end]) |idx| {
-            out_len += pairDecode(idx, out[out_len..], symbols);
-        }
-        std.debug.print("{d}`{s}`:{d: <6}", .{ end - begin, out[0..out_len], count });
-        return self.getBoundFromFirstCharIdx(begin);
-    }
     // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
-    pub fn listVocabs(self: Self, max: usize) void {
+    pub fn listVocabs(self: Self, vocabs: []SymbolType, vocabs_len: usize, max: usize) void {
         std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
 
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
         var i: usize = 0;
-        while (x < self.vocabs_len and i < n) : (i += 1) {
-            x = self.printVocabGetBound(x, 0);
+        while (x < vocabs_len and i < n) : (i += 1) {
+            x = self.printVocabGetBound(vocabs, x, 0);
             if (i % 2 == 1) std.debug.print("\n", .{}) else std.debug.print(" \t\t\t", .{});
         }
     }
