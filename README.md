@@ -56,7 +56,8 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 ```
 (( BPE selected symbols ))
 
-'in':582    'on':552    'er':537    'ar':467    'an':381    'al':317    'en':299    'am':278    'es':264    'or':258    'il':228    'ia':218    'Đ':210     'TP':210    'el':198    'ic':191    'one':175   'st':174
+'in':582    'on':552    'er':537    'ar':467    'an':381    'al':317    'en':299    'am':278    'es':264
+'or':258    'il':228    'ia':218    'Đ':210     'TP':210    'el':198    'ic':191    'one':175   'st':174
 'HC':169    'Ph':165    'ur':163    'HCM':161   'pp':158    'ac':157    'le':151    'it':150    'ok':149
 'ea':148    'ho':146    'ra':144    'US':131    'ol':130    'id':126    'gu':126    'yr':125    'VN':124
 'ing':121   'us':118    'et':109    'op':106    'ro':98     'Mo':94     'art':94    'USD':93    'ch':92
@@ -68,7 +69,7 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 'Face':64   'li':63     'ot':63     'up':62     'Barca':62  'Cit':61    'Arsen':61  'Arsenal':61
 'om':60     'inho':60   'els':59    'City':59   'ber':58    'Mour':57   'Mourinho':57           'ru':56
 'ri':55     'Ro':55     'ed':53     'TT':52     'For':53    'book':53   'ik':52     'Cam':52    'ĐT':52
-'ig':51     'ut':51     'GT':51     'ô':51      'ab':50     'Chels':50  'and':50    'Chelsea':50    'ba':48
+'ig':51     'ut':51     'GT':51     'ô':51      'ab':50     'Chels':50  'and':50    'Chelsea':50'ba':48
 'ĐH':48     'stan':48   'ide':48    'ly':47     'Vi':47     'HL':47     'ain':47    'te':46     'ov':46
 'Top':46    'ine':45    'HLV':45    'ier':44    'mart':44   'Viet':44   'is':43     'ust':43    'ideo':43
 'Pr':42     'un':41     'gy':41     'ero':41    'gyz':41    'hot':41    'gyzstan':41            'Kyr':41
@@ -83,9 +84,9 @@ https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v4, multi-threading + SIMD, nhanh hơn YouTokenToMe `1.75x`
+- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe `1.75x`
 
-- BPE Learn v1, naive impl, tốc độ = fastBPE.
+- BPE Learn v1, v2; naive impl, tốc độ = fastBPE.
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 
