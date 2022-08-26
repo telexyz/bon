@@ -77,10 +77,9 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 ## [ DOING ]
 
-- BPE Learn v4: Gộp nhiều pairs trong cùng 1 lần scan, tốc độ tăng tỷ lệ thuận với số pairs được gộp
+https://github.com/telexyz/turbo/issues
 
-More https://github.com/telexyz/turbo/issues
-
+- BPE Learn v5: Gộp nhiều pairs trong cùng 1 lần scan, tốc độ tăng tỷ lệ thuận với số pairs được gộp
 
 ## [ DONE ]
 
