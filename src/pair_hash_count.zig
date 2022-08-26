@@ -129,7 +129,7 @@ pub fn HashCount(capacity: IndexType) type {
                 self.entries[i] = it;
                 // !! Luôn kiểm tra hash == maxx_hash để xác định ô rỗng !!
                 // Các so sánh khác khác để bổ trợ trường hợp edge case
-                if (tmp.hash == maxx_hash and tmp.key == 0) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == maxx_hash and tmp.symbol == maxx_symbol) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
 
