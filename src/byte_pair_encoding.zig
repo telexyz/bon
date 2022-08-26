@@ -62,10 +62,7 @@
 // (( BPE Learn: total_merge_time 55s ))
 // => Tăng tốc 2x so với E2; nhanh hơn youtokentome 1.75x
 //
-// E4/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
-// Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
-//
-// Merge nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
+// E4/ Merge nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
 // Cần xử lý trường hợp nhập nhằng. VD: key = "abcd", và pairs to be removed là "ab", "bc"
 // Trong trường hợp này chỉ merge được "ab"
 
@@ -94,6 +91,7 @@ const maxx_index = phc.maxx_index;
 const maxx_symbol = phc.maxx_symbol;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 const inSet = @import("char_stream.zig").inSet;
+const pairs_batch: usize = 5;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -310,7 +308,8 @@ pub const BPE = struct {
         while (i < max_selected_pairs) : (i += 1) {
             // chọn pair có count lớn nhất
             _new_candidates += self.total_new_candidates;
-            const index = self.finalizeCandidatesGetMaxCountIdx();
+            self.finalizeCandidates();
+            const index = self.candidates[self.total_candidates - 1];
 
             if (index == maxx_index) break; // not a valid index
 
@@ -361,7 +360,7 @@ pub const BPE = struct {
         return blank_percent;
     }
 
-    fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
+    fn finalizeCandidates(self: *Self) void {
         var min_count: CountType = std.math.maxInt(CountType);
         var min_idx: usize = undefined;
 
@@ -425,18 +424,27 @@ pub const BPE = struct {
 
         self.resetNewCandidates(); // loại bỏ các phần tử còn lại
 
-        // Return max_idx
-        var max_count: CountType = 0;
-        var max_idx: usize = maxx_index;
-        var idx: usize = 0;
-        while (idx < self.total_candidates) : (idx += 1) {
-            const count = self.candidates_count[idx];
-            if (count > max_count) {
-                max_count = count;
-                max_idx = idx;
-            }
+        // Chọn k phần tử có count lớn nhất để ở cuối mảng candidates
+        var i: usize = self.total_candidates - 1;
+        const n = i - pairs_batch;
+        while (i > n) : (i -= 1) {
+            var k: usize = 0;
+            var max_index = i;
+            var max_count = self.candidates_count[i];
+
+            while (k < i) : (k += 1)
+                if (max_count < self.candidates_count[k]) {
+                    max_count = self.candidates_count[k];
+                    max_index = k;
+                };
+
+            const tmp = self.candidates[max_index];
+            self.candidates[max_index] = self.candidates[i];
+            self.candidates[i] = tmp;
+
+            self.candidates_count[max_index] = self.candidates_count[i];
+            self.candidates_count[i] = max_count;
         }
-        return max_idx;
     }
 
     fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize) void {
