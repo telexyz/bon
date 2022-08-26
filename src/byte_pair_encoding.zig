@@ -67,7 +67,7 @@ const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs: usize = if (builtin.mode == .Debug) 500 else 5104;
+const max_selected_pairs: usize = if (builtin.mode == .Debug) 500 else 12000;
 const max_total_candidates = (3 * max_selected_pairs) / 2;
 const max_total_symbols = 1_500_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
@@ -290,14 +290,10 @@ pub const BPE = struct {
     // Lặp lại 2 bước trên `max_selected_pairs` lần để chọn ra các symbols để tách token
     pub fn learn(self: *Self) !void {
         var i: usize = 0;
-        // Time measure
-        var merge_time: i64 = 0;
-        var total_merge_time: i64 = 0;
         var _new_candidates: usize = 0;
 
         // Show progress at beginning
         try self.shinkVocabs(); // để xác định self.chunk1,2,3
-        _ = self.showStatsgetBlankPercent(0, self.total_new_candidates, merge_time);
 
         // chọn cho đủ max_selected_pairs pairs
         while (i < max_selected_pairs) : (i += 1) {
@@ -316,7 +312,6 @@ pub const BPE = struct {
             self.removeCandidateAt(index);
 
             // loại bỏ pair được chọn khỏi vocabs
-            const merge_start_time = std.time.milliTimestamp();
             const fun = mergeLastSelectedPair;
             var thread3 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, 0, self.chunk1 });
             var thread2 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, self.chunk1, self.chunk2 });
@@ -325,32 +320,24 @@ pub const BPE = struct {
             thread1.join();
             thread2.join();
             thread3.join();
-            merge_time += std.time.milliTimestamp() - merge_start_time;
 
             if (i % 150 == 149) {
                 // Show progress
                 const progress = i * 100 / max_selected_pairs;
-                const blank_percent = self.showStatsgetBlankPercent(progress, _new_candidates, merge_time);
-                total_merge_time += merge_time;
-
-                // reset timers, and counters
-                merge_time = 0;
+                const blank_percent = self.showStatsgetBlankPercent(progress, _new_candidates);
                 _new_candidates = 0;
-
                 // shinkVocabs() khi số ô rỗng chiếm 5% tổng vocabs
                 if (blank_percent >= 5) self.shinkVocabs() catch unreachable;
             }
         }
 
         // Show progress at the end
-        _ = self.showStatsgetBlankPercent(100, 0, merge_time);
-
-        std.debug.print("\n\n(( BPE Learn: total_merge_time {d}s ))", .{@divTrunc(total_merge_time, 1000)});
+        _ = self.showStatsgetBlankPercent(100, 0);
     }
-    fn showStatsgetBlankPercent(self: Self, progress: usize, _new_candidates: usize, merge_time: i64) usize {
+    fn showStatsgetBlankPercent(self: Self, progress: usize, _new_candidates: usize) usize {
         const blank = self.vocabs_len - self.merged_vocabs_len;
         const blank_percent = blank * 100 / self.vocabs_len;
-        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candi {d: >5};  merge {d}s", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates, @divTrunc(merge_time, 1000) });
+        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candi {d: >5}", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates });
         return blank_percent;
     }
 
