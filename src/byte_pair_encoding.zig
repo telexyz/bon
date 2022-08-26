@@ -121,15 +121,12 @@ fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
 }
 pub fn pairDecode(pair: PairType, out: []u8, symbols_to_keys: []const PairType) u6 {
     const key = if (isSymbol(pair)) symbols_to_keys[pair] else pair;
-    // std.debug.print("\n> {d} -> {d}", .{ pair, key });
-
     if (isChar(key)) {
         out[0] = @intCast(u8, key);
         return 1;
     } else {
         const left = getLeftSymbol(key);
         const right = getRightSymbol(key);
-        // std.debug.print("\n> l:{d} r:{d}", .{ left, right });
         const left_len = pairDecode(left, out, symbols_to_keys);
         const right_len = pairDecode(right, out[left_len..], symbols_to_keys);
         return left_len + right_len;
@@ -286,13 +283,14 @@ pub const BPE = struct {
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
-    // BPE learn gồm 2 bước: selectMaxCountPair() và removeLastSelectedFromVocabs()
-    // Lặp lại 2 bước trên `max_selected_pairs` lần để chọn ra các symbols để tách token
+    // BPE learn gồm 2 bước: selectMaxCountPair() và mergeLastSelectedPair()
+    // Lặp lại 2 bước trên `max_selected_pairs`
     pub fn learn(self: *Self) !void {
         var i: usize = 0;
         var _new_candidates: usize = 0;
 
         // Show progress at beginning
+        _ = self.showStatsGetBlanksPercent(0, self.total_new_candidates);
         try self.shinkVocabs(); // để xác định self.chunk1,2,3
 
         // chọn cho đủ max_selected_pairs pairs
@@ -312,29 +310,27 @@ pub const BPE = struct {
             self.removeCandidateAt(index);
 
             // loại bỏ pair được chọn khỏi vocabs
-            const fun = mergeLastSelectedPair;
-            var thread3 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, 0, self.chunk1 });
-            var thread2 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, self.chunk1, self.chunk2 });
-            var thread1 = try std.Thread.spawn(.{}, fun, .{ self, self.vocabs, self.chunk2, self.chunk3 });
+            const job = mergeLastSelectedPair;
+            var thread3 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, 0, self.chunk1 });
+            var thread2 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, self.chunk1, self.chunk2 });
+            var thread1 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, self.chunk2, self.chunk3 });
             self.mergeLastSelectedPair(self.vocabs, self.chunk3, self.vocabs_len);
             thread1.join();
             thread2.join();
             thread3.join();
 
-            if (i % 150 == 149) {
-                // Show progress
+            if (i % 150 == 149) { // Show progress
                 const progress = i * 100 / max_selected_pairs;
-                const blank_percent = self.showStatsgetBlankPercent(progress, _new_candidates);
+                const blank_percent = self.showStatsGetBlanksPercent(progress, _new_candidates);
                 _new_candidates = 0;
-                // shinkVocabs() khi số ô rỗng chiếm 5% tổng vocabs
                 if (blank_percent >= 5) self.shinkVocabs() catch unreachable;
             }
         }
 
         // Show progress at the end
-        _ = self.showStatsgetBlankPercent(100, 0);
+        _ = self.showStatsGetBlanksPercent(100, 0);
     }
-    fn showStatsgetBlankPercent(self: Self, progress: usize, _new_candidates: usize) usize {
+    fn showStatsGetBlanksPercent(self: Self, progress: usize, _new_candidates: usize) usize {
         const blank = self.vocabs_len - self.merged_vocabs_len;
         const blank_percent = blank * 100 / self.vocabs_len;
         std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candi {d: >5}", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates });
@@ -511,8 +507,7 @@ pub const BPE = struct {
         var last_char_idx = _last_char_idx;
 
         while (match_begin < key_len) : (match_begin += 1) {
-            while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
-            if (match_begin >= key_len) break;
+            if (!inSet(match_bin, match_begin)) continue;
 
             const matchs_count = _last_char_idx - last_char_idx;
             const x = match_begin + first_char_idx - matchs_count; // điều chỉnh dồn toa (bên dưới)
@@ -534,17 +529,18 @@ pub const BPE = struct {
             }
 
             while (y < last_char_idx) : (y += 1) vocabs[y] = vocabs[y + 1]; // dồn toa
-
             vocabs[last_char_idx] = 0; // ô cuối bỏ đi
             vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
 
             last_char_idx -= 1;
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
-            match_begin += 1; // để bỏ qua symbol đã được merged
-
             self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
-            if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
+            match_begin += 1; // Bỏ qua symbol đã được merged. VD key = "abcd" và
+            // merge pair `ab` thì được `ab`cd
+            // current match_begin = 0  .01.23  -> next match_begin = 2
+            // nên += 1 ở đây trước, và += 1 ở đầu vòng lặp while là thành 2
         } // while match_begin
+        if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
     }
 
     fn shinkVocabs(self: *Self) !void {
