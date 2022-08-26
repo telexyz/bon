@@ -64,13 +64,17 @@
 //
 // E4/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
 // Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
+//
+// Merge nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
+// Cần xử lý trường hợp nhập nhằng. VD: key = "abcd", và pairs to be removed là "ab", "bc"
+// Trong trường hợp này chỉ merge được "ab"
 
 const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 
-const max_selected_pairs: usize = if (builtin.mode == .Debug) 500 else 5104;
+const max_selected_pairs: usize = if (builtin.mode == .Debug) 1000 else 5104;
 const max_total_candidates = (3 * max_selected_pairs) / 2;
 const max_total_symbols = 1_500_000;
 const total_chars = 256; // coi chars là byte nên có 256 chars
@@ -353,7 +357,7 @@ pub const BPE = struct {
     fn showStatsgetBlankPercent(self: Self, progress: usize, _new_candidates: usize, merge_time: i64) usize {
         const blank = self.vocabs_len - self.merged_vocabs_len;
         const blank_percent = blank * 100 / self.vocabs_len;
-        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candi {d: >5};  merge {d}s", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates, @divTrunc(merge_time, 1000) });
+        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candi {d: >5};  new_candi {d: >5};  merge_time {d}s", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates, @divTrunc(merge_time, 1000) });
         return blank_percent;
     }
 
@@ -435,26 +439,6 @@ pub const BPE = struct {
         return max_idx;
     }
 
-    // `mergeLastSelectedPair` là phần chạy chậm và phức tạp nhất của BPE
-    // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
-    // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
-    //
-    // Các bước cài đặt:
-    //
-    // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
-    // lùi lại phía trước một ô trong mảng vocabs. Đồng thời loại bỏ count của pair trước và sau
-    // và thêm count của 2 pairs mới.
-    // Ví dụ: Nếu loại bỏ pair 'cd' có id 'x' trong key 'abcde' có count là 100
-    // Thì new_key = 'abxe' và trừ count của 'bc' và 'de' đi 100
-    // và tăng count cặp `bx` và `xe` thêm 100.
-    //
-    // 2/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
-    // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
-    // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
-    //
-    // 3/ Remove nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
-    // Cần xử lý trường hợp nhập nhằng. VD: key = "abcd", và pairs to be removed là "ab", "bc"
-    // Trong trường hợp này chỉ remove được "ab"
     fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize) void {
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
@@ -483,13 +467,15 @@ pub const BPE = struct {
             const key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
             const key_len_ptr = &vocabs[first_char_idx - 1];
 
-            // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             if (key_len <= 16) {
+                // Dùng SIMD 256-bit lane để tìm kiếm pair theo mẻ
                 const input: std.meta.Vector(16, u16) = vocabs[first_char_idx..][0..16].*;
                 const left_match_vec = input == left_lookup_16; // Zig Vector `==` op
                 const left_match_bin = @ptrCast(*const u16, &(left_match_vec)).*;
+
                 const right_match_vec = input == right_lookup_16;
                 const right_match_bin = @ptrCast(*const u16, &(right_match_vec)).*;
+
                 const match_bin = left_match_bin & (right_match_bin >> 1);
                 var match_begin = @ctz(u16, match_bin);
 
@@ -498,11 +484,14 @@ pub const BPE = struct {
                         first_char_idx, last_char_idx, key_len_ptr, //
                         last_symbol_idx, count, left, right, vocabs);
             } else {
+                // Dùng SIMD 512-bit lane (if CPU support) để tìm kiếm pair theo mẻ
                 const input: std.meta.Vector(32, u16) = vocabs[first_char_idx..][0..32].*;
                 const left_match_vec = input == left_lookup_32; // Zig Vector `==` op
                 const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
+
                 const right_match_vec = input == right_lookup_32;
                 const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
+
                 const match_bin = left_match_bin & (right_match_bin >> 1);
                 var match_begin = @ctz(u32, match_bin);
 
@@ -515,31 +504,21 @@ pub const BPE = struct {
         }
     }
 
-    fn mergeMatching(
-        self: *Self,
-        _match_begin: usize,
-        key_len: usize,
-        match_bin: anytype,
-        first_char_idx: usize,
-        _last_char_idx: usize,
-        key_len_ptr: *SymbolType,
-        last_symbol_idx: SymbolType,
-        count: CountType,
-        left: PairType,
-        right: PairType,
-        vocabs: []SymbolType,
-    ) void {
+    fn mergeMatching(self: *Self, _match_begin: usize, key_len: usize, match_bin: anytype, first_char_idx: usize, _last_char_idx: usize, key_len_ptr: *SymbolType, last_symbol_idx: SymbolType, count: CountType, left: PairType, right: PairType, vocabs: []SymbolType) void {
+        //
         var match_begin = _match_begin;
         var last_char_idx = _last_char_idx;
 
         while (match_begin < key_len) : (match_begin += 1) {
             while (!inSet(match_bin, match_begin) and match_begin < key_len) : (match_begin += 1) {}
-            if (match_begin >= key_len) break;
+            if (match_begin == key_len) break;
 
+            // matchs_count dùng để điều chỉnh vị trí do việc dồn toa (xem bên dưới)
             const matchs_count = _last_char_idx - last_char_idx;
-            const x = match_begin + first_char_idx - matchs_count; // điều chỉnh dồn toa (bên dưới)
+            const x = match_begin + first_char_idx - matchs_count;
             var y = x + 1;
 
+            // Đảm bảo pair thực sự match
             std.debug.assert(left == vocabs[x]);
             std.debug.assert(right == vocabs[y]);
 
@@ -558,14 +537,14 @@ pub const BPE = struct {
             while (y < last_char_idx) : (y += 1) vocabs[y] = vocabs[y + 1]; // dồn toa
 
             vocabs[last_char_idx] = 0; // ô cuối bỏ đi
-            vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
+            vocabs[x] = last_symbol_idx; // merge pair `vocabs[x,y]` thành `last_symbol_idx`
 
             last_char_idx -= 1;
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
             match_begin += 1; // để bỏ qua symbol đã được merged
 
-            self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
-            if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
+            self.merged_vocabs_len -= 1; // dung tích sau khi merged trừ đi 1 ô
+            if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại cả key là 4 ô
         } // while match_begin
     }
 
