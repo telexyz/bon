@@ -246,14 +246,12 @@ pub fn HashCount(capacity: IndexType) type {
 
         pub fn showStats(self: *Self) void {
             std.debug.print("\n\n(( HASH COUNT STATS ))\n", .{});
-
             const avg_probs = self.total_probs / self.total_puts;
             std.debug.print(
-                "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).\n",
+                "\nTOTAL {d} entries, max_probs: {d}, avg_probs: {d} ({d} / {d}).",
                 .{ self.len, self.max_probs, avg_probs, self.total_probs, self.total_puts },
             );
-
-            std.debug.print("\nHash Count Validation: {}\n\n", .{self.validate()});
+            std.debug.print("\nHash Count Validation: {}\n", .{self.validate()});
         }
     };
 }
