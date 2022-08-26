@@ -177,6 +177,9 @@ test "pairDecode" {
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
 pub const BPE = struct {
+    const lock_init = if (builtin.single_threaded) {} else false;
+    spinlock: @TypeOf(lock_init),
+
     candidates_count: []CountType,
     candidates: []PairType,
     total_candidates: usize,
@@ -234,7 +237,11 @@ pub const BPE = struct {
     inline fn getNewCandidates(self: Self) []const PairType {
         return self.new_candidates[0..self.total_new_candidates];
     }
-    inline fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
+    fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
+        // Dùng lock vì có nhiều thread cùng tham gia vào việc này
+        while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
+        defer std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
+
         // Điều chỉnh count của pair_reduc và pair_added
         const reduc_entry = self.pairs_count.getEntry(pair_reduc);
         if (reduc_entry != null) {
@@ -245,8 +252,8 @@ pub const BPE = struct {
             printPair(pair_reduc, self.getSelectedSymbols());
             unreachable;
         }
-        const entry = self.pairs_count.putCount(pair_added, count);
         // nếu mới xuất hiện thì cho vào tập candidates
+        const entry = self.pairs_count.putCount(pair_added, count);
         if (entry.count == count) self.addToNewCandidates(pair_added);
     }
 
@@ -333,8 +340,8 @@ pub const BPE = struct {
                 merge_time = 0;
                 _new_candidates = 0;
 
-                // shinkVocabs() khi số ô rỗng chiếm 3% tổng vocabs
-                if (blank_percent >= 3) self.shinkVocabs() catch unreachable;
+                // shinkVocabs() khi số ô rỗng chiếm 5% tổng vocabs
+                if (blank_percent >= 5) self.shinkVocabs() catch unreachable;
             }
         }
 
@@ -626,6 +633,7 @@ pub const BPE = struct {
     }
 
     pub fn init(self: *Self, allocator: std.mem.Allocator, totals_entries: usize, entries: []const shc.Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
+        self.spinlock = lock_init;
         self.allocator = allocator;
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
