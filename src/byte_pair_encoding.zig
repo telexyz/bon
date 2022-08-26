@@ -246,8 +246,13 @@ pub const BPE = struct {
 
         // Điều chỉnh count của pair_reduc
         const reduc_entry = self.pairs_count.getEntry(pair_reduc);
-        reduc_entry.?.count -= count;
-
+        // TODO: Investigate
+        // vì merge nhiều pairs 1 lúc nên có trường hợp pair_reduc ko xuất hiện từ trước?
+        if (reduc_entry != null) {
+            const reduc_count = reduc_entry.?.count;
+            // hoặc xuất hiện nhưng count ko được tính đầy đủ!
+            reduc_entry.?.count = if (reduc_count > count) reduc_count - count else 0;
+        }
         const entry = self.pairs_count.putCount(pair_added, count);
         // nếu pair_added mới xuất hiện thì cho vào tập candidates
         if (entry.count == count) self.addToNewCandidates(pair_added);
@@ -323,7 +328,7 @@ pub const BPE = struct {
             thread3.join();
             merge_time += std.time.milliTimestamp() - merge_start_time;
 
-            if (i % 150 == 149) {
+            if (i % 30 == 29) {
                 // Show progress
                 const progress = i * 100 / max_selected_pairs;
                 const blank_percent = self.showStatsgetBlankPercent(progress, _new_candidates, merge_time);
@@ -453,10 +458,10 @@ pub const BPE = struct {
             // (if not support fall back to 256-bit lane)
             const input: std.meta.Vector(32, u16) = vocabs[first_char_idx..][0..32].*;
             var match_bin: u32 = 0;
-            var last_symbol_idx = self.total_selected - 1;
-            const n = last_symbol_idx - pairs_batch;
-
-            while (last_symbol_idx > n) : (last_symbol_idx -= 1) {
+            var last_symbol_idx = self.total_selected;
+            var i: usize = 0;
+            while (i < pairs_batch) : (i += 1) {
+                last_symbol_idx -= 1;
                 const last_selected = self.selected_symbols[last_symbol_idx];
                 const left = getLeftSymbol(last_selected);
                 const right = getRightSymbol(last_selected);
@@ -488,11 +493,10 @@ pub const BPE = struct {
             var match_begin = @ctz(u32, match_bin);
 
             if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
-                const count = getCountFromFirstCharIdx(vocabs, first_char_idx);
+                const key_count = getCountFromFirstCharIdx(vocabs, first_char_idx);
                 const key_len_ptr = &vocabs[first_char_idx - 1];
-
                 self.mergeMatching(match_begin, key_len, match_bin, first_char_idx, //
-                    last_char_idx, key_len_ptr, count, vocabs);
+                    last_char_idx, key_len_ptr, key_count, vocabs);
             }
 
             // trỏ tới key tiếp theo
@@ -500,7 +504,7 @@ pub const BPE = struct {
         }
     }
 
-    fn mergeMatching(self: *Self, _match_begin: usize, key_len: usize, match_bin: anytype, first_char_idx: usize, last_char_idx: usize, key_len_ptr: *SymbolType, count: CountType, vocabs: []SymbolType) void {
+    fn mergeMatching(self: *Self, _match_begin: usize, key_len: usize, match_bin: anytype, first_char_idx: usize, last_char_idx: usize, key_len_ptr: *SymbolType, key_count: CountType, vocabs: []SymbolType) void {
         //
         var match_begin = _match_begin;
 
@@ -518,13 +522,13 @@ pub const BPE = struct {
             if (x > first_char_idx) { // có symbol phía trước
                 const prev_pair_reduc = makePairKey(vocabs[x - 1], vocabs[x]);
                 const prev_paid_added = makePairKey(vocabs[x - 1], new_symbol);
-                self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
+                self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, key_count);
             }
 
             if (y < last_char_idx) { // còn sym phía sau
                 const next_pair_reduc = makePairKey(vocabs[y], vocabs[y + 1]);
                 const next_paid_added = makePairKey(new_symbol, vocabs[y + 1]);
-                self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
+                self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, key_count);
             }
 
             vocabs[x] = new_symbol; // merge pair `vocabs[x,y]` thành `new_symbol`
@@ -533,8 +537,8 @@ pub const BPE = struct {
             // Xem xét candidate mới là 2 pairs vừa được merged nằm sát nhau
             if (match_begin >= 2 and inSet(match_bin, match_begin - 2)) {
                 const new_pair = makePairKey(vocabs[x - 2], vocabs[x]);
-                const entry = self.pairs_count.putCount(new_pair, count);
-                if (entry.count == count) self.addToNewCandidates(new_pair);
+                const entry = self.pairs_count.putCount(new_pair, key_count);
+                if (entry.count == key_count) self.addToNewCandidates(new_pair);
             }
 
             match_begin += 1; // để bỏ qua symbol đã được merged
