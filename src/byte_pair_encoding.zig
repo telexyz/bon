@@ -61,9 +61,6 @@
 // E3/ multi-threading cho `mergeLastSelectedPair()`
 // (( BPE Learn: total_merge_time 55s ))
 // => Tăng tốc 2x so với E2; nhanh hơn youtokentome 1.75x
-//
-// E4/ Chọn k phần tử có count lớn nhất từ candidates để remove k pairs trong 1 lần scan vocabs
-// Xem https://en.wikipedia.org/wiki/Selection_algorithm#Partial_selection_sort
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -435,11 +432,9 @@ pub const BPE = struct {
         return max_idx;
     }
 
-    // `mergeLastSelectedPair` là phần chạy chậm và phức tạp nhất của BPE
+    // `mergeLastSelectedPair` là phần chạy chậm và phức tạp nhất của BPE Learn
     // Cần thiết kế để dễ chia wordload ra nhiều threads (sử dụng hết CPU)
-    // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu)
-    //
-    // Các bước cài đặt:
+    // Sau đó mới tính tới việc dùng SIMD để tăng tốc scan (tối ưu). Các bước cài đặt:
     //
     // 1/ scan tuần tự vocabs, gộp pair lại thành symbol phải move dữ liệu còn lại của key
     // lùi lại phía trước một ô trong mảng vocabs. Đồng thời loại bỏ count của pair trước và sau
@@ -451,10 +446,6 @@ pub const BPE = struct {
     // 2/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
     // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
     // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
-    //
-    // 3/ Remove nhiều pairs cùng 1 lần scan vocabs, `n pairs` giúp tăng tốc `n lần`.
-    // Cần xử lý trường hợp nhập nhằng. VD: key = "abcd", và pairs to be removed là "ab", "bc"
-    // Trong trường hợp này chỉ remove được "ab"
     fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize) void {
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
@@ -771,3 +762,10 @@ pub const BPE = struct {
         }
     }
 };
+
+test "TODO" {
+    std.debug.print( //
+        "\n\n" ++
+        "  * Viết test cases cho BPE Learn.\n" ++
+        "\n", .{});
+}

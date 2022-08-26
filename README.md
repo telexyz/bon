@@ -80,7 +80,7 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 https://github.com/telexyz/turbo/issues
 
-- BPE Learn v5: Gộp nhiều pairs trong cùng 1 lần scan, tốc độ tăng tỷ lệ thuận với số pairs được gộp
+- Iplm BPE Decode
 
 ## [ DONE ]
 
