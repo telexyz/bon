@@ -80,8 +80,6 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 https://github.com/telexyz/turbo/issues
 
-- Iplm BPE Decode
-
 ## [ DONE ]
 
 - BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe khoảng `1.5x`

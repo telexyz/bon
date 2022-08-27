@@ -763,5 +763,6 @@ test "TODO" {
     std.debug.print( //
         "\n\n" ++
         "  * Viết test cases cho BPE Learn.\n" ++
+        "  * Viết BPE Apply. Xem https://github.com/glample/fastBPE/blob/master/fastBPE/fastBPE.hpp#L523" ++
         "\n", .{});
 }
