@@ -9,9 +9,9 @@ pub const SymbolType = u16;
 
 pub const MAX_CAPACITY: usize = std.math.maxInt(IndexType);
 
-pub const maxx_hash = std.math.maxInt(HashType);
-pub const maxx_index = std.math.maxInt(IndexType);
-pub const maxx_symbol = std.math.maxInt(SymbolType);
+pub const MAXX_HASH = std.math.maxInt(HashType);
+pub const MAXX_INDEX = std.math.maxInt(IndexType);
+pub const MAXX_SYMBOL = std.math.maxInt(SymbolType);
 
 pub const Entry = struct {
     hash: HashType, //     u32
@@ -59,10 +59,10 @@ pub fn HashCount(capacity: IndexType) type {
 
             self.entries = try self.allocator.alloc(Entry, size);
             std.mem.set(Entry, self.entries, .{
-                .hash = maxx_hash,
+                .hash = MAXX_HASH,
                 .key = 0,
                 .count = 0,
-                .symbol = maxx_symbol,
+                .symbol = MAXX_SYMBOL,
             });
         }
 
@@ -83,7 +83,7 @@ pub fn HashCount(capacity: IndexType) type {
         }
 
         pub fn putCount(self: *Self, key: KeyType, count: CountType) *Entry {
-            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .symbol = maxx_symbol };
+            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .symbol = MAXX_SYMBOL };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
 
@@ -127,9 +127,9 @@ pub fn HashCount(capacity: IndexType) type {
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                 const tmp = self.entries[i];
                 self.entries[i] = it;
-                // !! Luôn kiểm tra hash == maxx_hash để xác định ô rỗng !!
+                // !! Luôn kiểm tra hash == MAXX_HASH để xác định ô rỗng !!
                 // Các so sánh khác khác để bổ trợ trường hợp edge case
-                if (tmp.hash == maxx_hash and tmp.symbol == maxx_symbol) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == MAXX_HASH and tmp.symbol == MAXX_SYMBOL) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
 
@@ -165,7 +165,7 @@ pub fn HashCount(capacity: IndexType) type {
 
             for (self.entries[0..]) |*entry| {
                 const curr = entry.hash;
-                if (curr < maxx_hash) {
+                if (curr < MAXX_HASH) {
                     if (prev > curr) {
                         std.debug.print("\n!! hash ko tăng dần !!\n", .{});
                         return false;

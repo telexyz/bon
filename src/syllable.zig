@@ -304,10 +304,10 @@ pub const Syllable = struct {
     normalized: bool = false,
 
     pub const UniqueId = u15;
-    pub const max_am_dau: UniqueId = 25;
-    pub const max_am_giua: UniqueId = 28;
-    pub const max_am_cuoi_tone: UniqueId = 42;
-    pub const MAXX_ID: UniqueId = max_am_dau * max_am_giua * max_am_cuoi_tone; // 29400
+    pub const MAXX_AM_DAU: UniqueId = 25;
+    pub const MAXX_AM_GIUA: UniqueId = 28;
+    pub const MAXX_AM_CUOI_TONE: UniqueId = 42;
+    pub const MAXX_ID: UniqueId = MAXX_AM_DAU * MAXX_AM_GIUA * MAXX_AM_CUOI_TONE; // 29400
 
     pub inline fn hasMark(self: Syllable) bool {
         return self.am_dau == .zd or self.am_giua.hasMark();
@@ -444,32 +444,32 @@ pub const Syllable = struct {
         else // am_cuoi `c, ch, p, t` only 2 tone s, j allowed
             36 + (am_cuoi_id - 6) * 2 + (tone - 1);
         // Validate act
-        std.debug.assert(act < max_am_cuoi_tone);
+        std.debug.assert(act < MAXX_AM_CUOI_TONE);
 
         const am_dau_id = @enumToInt(self.am_dau);
         const am_giua_id = @enumToInt(am_giua);
 
         // Validate am_dau and am_giua
-        std.debug.assert(@enumToInt(self.am_dau) < max_am_dau);
-        if (@enumToInt(am_giua) >= max_am_giua) std.debug.print("\n >> {} <<\n", .{self}); // DEBUG
-        std.debug.assert(@enumToInt(am_giua) < max_am_giua);
+        std.debug.assert(@enumToInt(self.am_dau) < MAXX_AM_DAU);
+        if (@enumToInt(am_giua) >= MAXX_AM_GIUA) std.debug.print("\n >> {} <<\n", .{self}); // DEBUG
+        std.debug.assert(@enumToInt(am_giua) < MAXX_AM_GIUA);
 
-        return (@intCast(UniqueId, am_dau_id) * max_am_cuoi_tone * max_am_giua) +
-            (@intCast(UniqueId, am_giua_id) * max_am_cuoi_tone) + act;
+        return (@intCast(UniqueId, am_dau_id) * MAXX_AM_CUOI_TONE * MAXX_AM_GIUA) +
+            (@intCast(UniqueId, am_giua_id) * MAXX_AM_CUOI_TONE) + act;
     }
 
     pub fn newFromId(id: UniqueId) Syllable {
         std.debug.assert(id < Syllable.MAXX_ID);
 
-        var x = id / max_am_cuoi_tone; // get rid of am_cuoi+tone
+        var x = id / MAXX_AM_CUOI_TONE; // get rid of am_cuoi+tone
         var syllable = Syllable{
-            .am_dau = @intToEnum(AmDau, @truncate(u5, x / max_am_giua)),
-            .am_giua = @intToEnum(AmGiua, @truncate(u5, @rem(x, max_am_giua))),
+            .am_dau = @intToEnum(AmDau, @truncate(u5, x / MAXX_AM_GIUA)),
+            .am_giua = @intToEnum(AmGiua, @truncate(u5, @rem(x, MAXX_AM_GIUA))),
             .can_be_vietnamese = true,
             .am_cuoi = ._none,
             .tone = ._none,
         };
-        x = @rem(id, max_am_cuoi_tone); // am_cuoi+tone
+        x = @rem(id, MAXX_AM_CUOI_TONE); // am_cuoi+tone
         if (x < 36) {
             syllable.am_cuoi = @intToEnum(AmCuoi, @truncate(u4, x / 6));
             syllable.tone = @intToEnum(Tone, @truncate(u3, @rem(x, 6)));

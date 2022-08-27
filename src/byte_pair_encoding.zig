@@ -23,27 +23,27 @@ const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
+const inSet = @import("char_stream.zig").inSet;
 
-const max_selected_pairs: usize = if (builtin.mode == .Debug) 500 else 12000;
-const max_total_candidates = (3 * max_selected_pairs) / 2;
-const max_total_symbols = 1_500_000;
-const total_chars = 256; // coi chars là byte nên có 256 chars
-const max_selected_symbols = total_chars + max_selected_pairs;
-const max_candidates = max_total_symbols / 3;
+const MAX_SELECTED_PAIRS: usize = if (builtin.mode == .Debug) 500 else 12000;
+const MAX_TOTAL_CANDIDATES = (3 * MAX_SELECTED_PAIRS) / 2;
+const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
+const MAX_TOTAL_SYMBOLS = 1_500_000;
+const MAX_SELECTED_SYMBOLS = TOTAL_CHARS + MAX_SELECTED_PAIRS;
+const MAX_CANDIDATES = MAX_TOTAL_SYMBOLS / 3;
 
-const PairCount = phc.HashCount(max_total_symbols);
-
+const PairCount = phc.HashCount(MAX_TOTAL_SYMBOLS);
 const Entry = phc.Entry;
 const HashType = phc.HashType;
 const IndexType = phc.IndexType;
 const CountType = phc.CountType;
-const GUARD_BYTE = phc.GUARD_BYTE;
 const PairType = phc.KeyType;
 const SymbolType = phc.SymbolType;
-const maxx_index = phc.maxx_index;
-const maxx_symbol = phc.maxx_symbol;
+
+const GUARD_BYTE = phc.GUARD_BYTE;
+const MAXX_INDEX = phc.MAXX_INDEX;
+const MAXX_SYMBOL = phc.MAXX_SYMBOL;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
-const inSet = @import("char_stream.zig").inSet;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -51,23 +51,23 @@ inline fn makeCharKey(byte: u8) PairType { // Cách làm đơn giản nhất là
     return @intCast(PairType, byte);
 }
 inline fn isChar(pair: PairType) bool {
-    return pair < total_chars; // vì chars là byte nên nếu pair là char thì sẽ < 256
+    return pair < TOTAL_CHARS; // vì chars là byte nên nếu pair là char thì sẽ < 256
 }
 inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
-    // pair key luôn >= maxx_symbol
+    // pair key luôn >= MAXX_SYMBOL
     const key = (@intCast(PairType, prev_sym) << 16) + curr_sym;
-    std.debug.assert(key >= maxx_symbol);
+    std.debug.assert(key >= MAXX_SYMBOL);
     return key;
 }
 inline fn isSymbol(pair: PairType) bool {
-    return (!isChar(pair)) and pair < maxx_symbol;
+    return (!isChar(pair)) and pair < MAXX_SYMBOL;
 }
 inline fn getLeftSymbol(pair: PairType) PairType {
-    std.debug.assert(pair > maxx_symbol);
+    std.debug.assert(pair > MAXX_SYMBOL);
     return pair >> 16;
 }
 inline fn getRightSymbol(pair: PairType) PairType {
-    std.debug.assert(pair > maxx_symbol);
+    std.debug.assert(pair > MAXX_SYMBOL);
     return pair & 0x0000_ffff;
 }
 fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
@@ -161,7 +161,7 @@ pub const BPE = struct {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
     // Bộ từ vựng cho selected symbols
     inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
-        std.debug.assert(self.total_selected < maxx_index);
+        std.debug.assert(self.total_selected < MAXX_INDEX);
         sym_entry.symbol = self.total_selected; // đánh dấu vị trí được kết nạp
         self.selected_symbols[self.total_selected] = sym_entry.key;
         self.total_selected += 1; // thêm 1 symbol mới được chọn
@@ -194,16 +194,9 @@ pub const BPE = struct {
         defer std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
 
         // Điều chỉnh count của pair_reduc và pair_added
-        const reduc_entry = self.pairs_count.getEntry(pair_reduc);
-        if (reduc_entry != null) {
-            reduc_entry.?.count -= count;
-        } else {
-            // Lỗi này xuất hiện thường là do hàm equal của pair_hash_count chưa chuẩn
-            std.debug.print("\n>> Ko tìm thấy count của nearby symbol {d}:", .{pair_reduc});
-            printPair(pair_reduc, self.getSelectedSymbols());
-            unreachable;
-        }
-        // nếu mới xuất hiện thì cho vào tập candidates
+        self.pairs_count.getEntry(pair_reduc).?.count -= count;
+
+        // Nếu pair_added mới xuất hiện thì cho vào tập candidates
         const entry = self.pairs_count.putCount(pair_added, count);
         if (entry.count == count) self.addToNewCandidates(pair_added);
     }
@@ -241,7 +234,7 @@ pub const BPE = struct {
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 
     // BPE learn gồm 2 bước: selectMaxCountPair() và mergeLastSelectedPair()
-    // Lặp lại 2 bước trên `max_selected_pairs`
+    // Lặp lại 2 bước trên `MAX_SELECTED_PAIRS`
     pub fn learn(self: *Self) !void {
         var i: usize = 0;
         var _new_candidates: usize = 0;
@@ -250,13 +243,13 @@ pub const BPE = struct {
         _ = self.showStatsGetBlanksPercent(0, self.total_new_candidates);
         try self.shinkVocabs(); // để xác định self.chunk1,2,3
 
-        // chọn cho đủ max_selected_pairs pairs
-        while (i < max_selected_pairs) : (i += 1) {
+        // chọn cho đủ MAX_SELECTED_PAIRS pairs
+        while (i < MAX_SELECTED_PAIRS) : (i += 1) {
             // chọn pair có count lớn nhất
             _new_candidates += self.total_new_candidates;
             const index = self.finalizeCandidatesGetMaxCountIdx();
 
-            if (index == maxx_index) break; // not a valid index
+            if (index == MAXX_INDEX) break; // not a valid index
 
             // Kết nạp pair được chọn
             const pair_key = self.candidates[index];
@@ -277,10 +270,12 @@ pub const BPE = struct {
             thread3.join();
 
             if (i % 150 == 149) { // Show progress
-                const progress = i * 100 / max_selected_pairs;
+                const progress = i * 100 / MAX_SELECTED_PAIRS;
                 const blank_percent = self.showStatsGetBlanksPercent(progress, _new_candidates);
                 _new_candidates = 0;
-                if (blank_percent >= 5) self.shinkVocabs() catch unreachable;
+                if (blank_percent >= 5) {
+                    try self.shinkVocabs();
+                }
             }
         }
 
@@ -324,7 +319,7 @@ pub const BPE = struct {
             // Dùng getEntry để chăc chắn `new_pair_key` có trong hashtable
             const new_count = self.pairs_count.getEntry(new_pair_key).?.count;
 
-            if ((self.total_candidates < max_total_candidates)) {
+            if ((self.total_candidates < MAX_TOTAL_CANDIDATES)) {
                 // Nếu chưa chọn đủ số lượng thì thêm vô tư
                 const new_idx = self.total_candidates;
                 self.total_candidates += 1; // ghi nhận việc cho thêm 1 phần tử vào candidates
@@ -360,7 +355,7 @@ pub const BPE = struct {
 
         // Return max_idx
         var max_count: CountType = 0;
-        var max_idx: usize = maxx_index;
+        var max_idx: usize = MAXX_INDEX;
         var idx: usize = 0;
         while (idx < self.total_candidates) : (idx += 1) {
             const count = self.candidates_count[idx];
@@ -391,8 +386,8 @@ pub const BPE = struct {
         const last_selected = self.selected_symbols[last_symbol_idx];
         const left = getLeftSymbol(last_selected);
         const right = getRightSymbol(last_selected);
-        std.debug.assert(left < maxx_index);
-        std.debug.assert(right < maxx_index);
+        std.debug.assert(left < MAXX_INDEX);
+        std.debug.assert(right < MAXX_INDEX);
 
         const left_lookup_16 = @splat(16, left);
         const right_lookup_16 = @splat(16, right);
@@ -418,8 +413,9 @@ pub const BPE = struct {
             }
 
             const count = getCountFromFirstCharIdx(vocabs, first_char_idx);
-            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
             const key_len_ptr = &vocabs[first_char_idx - 1];
+
+            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
 
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             // Chia key_len thành từng mức 16, 32, 48, 64 để tối ưu cho AVX2 256-bit (16x16)
@@ -479,7 +475,7 @@ pub const BPE = struct {
                             last_symbol_idx, count, left, right, vocabs);
                     }
                 },
-                49...64 => {
+                49...MAX_KEY_LEN => {
                     const input: std.meta.Vector(64, u16) = vocabs[first_char_idx..][0..64].*;
                     const left_match_vec = input == left_lookup_64; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u64, &(left_match_vec)).*;
@@ -497,7 +493,10 @@ pub const BPE = struct {
                             last_symbol_idx, count, left, right, vocabs);
                     }
                 },
-                else => unreachable,
+                else => {
+                    std.debug.print("!! MAX_KEY_LEN ({d}) lớn hơn 64, ", .{MAX_KEY_LEN});
+                    unreachable;
+                },
             }
             x = key_bound; // trỏ tới key tiếp theo
         }
@@ -626,15 +625,15 @@ pub const BPE = struct {
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
 
-        self.total_selected = total_chars; // 256 phần tử đầu dùng để định danh char
-        self.selected_symbols = try self.allocator.alloc(PairType, max_selected_symbols);
+        self.total_selected = TOTAL_CHARS; // 256 phần tử đầu dùng để định danh char
+        self.selected_symbols = try self.allocator.alloc(PairType, MAX_SELECTED_SYMBOLS);
 
         self.total_candidates = 0;
-        self.candidates = try self.allocator.alloc(PairType, max_total_candidates);
-        self.candidates_count = try self.allocator.alloc(CountType, max_total_candidates);
+        self.candidates = try self.allocator.alloc(PairType, MAX_TOTAL_CANDIDATES);
+        self.candidates_count = try self.allocator.alloc(CountType, MAX_TOTAL_CANDIDATES);
 
         self.total_new_candidates = 0;
-        self.new_candidates = try self.allocator.alloc(PairType, max_candidates);
+        self.new_candidates = try self.allocator.alloc(PairType, MAX_CANDIDATES);
 
         self.type_entries = try self.allocator.alloc(shc.Entry, self.total_types);
         try self.pairs_count.init(self.allocator);
@@ -715,7 +714,7 @@ pub const BPE = struct {
     } // `keyLenDesc()` dùng để sắp xếp vocabs theo key'len giảm dần
 
     pub inline fn totalSelectedPairs(self: Self) usize {
-        return self.total_selected - total_chars;
+        return self.total_selected - TOTAL_CHARS;
     }
     pub fn showSelectedSymbols(self: Self, n: IndexType) void {
         std.debug.print("\n\n(( BPE selected symbols ))\n\n", .{});
@@ -726,8 +725,8 @@ pub const BPE = struct {
         if (min > n) min = n;
 
         // Note: vị trí 0 bỏ trống để idx của selected_symbol > 0
-        const end = total_chars + min;
-        for (self.selected_symbols[total_chars..end]) |key| {
+        const end = TOTAL_CHARS + min;
+        for (self.selected_symbols[TOTAL_CHARS..end]) |key| {
             const key_str = out[0..pairDecode(key, out[0..], symbols)];
             std.debug.print("'{s}':{d} \t", .{ key_str, self.pairs_count.get(key) });
         }
