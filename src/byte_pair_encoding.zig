@@ -19,49 +19,6 @@
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
 
-// - - - - - - - - - - - - - - - - - -
-// Performance Stats (2.3GB input data)
-// - - - - - - - - - - - - - - - - - -
-//
-// 20/08/2022: Cài đặt BPE Learn v1
-// - - - - - - - - - - - - - - - -
-// 05s để tách tokens
-// 20s để phân tích syllable
-// 03s để count types ko phải syllables
-// 02m00s 1k BPE Learn V1 (naive impl) => 5.1k cần 10m
-// => chậm hơn youtokentome (Total 1m36s = 96s) 7.35 lần
-//
-// 25/08/2022: Cài đặt BPE Learn v3
-// - - - - - - - - - - - - - - - -
-// 413s để lọc 5.1k BPE (Total 7m13s - 20s)
-// => chậm hơn youtokentome 4.3 lần
-//
-// 26/08/2022: Perf Tuning
-// - - - - - - - - - - - -
-// 274s cho SIMDify BPE Learn v3 (4m54s - 20s)
-// => Nhanh hơn bản scalar 1.5x
-// `274s` cho `5.1k` lượt quét vocabs => 5.4s cho 100 lượt quét
-//
-// [ Timming ]
-// (( BPE Learn: total_select_time 158s total_merge_time 116s ))
-//
-// [ Enhancements ]
-//
-// E1/ Sau vài trăm lượt quét nên dồn vocabs một lần để loại bỏ blanks elemens
-// (( BPE Learn: total_select_time 157s total_merge_time 102s ))
-// => Tăng tốc ~14% -> Scan vocabs trên 1 miền bộ nhớ liên tục đã rất hiệu quả kể cả có khoảng rỗng
-//    giữa 2 key, nên việc dồn keys, loại bỏ khoảng trống ko có nhiều tác dụng.
-//
-// E2/ Mảng chính `candidates` chỉ giữ `max_selected_pairs` có count lớn nhất.
-// Mảng phụ `new_candidates` chứa các candidates mới xuất hiện trong lần scan vocabs vừa diễn ra
-// Sau mỗi lần scans ta khởi tạo lại `candidates`.
-// (( BPE Learn: total_select_time 1s; total_merge_time 108s ))
-// => Tăng tốc 2.5x so với E1
-//
-// E3/ multi-threading cho `mergeLastSelectedPair()`
-// (( BPE Learn: total_merge_time 55s ))
-// => Tăng tốc 2x so với E2; nhanh hơn youtokentome 1.75x
-
 const std = @import("std");
 const builtin = @import("builtin");
 const shc = @import("str_hash_count.zig");

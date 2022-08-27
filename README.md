@@ -84,7 +84,7 @@ https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe khoảng `1.7x`
+- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe khoảng `1.5x`
 
 - BPE Learn v1, v2; naive impl, tốc độ = fastBPE.
 
