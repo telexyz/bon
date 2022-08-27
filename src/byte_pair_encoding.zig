@@ -475,7 +475,7 @@ pub const BPE = struct {
                             last_symbol_idx, count, left, right, vocabs);
                     }
                 },
-                49...MAX_KEY_LEN => {
+                49...64 => {
                     const input: std.meta.Vector(64, u16) = vocabs[first_char_idx..][0..64].*;
                     const left_match_vec = input == left_lookup_64; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u64, &(left_match_vec)).*;
