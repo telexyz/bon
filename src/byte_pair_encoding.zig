@@ -418,7 +418,7 @@ pub const BPE = struct {
             }
 
             const count = getCountFromFirstCharIdx(vocabs, first_char_idx);
-            const key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
+            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
             const key_len_ptr = &vocabs[first_char_idx - 1];
 
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
@@ -432,12 +432,16 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_16;
                     const right_match_bin = @ptrCast(*const u16, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    var match_begin = @ctz(u16, match_bin);
+                    const match_begin = @ctz(u16, match_bin);
 
-                    if (match_begin < key_len) // match happened inside the key
+                    if (match_begin < key_len) { // match happened inside the key
+                        const match_end = @clz(u16, match_bin);
+                        if (key_len > match_end) key_len = match_end + 1;
+
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
                             last_symbol_idx, count, left, right, vocabs);
+                    }
                 },
                 17...32 => {
                     const input: std.meta.Vector(32, u16) = vocabs[first_char_idx..][0..32].*;
@@ -446,12 +450,16 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_32;
                     const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    var match_begin = @ctz(u32, match_bin);
+                    const match_begin = @ctz(u32, match_bin);
 
-                    if (match_begin < 32 and match_begin < key_len) // match happened inside the key
+                    if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
+                        const match_end = @clz(u32, match_bin);
+                        if (key_len > match_end) key_len = match_end + 1;
+
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
                             last_symbol_idx, count, left, right, vocabs);
+                    }
                 },
                 33...48 => {
                     const input: std.meta.Vector(48, u16) = vocabs[first_char_idx..][0..48].*;
@@ -460,12 +468,16 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_48;
                     const right_match_bin = @ptrCast(*const u48, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    var match_begin = @ctz(u48, match_bin);
+                    const match_begin = @ctz(u48, match_bin);
 
-                    if (match_begin < 48 and match_begin < key_len) // match happened inside the key
+                    if (match_begin < 48 and match_begin < key_len) { // match happened inside the key
+                        const match_end = @clz(u48, match_bin);
+                        if (key_len > match_end) key_len = match_end + 1;
+
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
                             last_symbol_idx, count, left, right, vocabs);
+                    }
                 },
                 49...64 => {
                     const input: std.meta.Vector(64, u16) = vocabs[first_char_idx..][0..64].*;
@@ -474,12 +486,16 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_64;
                     const right_match_bin = @ptrCast(*const u64, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    var match_begin = @ctz(u64, match_bin);
+                    const match_begin = @ctz(u64, match_bin);
 
-                    if (match_begin < 64 and match_begin < key_len) // match happened inside the key
+                    if (match_begin < 64 and match_begin < key_len) { // match happened inside the key
+                        const match_end = @clz(u64, match_bin);
+                        if (key_len > match_end) key_len = match_end + 1;
+
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
                             last_symbol_idx, count, left, right, vocabs);
+                    }
                 },
                 else => unreachable,
             }
