@@ -26,7 +26,7 @@ const phc = @import("pair_hash_count.zig");
 const inSet = @import("char_stream.zig").inSet;
 
 const MAX_SELECTED_PAIRS: usize = if (builtin.mode == .Debug) 500 else 8000;
-const MAX_TOTAL_CANDIDATES = 2 * MAX_SELECTED_PAIRS;
+const MAX_TOTAL_CANDIDATES = 5 * MAX_SELECTED_PAIRS / 2;
 const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
 const MAX_TOTAL_SYMBOLS = 1_500_000;
 const MAX_SELECTED_SYMBOLS = TOTAL_CHARS + MAX_SELECTED_PAIRS;
@@ -292,7 +292,7 @@ pub const BPE = struct {
     }
 
     inline fn dropout(self: Self) bool {
-        return self.random.int(u16) < 656; // dropout rate ~= 1% (656 / 65536)
+        return self.random.int(u16) < 300; // dropout rate ~= 0.45% (300 / 65536)
     }
     fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
         var min_count: CountType = std.math.maxInt(CountType);
@@ -775,7 +775,8 @@ pub const BPE = struct {
 test "TODO" {
     std.debug.print( //
         "\n\n" ++
-        "  * Viết test cases cho BPE Learn.\n" ++
+        "  * Khởi tạo ban đầu new_candidates là utf-8 pairs thay vì byte-pairs?\n" ++
+        "  * Viết test cases cho BPE Learn\n" ++
         "  * Viết BPE Apply. Xem https://github.com/glample/fastBPE/blob/master/fastBPE/fastBPE.hpp#L523" ++
-        "\n", .{});
+        "\n\n", .{});
 }
