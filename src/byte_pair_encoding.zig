@@ -25,8 +25,8 @@ const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 const inSet = @import("char_stream.zig").inSet;
 
-const MAX_SELECTED_PAIRS: usize = if (builtin.mode == .Debug) 500 else 12000;
-const MAX_TOTAL_CANDIDATES = (3 * MAX_SELECTED_PAIRS) / 2;
+const MAX_SELECTED_PAIRS: usize = if (builtin.mode == .Debug) 500 else 8000;
+const MAX_TOTAL_CANDIDATES = 2 * MAX_SELECTED_PAIRS;
 const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
 const MAX_TOTAL_SYMBOLS = 1_500_000;
 const MAX_SELECTED_SYMBOLS = TOTAL_CHARS + MAX_SELECTED_PAIRS;
@@ -154,6 +154,8 @@ pub const BPE = struct {
     chunk1: usize,
     chunk2: usize,
     chunk3: usize,
+
+    random: std.rand.Random,
 
     const Self = @This();
 
@@ -289,6 +291,9 @@ pub const BPE = struct {
         return blank_percent;
     }
 
+    inline fn dropout(self: Self) bool {
+        return self.random.int(u16) < 656; // dropout rate ~= 1% (656 / 65536)
+    }
     fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
         var min_count: CountType = std.math.maxInt(CountType);
         var min_idx: usize = undefined;
@@ -296,6 +301,11 @@ pub const BPE = struct {
         var x: usize = 0;
         // Update giá trị mảng candidates_count vì sau 1 lần scan vocabs là count đã thay đổi
         while (x < self.total_candidates) {
+            // BPE-Dropout
+            if (self.dropout()) {
+                self.removeCandidateAt(x);
+                continue;
+            }
             // Dùng getEntry để chăc chắn `new_pair_key` có trong hashtable
             const count = self.pairs_count.getEntry(self.candidates[x]).?.count;
             if (count == 0) { // count đã bị trừ hết bởi scan vocabs thì loại luôn
@@ -316,6 +326,8 @@ pub const BPE = struct {
 
         // Với từng ứng viên mới (phần tử mảng new_candidates)
         for (self.getNewCandidates()) |new_pair_key| {
+            if (self.dropout()) continue;
+
             // Dùng getEntry để chăc chắn `new_pair_key` có trong hashtable
             const new_count = self.pairs_count.getEntry(new_pair_key).?.count;
 
@@ -624,6 +636,7 @@ pub const BPE = struct {
         self.allocator = allocator;
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
+        self.random = std.rand.Pcg.init(21091981).random();
 
         self.total_selected = TOTAL_CHARS; // 256 phần tử đầu dùng để định danh char
         self.selected_symbols = try self.allocator.alloc(PairType, MAX_SELECTED_SYMBOLS);
