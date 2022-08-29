@@ -59,24 +59,28 @@ fn scanFile(file_name: []const u8) !void {
     var buf_reader = std.io.bufferedReader(file.reader());
     var in_stream = buf_reader.reader();
 
-    // sử dụng 2 buffers để lưu dữ liệu đọc từ file
-    var buf1: [BYTES_PROCESSED]u8 = undefined;
-    var buf2: [BYTES_PROCESSED]u8 = undefined;
-
-    var curr_bytes = buf1[0..]; // khởi tạo current buffer
-    var prev_bytes = buf2[0..]; // khởi tạo previous buffer
+    // sử dụng 2 buffers lưu dữ liệu đọc từ file để xử lý token nằm ở ranh giới
+    var curr_buf: [2 * BYTES_PROCESSED]u8 = undefined;
+    var prev_buf: [2 * BYTES_PROCESSED]u8 = undefined;
 
     var tk_idx: usize = TOKEN_PROCESSED; // token index
     var sp_idx: usize = 0; // separator index
     var prev_sp_idx: usize = 0;
     // token đang xử lý sẽ nằm từ token_idx .. sp_idx
 
-    // đọc dữ liệu lần đầu tiên
-    var len = try in_stream.read(curr_bytes);
     var count: usize = 0;
-    var bytes: [2 * BYTES_PROCESSED]u8 = undefined;
+    while (true) : (count += 1) {
 
-    while (len > 0) {
+        // swap curr_bytes and prev_bytes
+        const tmp = curr_buf;
+        curr_buf = prev_buf;
+        prev_buf = tmp;
+
+        // đọc dữ liệu
+        const curr_bytes = curr_buf[BYTES_PROCESSED..];
+        const len = try in_stream.read(curr_bytes);
+        if (len == 0) break;
+
         // cần prev_bytes_bytes vì 1 ký tự utf8 (2-4 bytes) hoặc một token nằm ngay
         // giữa đoạn cắt khi đọc dữ liệu theo từng BYTES_PROCESSED
         // => curr_bytes lưu nửa sau của utf8-char hoặc token
@@ -87,7 +91,7 @@ fn scanFile(file_name: []const u8) !void {
         var next_sp_idx: usize = @ctz(BitType, sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        const between_sp_token = sp_idx == TOKEN_PROCESSED;
+        const between_sp_token = (sp_idx == TOKEN_PROCESSED);
         if (show_info) std.debug.print("\n{d} {d} {d} | {d}", .{ prev_sp_idx, sp_idx, next_sp_idx, tk_idx });
 
         sp_idx = 0;
@@ -95,11 +99,10 @@ fn scanFile(file_name: []const u8) !void {
 
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
-            const prev = prev_bytes[tk_idx..];
-            const curr = curr_bytes[0..next_sp_idx];
-            std.mem.copy(u8, bytes[0..], prev);
-            std.mem.copy(u8, bytes[prev.len..], curr);
-            processToken(bytes[0..(prev.len + curr.len)]);
+            const first_half = prev_buf[BYTES_PROCESSED + tk_idx ..];
+            const bytes = curr_buf[BYTES_PROCESSED - first_half.len .. BYTES_PROCESSED + next_sp_idx];
+            std.mem.copy(u8, bytes[0..], first_half);
+            processToken(bytes);
             //
         } else if (next_sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
@@ -107,11 +110,10 @@ fn scanFile(file_name: []const u8) !void {
         }
 
         if (between_sp_token) {
-            const prev = prev_bytes[prev_sp_idx..];
-            const curr = curr_bytes[0..sp_idx];
-            std.mem.copy(u8, bytes[0..], prev);
-            std.mem.copy(u8, bytes[prev.len..], curr);
-            processNonAlphabetTokens(bytes[0 .. prev.len + curr.len]);
+            const first_half = prev_buf[BYTES_PROCESSED + prev_sp_idx ..];
+            const bytes = curr_buf[BYTES_PROCESSED - first_half.len .. BYTES_PROCESSED + sp_idx];
+            std.mem.copy(u8, bytes[0..], first_half);
+            processNonAlphabetTokens(bytes);
             next_sp_idx = sp_idx;
         }
 
@@ -131,15 +133,6 @@ fn scanFile(file_name: []const u8) !void {
             while (next_sp_idx < len and !inSet(sp_bits, next_sp_idx)) next_sp_idx += 1;
             if (next_sp_idx < len) processToken(curr_bytes[tk_idx..next_sp_idx]);
         }
-
-        // swap curr_bytes and prev_bytes
-        const tmp = curr_bytes;
-        curr_bytes = prev_bytes;
-        prev_bytes = tmp;
-
-        // đọc đoạn dữ liệu tiếp theo
-        len = try in_stream.read(curr_bytes);
-        count += 1;
     }
 
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
