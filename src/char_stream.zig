@@ -14,11 +14,10 @@ var syll_counters: SyllableCount = undefined;
 // Dùng Zig Vector type và các Vector operators để Zig tự động dịch sang
 // SIMD code, tự động dùng 256-bit lane (AVX) hoặc 512-bit lane (AVX-512)
 
-const VecType = std.meta.Vector(BYTES_PROCESSED, u8);
-const BitType = std.meta.Int(.unsigned, BYTES_PROCESSED);
+const VecType = std.meta.Vector(MAX_READ_BYTES, u8);
+const BitType = std.meta.Int(.unsigned, MAX_READ_BYTES);
 
-const BYTES_PROCESSED = 64; // bytes
-const TOKEN_PROCESSED = BYTES_PROCESSED;
+const MAX_READ_BYTES = 64; // bytes
 
 const A_byte: u8 = 'A';
 const Z_byte: u8 = 'Z';
@@ -26,11 +25,11 @@ const a_byte: u8 = 'a';
 const z_byte: u8 = 'z';
 const max_ascii_byte: u8 = 127;
 
-const A_vec = @splat(BYTES_PROCESSED, A_byte);
-const Z_vec = @splat(BYTES_PROCESSED, Z_byte);
-const a_vec = @splat(BYTES_PROCESSED, a_byte);
-const z_vec = @splat(BYTES_PROCESSED, z_byte);
-const max_ascii_vec = @splat(BYTES_PROCESSED, z_byte);
+const A_vec = @splat(MAX_READ_BYTES, A_byte);
+const Z_vec = @splat(MAX_READ_BYTES, Z_byte);
+const a_vec = @splat(MAX_READ_BYTES, a_byte);
+const z_vec = @splat(MAX_READ_BYTES, z_byte);
+const max_ascii_vec = @splat(MAX_READ_BYTES, z_byte);
 
 inline fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
     var results = @ptrCast(*const BitType, &(vec < A_vec)).*;
@@ -60,10 +59,10 @@ fn scanFile(file_name: []const u8) !void {
     var in_stream = buf_reader.reader();
 
     // sử dụng 2 buffers lưu dữ liệu đọc từ file để xử lý token nằm ở ranh giới
-    var curr_buf: [2 * BYTES_PROCESSED]u8 = undefined;
-    var prev_buf: [2 * BYTES_PROCESSED]u8 = undefined;
+    var curr_buf: [2 * MAX_READ_BYTES]u8 = undefined;
+    var prev_buf: [2 * MAX_READ_BYTES]u8 = undefined;
 
-    var tk_idx: usize = TOKEN_PROCESSED; // token index
+    var tk_idx: usize = MAX_READ_BYTES; // token index
     var sp_idx: usize = 0; // separator index
     var prev_sp_idx: usize = 0;
     // token đang xử lý sẽ nằm từ token_idx .. sp_idx
@@ -77,12 +76,12 @@ fn scanFile(file_name: []const u8) !void {
         prev_buf = tmp;
 
         // đọc dữ liệu
-        const curr_bytes = curr_buf[BYTES_PROCESSED..];
+        const curr_bytes = curr_buf[MAX_READ_BYTES..];
         const len = try in_stream.read(curr_bytes);
         if (len == 0) break;
 
         // cần prev_bytes_bytes vì 1 ký tự utf8 (2-4 bytes) hoặc một token nằm ngay
-        // giữa đoạn cắt khi đọc dữ liệu theo từng BYTES_PROCESSED
+        // giữa đoạn cắt khi đọc dữ liệu theo từng MAX_READ_BYTES
         // => curr_bytes lưu nửa sau của utf8-char hoặc token
         //    prev_bytes lưu nửa đầu của utf8-char hoặc token
 
@@ -91,27 +90,27 @@ fn scanFile(file_name: []const u8) !void {
         var next_sp_idx: usize = @ctz(BitType, sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        const between_sp_token = (sp_idx == TOKEN_PROCESSED);
+        const non_alpha_tokens_between_buffers = (sp_idx == MAX_READ_BYTES);
         if (show_info) std.debug.print("\n{d} {d} {d} | {d}", .{ prev_sp_idx, sp_idx, next_sp_idx, tk_idx });
 
         sp_idx = 0;
         while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
 
-        if (tk_idx != TOKEN_PROCESSED) {
-            // token đầu tiên của curr_bytes nằm trên prev_bytes
-            const first_half = prev_buf[BYTES_PROCESSED + tk_idx ..];
-            const bytes = curr_buf[BYTES_PROCESSED - first_half.len .. BYTES_PROCESSED + next_sp_idx];
+        if (tk_idx != MAX_READ_BYTES) {
+            // Nửa đầu token đầu tiên của curr_bytes nằm trên prev_bytes
+            const first_half = prev_buf[MAX_READ_BYTES + tk_idx ..];
+            const bytes = curr_buf[MAX_READ_BYTES - first_half.len .. MAX_READ_BYTES + next_sp_idx];
             std.mem.copy(u8, bytes[0..], first_half);
             processToken(bytes);
             //
         } else if (next_sp_idx != 0) {
-            // token đầu tiên của curr_bytes không nằm trên prev_bytes
+            // token đầu tiên của curr_bytes bắt đầu ở vị trí số 0
             processToken(curr_bytes[0..next_sp_idx]);
         }
 
-        if (between_sp_token) {
-            const first_half = prev_buf[BYTES_PROCESSED + prev_sp_idx ..];
-            const bytes = curr_buf[BYTES_PROCESSED - first_half.len .. BYTES_PROCESSED + sp_idx];
+        if (non_alpha_tokens_between_buffers) {
+            const first_half = prev_buf[MAX_READ_BYTES + prev_sp_idx ..];
+            const bytes = curr_buf[MAX_READ_BYTES - first_half.len .. MAX_READ_BYTES + sp_idx];
             std.mem.copy(u8, bytes[0..], first_half);
             processNonAlphabetTokens(bytes);
             next_sp_idx = sp_idx;
