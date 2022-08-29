@@ -94,7 +94,7 @@ pub fn HashCount(capacity: IndexType) type {
             self.spinlock = lock_init;
             self.allocator = init_allocator;
 
-            var n: usize = capacity * AVG_KEY_LEN;
+            var n: usize = capacity * AVG_KEY_LEN + MAX_KEY_LEN;
             if (n > std.math.maxInt(IndexType)) n = std.math.maxInt(IndexType);
             self.keys_bytes = try self.allocator.alloc(u8, n);
             std.mem.set(u8, self.keys_bytes, GUARD_BYTE);
