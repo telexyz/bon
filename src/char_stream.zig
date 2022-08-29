@@ -175,8 +175,7 @@ pub fn main() !void {
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
 
-            // try scanFile("utf8tv.txt");
-            try scanFile("../data/news_titles_small");
+            try scanFile("utf8tv.txt");
 
             // thread0.join();
             // thread1.join();
@@ -185,10 +184,10 @@ pub fn main() !void {
         },
         .ReleaseSafe => {},
         .ReleaseFast => {
-            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
+            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ab"});
+            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ac"});
+            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ad"});
             try scanFile("utf8tv.txt");
             thread0.join();
             thread1.join();

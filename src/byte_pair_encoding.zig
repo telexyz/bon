@@ -632,6 +632,8 @@ pub const BPE = struct {
     }
 
     pub fn init(self: *Self, allocator: std.mem.Allocator, totals_entries: usize, entries: []const shc.Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
+        std.debug.assert(MAX_KEY_LEN <= 64);
+
         self.spinlock = lock_init;
         self.allocator = allocator;
         self.total_types = totals_entries;
