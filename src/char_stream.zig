@@ -87,42 +87,43 @@ fn scanFile(file_name: []const u8) !void {
         var next_sp_idx: usize = @ctz(BitType, sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        if (show_info) std.debug.print("\n{d} {d} {d}", .{ prev_sp_idx, sp_idx, next_sp_idx });
-        if (sp_idx == TOKEN_PROCESSED) {
-            sp_idx = 0;
-            while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
-            const prev_ = prev_bytes[prev_sp_idx..];
-            const curr_ = curr_bytes[0..sp_idx];
-            std.mem.copy(u8, bytes[0..], prev_);
-            std.mem.copy(u8, bytes[prev_.len..], curr_);
-            processSpaceToken(bytes[0..(prev_.len + curr_.len)]);
-        }
+        const between_sp_token = sp_idx == TOKEN_PROCESSED;
+        if (show_info) std.debug.print("\n{d} {d} {d} | {d}", .{ prev_sp_idx, sp_idx, next_sp_idx, tk_idx });
 
-        sp_idx = next_sp_idx;
-        prev_sp_idx = sp_idx;
+        sp_idx = 0;
+        while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
 
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
-            const prev_ = prev_bytes[tk_idx..];
-            const curr_ = curr_bytes[0..sp_idx];
-            std.mem.copy(u8, bytes[0..], prev_);
-            std.mem.copy(u8, bytes[prev_.len..], curr_);
-            processToken(bytes[0..(prev_.len + curr_.len)]);
+            const prev = prev_bytes[tk_idx..];
+            const curr = curr_bytes[0..next_sp_idx];
+            std.mem.copy(u8, bytes[0..], prev);
+            std.mem.copy(u8, bytes[prev.len..], curr);
+            processToken(bytes[0..(prev.len + curr.len)]);
             //
-        } else if (sp_idx != 0) {
+        } else if (next_sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
-            processToken(curr_bytes[0..sp_idx]);
+            processToken(curr_bytes[0..next_sp_idx]);
         }
 
-        //
-        if (sp_idx == len) tk_idx = len;
+        if (between_sp_token) {
+            const prev = prev_bytes[prev_sp_idx..];
+            const curr = curr_bytes[0..sp_idx];
+            std.mem.copy(u8, bytes[0..], prev);
+            std.mem.copy(u8, bytes[prev.len..], curr);
+            processNonAlphabetTokens(bytes[0 .. prev.len + curr.len]);
+            next_sp_idx = sp_idx;
+        }
+
+        // Trường hợp đặc biệt
+        if (next_sp_idx == len) tk_idx = len;
 
         while (next_sp_idx < len) {
             // Tìm next space index
             sp_idx = next_sp_idx;
             prev_sp_idx = sp_idx;
             while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
-            if (sp_idx < len) processSpaceToken(curr_bytes[prev_sp_idx..sp_idx]);
+            if (sp_idx < len) processNonAlphabetTokens(curr_bytes[prev_sp_idx..sp_idx]);
 
             // Tìm next token index
             next_sp_idx = sp_idx;
@@ -143,11 +144,13 @@ fn scanFile(file_name: []const u8) !void {
 
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
-inline fn processSpaceToken(str: []const u8) void {
+inline fn processNonAlphabetTokens(str: []const u8) void {
+    if (str.len == 0) return;
     var it = std.mem.tokenize(u8, str, " \n\t");
+    if (show_info) std.debug.print("\n_ _ _:", .{});
     while (it.next()) |tkn| {
         type_counters.put(tkn);
-        if (show_info) std.debug.print("\n`{s}`", .{tkn});
+        if (show_info) std.debug.print(" \"{s}\"", .{tkn});
     }
 }
 inline fn processToken(token: []const u8) void {
@@ -156,8 +159,11 @@ inline fn processToken(token: []const u8) void {
         syll_counters.put(syll.toId())
     else
         type_counters.put(token);
-    // if (show_info) std.debug.print(" \n", .{});
-    // if (show_info) cmn.printSyllParts(syll);
+
+    if (show_info) {
+        std.debug.print("\n{s}:\t\t", .{token});
+        cmn.printSyllParts(syll);
+    }
 }
 
 pub fn main() !void {
@@ -170,7 +176,7 @@ pub fn main() !void {
 
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
-            show_info = true;
+            // show_info = true;
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
@@ -227,4 +233,12 @@ test "TODO" {
         "  * Làm rõ thuật toán scanFile() hiện đang hơi rối\n" ++
         "  * Viết test cases cho char_stream\n" ++
         "\n\n", .{});
+}
+
+test "" {
+    // const buf1 = "123456789012345678ngoan9012345mo6789012345678901234567\n890123456";
+    // const buf2 = "7dsdsd8901234567890345\n6789012345678sds901d234567890";
+    // _ _ _: 6789012345678901234567
+    // dsdsd:
+    // _ _ _: 8901234567890345 6789012345678
 }
