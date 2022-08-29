@@ -87,7 +87,7 @@ fn scanFile(file_name: []const u8) !void {
         var next_sp_idx: usize = @ctz(BitType, sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        std.debug.print("\n{d} {d} {d}", .{ prev_sp_idx, sp_idx, next_sp_idx });
+        if (show_info) std.debug.print("\n{d} {d} {d}", .{ prev_sp_idx, sp_idx, next_sp_idx });
         if (sp_idx == TOKEN_PROCESSED) {
             sp_idx = 0;
             while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
@@ -220,3 +220,11 @@ pub fn main() !void {
 
 // simple config
 var show_info = false;
+
+test "TODO" {
+    std.debug.print( //
+        "\n\n" ++
+        "  * Làm rõ thuật toán scanFile() hiện đang hơi rối\n" ++
+        "  * Viết test cases cho char_stream\n" ++
+        "\n\n", .{});
+}
