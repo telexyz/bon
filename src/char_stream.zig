@@ -206,7 +206,7 @@ pub fn main() !void {
     type_counters.deinit();
     syll_counters.deinit();
 
-    bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 200);
+    bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 300);
     try bpe.learn();
     bpe.showSelectedSymbols(1000);
     bpe.pairs_count.showStats();

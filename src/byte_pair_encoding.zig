@@ -219,18 +219,36 @@ pub const BPE = struct {
     inline fn getBoundFromFirstCharIdx(vocabs: []SymbolType, idx: usize) usize {
         return idx + (vocabs[idx - 1] >> 8);
     }
-    fn printVocabGetBound(self: Self, vocabs: []SymbolType, x: usize, offset: usize) usize {
+
+    fn printVocabGetUnicodeLen(self: Self, vocabs: []SymbolType, x: *usize, offset: usize) usize {
         const symbols = self.getSelectedSymbols();
         var out: [MAX_KEY_LEN]u8 = undefined;
-        const begin = x + 3; // trỏ tới nội dung
+        const begin = x.* + 3; // trỏ tới nội dung
         const end = getEndFromFirstCharIdx(vocabs, begin);
         const count = getCountFromFirstCharIdx(vocabs, begin);
         var out_len: usize = 0;
         for (vocabs[begin + offset .. end]) |idx| {
             out_len += pairDecode(idx, out[out_len..], symbols);
         }
-        std.debug.print("{d}`{s}`:{d}", .{ end - begin, out[0..out_len], count });
-        return getBoundFromFirstCharIdx(vocabs, begin);
+        std.debug.print("`{s}`:{d}", .{ out[0..out_len], count });
+        // std.debug.print("{d}`{s}`:{d}", .{ end - begin, out[0..out_len], count });
+        x.* = getBoundFromFirstCharIdx(vocabs, begin);
+        return getUnicodeLen(out[0..out_len]);
+    }
+    inline fn getUnicodeLen(str: []const u8) usize {
+        var i: usize = 0;
+        var l: usize = 0;
+        while (i < str.len) {
+            switch (str[i]) {
+                0b0000_0000...0b0111_1111 => i += 1,
+                0b1100_0000...0b1101_1111 => i += 2,
+                0b1110_0000...0b1110_1111 => i += 3,
+                0b1111_0000...0b1111_0111 => i += 4,
+                else => i += 1,
+            }
+            l += 1;
+        }
+        return l;
     }
     // Bộ từ vựng trên giúp việc cài đặt giải thuật rõ ràng, dễ debug
     // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
@@ -766,12 +784,18 @@ pub const BPE = struct {
 
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
+        var l: usize = 0;
         var i: usize = 0;
+
         while (x < vocabs_len and i < n) : (i += 1) {
-            x = self.printVocabGetBound(vocabs, x, 0);
-            if (i % 2 == 1) std.debug.print("\n", .{}) else std.debug.print(" \t\t\t", .{});
+            l = self.printVocabGetUnicodeLen(vocabs, &x, 0);
+            if (i % 3 != 2)
+                std.debug.print("{s}\t", .{SPACES[5 .. MAX_KEY_LEN - l]})
+            else
+                std.debug.print("\n", .{});
         }
     }
+    const SPACES = " " ** MAX_KEY_LEN;
 };
 
 test "TODO" {
