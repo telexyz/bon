@@ -32,7 +32,7 @@ const a_vec = @splat(BYTES_PROCESSED, a_byte);
 const z_vec = @splat(BYTES_PROCESSED, z_byte);
 const max_ascii_vec = @splat(BYTES_PROCESSED, z_byte);
 
-fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
+inline fn getIsNonAlphabetAsciiBits(vec: VecType) BitType {
     var results = @ptrCast(*const BitType, &(vec < A_vec)).*;
 
     results |= @ptrCast(*const BitType, &(vec > Z_vec)).* &
@@ -66,14 +66,15 @@ fn scanFile(file_name: []const u8) !void {
     var curr_bytes = buf1[0..]; // khởi tạo current buffer
     var prev_bytes = buf2[0..]; // khởi tạo previous buffer
 
-    var vec: VecType = undefined;
     var tk_idx: usize = TOKEN_PROCESSED; // token index
     var sp_idx: usize = undefined; // separator index
+    var prev_sp_idx: usize = undefined;
     // token đang xử lý sẽ nằm từ token_idx .. sp_idx
 
     // đọc dữ liệu lần đầu tiên
     var len = try in_stream.read(curr_bytes);
     var count: usize = 0;
+    var bytes: [2 * BYTES_PROCESSED]u8 = undefined;
 
     while (len > 0) {
         // cần prev_bytes_bytes vì 1 ký tự utf8 (2-4 bytes) hoặc một token nằm ngay
@@ -81,32 +82,33 @@ fn scanFile(file_name: []const u8) !void {
         // => curr_bytes lưu nửa sau của utf8-char hoặc token
         //    prev_bytes lưu nửa đầu của utf8-char hoặc token
 
-        if (show_info)
-            std.debug.print("\n\nbuf[{d}]: \"{s}\"", .{ count, curr_bytes[0..len] });
+        if (show_info) std.debug.print("\n\nbuf[{d}]: \"{s}\"", .{ count, curr_bytes[0..len] });
+        const sp_bits = getIsNonAlphabetAsciiBits(curr_bytes.*);
+        var next_sp_idx: usize = @ctz(BitType, sp_bits);
+        if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        vec = curr_bytes.*;
-        const sp_bits = getIsNonAlphabetAsciiBits(vec);
-        sp_idx = @ctz(BitType, sp_bits);
-        if (sp_idx > len) sp_idx = len;
-
-        if (tk_idx != TOKEN_PROCESSED) {
-            // token đầu tiên của curr_bytes nằm trên prev_bytes
-
-            // TODO: thay vì dùng buff mới thì mở rộng curr và prev để
-            // tiết kiệm 1 lần mem.copy
-            var bytes: [2 * BYTES_PROCESSED]u8 = undefined;
-            const prev_ = prev_bytes[tk_idx..];
-            const curr_ = curr_bytes[0..sp_idx];
-
+        if (sp_idx == len) {
+            const prev_ = prev_bytes[prev_sp_idx..];
+            const curr_ = curr_bytes[0..next_sp_idx];
             std.mem.copy(u8, bytes[0..], prev_);
             std.mem.copy(u8, bytes[prev_.len..], curr_);
-            const token = bytes[0..(prev_.len + curr_.len)];
+            processSpaceToken(bytes[0..(prev_.len + curr_.len)]);
+        } else {
+            processSpaceToken(bytes[0..next_sp_idx]);
+        }
 
-            processToken(tk_idx, sp_idx, token);
+        sp_idx = next_sp_idx;
+        if (tk_idx != TOKEN_PROCESSED) {
+            // token đầu tiên của curr_bytes nằm trên prev_bytes
+            const prev_ = prev_bytes[tk_idx..];
+            const curr_ = curr_bytes[0..sp_idx];
+            std.mem.copy(u8, bytes[0..], prev_);
+            std.mem.copy(u8, bytes[prev_.len..], curr_);
+            processToken(bytes[0..(prev_.len + curr_.len)]);
             //
         } else if (sp_idx != 0) {
             // token đầu tiên của curr_bytes không nằm trên prev_bytes
-            processToken(0, sp_idx, curr_bytes[0..sp_idx]);
+            processToken(curr_bytes[0..sp_idx]);
         }
 
         //
@@ -114,13 +116,14 @@ fn scanFile(file_name: []const u8) !void {
 
         while (sp_idx < len) {
             // Tìm next token index
+            prev_sp_idx = sp_idx;
             while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
-            tk_idx = sp_idx;
+            if (sp_idx < len) processSpaceToken(curr_bytes[prev_sp_idx..sp_idx]);
 
             // Tìm next space index
+            tk_idx = sp_idx;
             while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
-
-            if (sp_idx < len) processToken(tk_idx, sp_idx, curr_bytes[tk_idx..sp_idx]);
+            if (sp_idx < len) processToken(curr_bytes[tk_idx..sp_idx]);
         }
 
         // swap curr_bytes and prev_bytes
@@ -135,23 +138,19 @@ fn scanFile(file_name: []const u8) !void {
 
     std.debug.print("\n(( `{s}` scanned. ))\n", .{file_name});
 }
-
-fn processToken(token_idx: usize, space_idx: usize, token: []const u8) void {
-    if (show_info)
-        std.debug.print("\n{d:0>2}-{d:0>2}: {s: >12}", .{
-            token_idx,
-            space_idx,
-            token,
-        });
-
+inline fn processSpaceToken(str: []const u8) void {
+    var it = std.mem.tokenize(u8, str, " \n\t");
+    while (it.next()) |tkn| {
+        type_counters.put(tkn);
+    }
+}
+inline fn processToken(token: []const u8) void {
     var syll = parseSyllable(token);
-
     if (syll.can_be_vietnamese)
         syll_counters.put(syll.toId())
     else
         type_counters.put(token);
-
-    if (show_info) cmn.printSyllParts(syll);
+    // if (show_info) cmn.printSyllParts(syll);
 }
 
 pub fn main() !void {
@@ -164,7 +163,7 @@ pub fn main() !void {
 
     switch (builtin.mode) {
         .Debug, .ReleaseSmall => {
-            // show_info = true;
+            show_info = true;
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});

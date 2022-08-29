@@ -323,7 +323,7 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
 
     syll.am_cuoi = getFinal(c0.byte0, c1.byte0);
 
-    // TODO: cần check can_be_vietnamese từ khâu initial và middle
+    // ENHANCE: cần check can_be_vietnamese từ khâu initial và middle
     // VALIDATE khi parse tới đây bắt buộc phải có âm cuối
     // vì các bước phân tích trên đã bao gồm trường hợp ko có âm cuối
     syll.can_be_vietnamese = syll.am_cuoi != ._none;
