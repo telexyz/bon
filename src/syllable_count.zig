@@ -3,30 +3,31 @@ const Syllable = @import("syllable.zig").Syllable; // syllable data structures
 
 pub const CountType = u24;
 pub const KeyType = Syllable.UniqueId;
-pub const MAXX_KEY = Syllable.MAXX_ID; // maxx: value < maxx (maxx = max + 1)
+pub const MAXX_KEY = Syllable.MAXX_ID; // value always < maxx (maxx = max + 1)
 
 pub const SyllableCount = struct {
     allocator: std.mem.Allocator = undefined,
     counts: []CountType = undefined,
-    mutex: std.Thread.Mutex,
+    freed: bool = false,
 
     const Self = @This();
 
-    pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
-        self.allocator = init_allocator;
-        self.mutex = std.Thread.Mutex{};
-        self.counts = try self.allocator.alloc(CountType, MAXX_KEY);
-        std.mem.set(CountType, self.counts, 0);
+    pub fn deinit(self: *Self) void {
+        if (!self.freed) {
+            self.allocator.free(self.counts);
+            self.freed = true;
+        }
     }
 
-    pub fn deinit(self: *Self) void {
-        self.allocator.free(self.counts);
+    pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
+        self.allocator = init_allocator;
+        self.counts = try self.allocator.alloc(CountType, MAXX_KEY);
+        std.mem.set(CountType, self.counts, 0);
+        self.freed = false;
     }
 
     pub fn put(self: *Self, key: KeyType) void {
         std.debug.assert(key < MAXX_KEY);
-        // self.mutex.lock();
-        // defer self.mutex.unlock();
         self.counts[key] += 1;
     }
 

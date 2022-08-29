@@ -119,13 +119,13 @@ fn scanFile(file_name: []const u8) !void {
         if (next_sp_idx == len) tk_idx = len;
 
         while (next_sp_idx < len) {
-            // Tìm next space index
+            // Tìm next non-alphabet tokens
             sp_idx = next_sp_idx;
             prev_sp_idx = sp_idx;
             while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
             if (sp_idx < len) processNonAlphabetTokens(curr_bytes[prev_sp_idx..sp_idx]);
 
-            // Tìm next token index
+            // Tìm next alphabet token
             next_sp_idx = sp_idx;
             tk_idx = next_sp_idx;
             while (next_sp_idx < len and !inSet(sp_bits, next_sp_idx)) next_sp_idx += 1;
@@ -150,7 +150,7 @@ inline fn processNonAlphabetTokens(str: []const u8) void {
     if (show_info) std.debug.print("\n_ _ _:", .{});
     while (it.next()) |tkn| {
         type_counters.put(tkn);
-        if (show_info) std.debug.print(" \"{s}\"", .{tkn});
+        if (show_info) std.debug.print(" `{s}`", .{tkn});
     }
 }
 inline fn processToken(token: []const u8) void {
@@ -171,12 +171,14 @@ pub fn main() !void {
     const default_allocator = std.heap.c_allocator;
     // const default_allocator = std.heap.page_allocator;
 
+    defer syll_counters.deinit();
+    defer type_counters.deinit();
+
     try type_counters.init(default_allocator);
     try syll_counters.init(default_allocator);
 
     switch (builtin.mode) {
-        .Debug, .ReleaseSmall => {
-            // show_info = true;
+        .Debug => {
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
@@ -187,6 +189,7 @@ pub fn main() !void {
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
 
+            show_info = true;
             try scanFile("utf8tv.txt");
 
             // thread0.join();
@@ -194,7 +197,6 @@ pub fn main() !void {
             // thread2.join();
             // thread3.join();
         },
-        .ReleaseSafe => {},
         .ReleaseFast => {
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ab"});
@@ -206,22 +208,36 @@ pub fn main() !void {
             thread2.join();
             thread3.join();
         },
+        else => {},
     }
 
-    syll_counters.list(20);
-    type_counters.showStats();
+    switch (builtin.mode) {
+        .ReleaseFast => {
+            syll_counters.list(20);
+            syll_counters.deinit();
 
-    var bpe: BPE = undefined;
-    defer bpe.deinit();
-    try bpe.init(default_allocator, type_counters.len, type_counters.entries, type_counters.keys_bytes, type_counters.keys_bytes_len);
+            var bpe: BPE = undefined;
+            defer bpe.deinit();
+            try bpe.init(
+                default_allocator,
+                type_counters.len,
+                type_counters.entries,
+                type_counters.keys_bytes,
+                type_counters.keys_bytes_len,
+            );
 
-    type_counters.deinit();
-    syll_counters.deinit();
+            type_counters.showStats();
+            type_counters.deinit();
 
-    bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 300);
-    try bpe.learn();
-    bpe.showSelectedSymbols(1000);
-    bpe.pairs_count.showStats();
+            bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 300);
+            try bpe.learn();
+            bpe.showSelectedSymbols(1000);
+            bpe.pairs_count.showStats();
+        },
+        else => {
+            type_counters.showStats();
+        },
+    }
 }
 
 // simple config

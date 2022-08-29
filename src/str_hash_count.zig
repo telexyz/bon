@@ -77,8 +77,11 @@ pub fn HashCount(capacity: IndexType) type {
         const Self = @This();
 
         pub fn deinit(self: *Self) void {
-            self.allocator.free(self.entries);
-            self.allocator.free(self.keys_bytes);
+            if (self.len > 0) {
+                self.allocator.free(self.entries);
+                self.allocator.free(self.keys_bytes);
+                self.len = 0;
+            }
         }
 
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
