@@ -445,11 +445,12 @@ pub const BPE = struct {
             const count = getCountFromFirstCharIdx(vocabs, first_char_idx);
             const key_len_ptr = &vocabs[first_char_idx - 1];
 
-            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
-
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             // Chia key_len thành từng mức 16, 32, 48, 64 để tối ưu cho AVX2 256-bit (16x16)
             // AVX512 (32x16) tự lựa theo.
+            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
+            // std.debug.assert(key_len <= 64);
+
             switch (key_len) {
                 0...16 => {
                     const input: std.meta.Vector(16, u16) = vocabs[first_char_idx..][0..16].*;
@@ -505,7 +506,7 @@ pub const BPE = struct {
                             last_symbol_idx, count, left, right, vocabs);
                     }
                 },
-                49...64 => {
+                else => {
                     const input: std.meta.Vector(64, u16) = vocabs[first_char_idx..][0..64].*;
                     const left_match_vec = input == left_lookup_64; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u64, &(left_match_vec)).*;
@@ -522,10 +523,6 @@ pub const BPE = struct {
                             first_char_idx, last_char_idx, key_len_ptr, //
                             last_symbol_idx, count, left, right, vocabs);
                     }
-                },
-                else => {
-                    std.debug.print("!! MAX_KEY_LEN ({d}) lớn hơn 64, ", .{MAX_KEY_LEN});
-                    unreachable;
                 },
             }
             x = key_bound; // trỏ tới key tiếp theo

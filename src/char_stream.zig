@@ -67,8 +67,8 @@ fn scanFile(file_name: []const u8) !void {
     var prev_bytes = buf2[0..]; // khởi tạo previous buffer
 
     var tk_idx: usize = TOKEN_PROCESSED; // token index
-    var sp_idx: usize = undefined; // separator index
-    var prev_sp_idx: usize = undefined;
+    var sp_idx: usize = 0; // separator index
+    var prev_sp_idx: usize = 0;
     // token đang xử lý sẽ nằm từ token_idx .. sp_idx
 
     // đọc dữ liệu lần đầu tiên
@@ -87,17 +87,20 @@ fn scanFile(file_name: []const u8) !void {
         var next_sp_idx: usize = @ctz(BitType, sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
-        if (sp_idx == len) {
+        std.debug.print("\n{d} {d} {d}", .{ prev_sp_idx, sp_idx, next_sp_idx });
+        if (sp_idx == TOKEN_PROCESSED) {
+            sp_idx = 0;
+            while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
             const prev_ = prev_bytes[prev_sp_idx..];
-            const curr_ = curr_bytes[0..next_sp_idx];
+            const curr_ = curr_bytes[0..sp_idx];
             std.mem.copy(u8, bytes[0..], prev_);
             std.mem.copy(u8, bytes[prev_.len..], curr_);
             processSpaceToken(bytes[0..(prev_.len + curr_.len)]);
-        } else {
-            processSpaceToken(bytes[0..next_sp_idx]);
         }
 
         sp_idx = next_sp_idx;
+        prev_sp_idx = sp_idx;
+
         if (tk_idx != TOKEN_PROCESSED) {
             // token đầu tiên của curr_bytes nằm trên prev_bytes
             const prev_ = prev_bytes[tk_idx..];
@@ -114,16 +117,18 @@ fn scanFile(file_name: []const u8) !void {
         //
         if (sp_idx == len) tk_idx = len;
 
-        while (sp_idx < len) {
-            // Tìm next token index
+        while (next_sp_idx < len) {
+            // Tìm next space index
+            sp_idx = next_sp_idx;
             prev_sp_idx = sp_idx;
             while (sp_idx < len and inSet(sp_bits, sp_idx)) sp_idx += 1;
             if (sp_idx < len) processSpaceToken(curr_bytes[prev_sp_idx..sp_idx]);
 
-            // Tìm next space index
-            tk_idx = sp_idx;
-            while (sp_idx < len and !inSet(sp_bits, sp_idx)) sp_idx += 1;
-            if (sp_idx < len) processToken(curr_bytes[tk_idx..sp_idx]);
+            // Tìm next token index
+            next_sp_idx = sp_idx;
+            tk_idx = next_sp_idx;
+            while (next_sp_idx < len and !inSet(sp_bits, next_sp_idx)) next_sp_idx += 1;
+            if (next_sp_idx < len) processToken(curr_bytes[tk_idx..next_sp_idx]);
         }
 
         // swap curr_bytes and prev_bytes
@@ -142,6 +147,7 @@ inline fn processSpaceToken(str: []const u8) void {
     var it = std.mem.tokenize(u8, str, " \n\t");
     while (it.next()) |tkn| {
         type_counters.put(tkn);
+        if (show_info) std.debug.print("\n`{s}`", .{tkn});
     }
 }
 inline fn processToken(token: []const u8) void {
@@ -150,6 +156,7 @@ inline fn processToken(token: []const u8) void {
         syll_counters.put(syll.toId())
     else
         type_counters.put(token);
+    // if (show_info) std.debug.print(" \n", .{});
     // if (show_info) cmn.printSyllParts(syll);
 }
 
