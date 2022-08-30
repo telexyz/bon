@@ -584,7 +584,7 @@ pub const BPE = struct {
     }
 
     fn shinkVocabs(self: *Self) !void {
-        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + MAX_KEY_LEN);
+        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + 64);
         var x: usize = 0;
         var y: usize = 0;
 
