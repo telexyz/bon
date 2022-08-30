@@ -171,6 +171,10 @@ pub fn main() !void {
 
     switch (builtin.mode) {
         .Debug => {
+            show_info = true;
+            try scanFile("utf8tv.txt");
+            show_info = false;
+
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
@@ -181,15 +185,14 @@ pub fn main() !void {
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
 
-            show_info = true;
-            try scanFile("utf8tv.txt");
-
             // thread0.join();
             // thread1.join();
             // thread2.join();
             // thread3.join();
         },
         .ReleaseFast => {
+            const start_time = std.time.milliTimestamp();
+
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ab"});
             var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ac"});
@@ -199,6 +202,9 @@ pub fn main() !void {
             thread1.join();
             thread2.join();
             thread3.join();
+
+            const time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
+            std.debug.print("\n[[ TOKENIZATION DONE {d}s ]]\n", .{time_spent});
         },
         else => {},
     }
@@ -210,6 +216,7 @@ pub fn main() !void {
 
             var bpe: BPE = undefined;
             defer bpe.deinit();
+            const start_time = std.time.milliTimestamp();
             try bpe.init(
                 default_allocator,
                 type_counters.len,
@@ -223,6 +230,9 @@ pub fn main() !void {
 
             bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 300);
             try bpe.learn();
+            const time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
+            std.debug.print("\n\n[[ BPE LEARN DONE {d}s ]]\n", .{time_spent});
+
             bpe.showSelectedSymbols(1000);
             bpe.pairs_count.showStats();
         },
