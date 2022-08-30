@@ -82,9 +82,9 @@ https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn YouTokenToMe khoảng `1.5x`
+- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn [fastBPE](https://github.com/glample/fastBPE) khoảng `10x`, nhanh hơn [YouTokenToMe](https://github.com/VKCOM/YouTokenToMe) khoảng `1.5x`
 
-- BPE Learn v1, v2; naive impl, tốc độ = fastBPE.
+- BPE Learn v1, v2; naive impl, tốc độ = [fastBPE](https://github.com/glample/fastBPE).
 
 - Chạy nhiều threads dùng chung Hash Count giúp tăng tốc > 2x
 
