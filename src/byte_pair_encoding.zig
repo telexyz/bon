@@ -266,8 +266,6 @@ pub const BPE = struct {
         defer thread_pool.deinit();
 
         var wait_group: WaitGroup = .{};
-        wait_group.reset();
-        defer wait_group.wait();
 
         // Show progress at beginning
         _ = self.showStatsGetBlanksPercent(0, self.total_new_candidates);
@@ -291,6 +289,8 @@ pub const BPE = struct {
 
             // loại bỏ pair được chọn khỏi vocabs
             const job = mergeLastSelectedPair;
+            wait_group.reset();
+
             wait_group.start();
             try thread_pool.spawn(job, .{ self, self.vocabs, 0, self.chunk1, &wait_group });
 
@@ -302,6 +302,8 @@ pub const BPE = struct {
 
             wait_group.start();
             try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk3, self.vocabs_len, &wait_group });
+
+            wait_group.wait();
 
             if (i % 150 == 149) { // Show progress
                 const progress = i * 100 / MAX_SELECTED_PAIRS;
