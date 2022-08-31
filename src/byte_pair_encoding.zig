@@ -21,6 +21,8 @@
 
 const std = @import("std");
 const builtin = @import("builtin");
+const ThreadPool = @import("ThreadPool.zig");
+const WaitGroup = @import("WaitGroup.zig");
 const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 const inSet = @import("char_stream.zig").inSet;
@@ -259,6 +261,14 @@ pub const BPE = struct {
         var i: usize = 0;
         var _new_candidates: usize = 0;
 
+        var thread_pool: ThreadPool = undefined;
+        try thread_pool.init(self.allocator);
+        defer thread_pool.deinit();
+
+        var wait_group: WaitGroup = .{};
+        wait_group.reset();
+        defer wait_group.wait();
+
         // Show progress at beginning
         _ = self.showStatsGetBlanksPercent(0, self.total_new_candidates);
         try self.shinkVocabs(); // để xác định self.chunk1,2,3
@@ -281,13 +291,17 @@ pub const BPE = struct {
 
             // loại bỏ pair được chọn khỏi vocabs
             const job = mergeLastSelectedPair;
-            var thread3 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, 0, self.chunk1 });
-            var thread2 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, self.chunk1, self.chunk2 });
-            var thread1 = try std.Thread.spawn(.{}, job, .{ self, self.vocabs, self.chunk2, self.chunk3 });
-            self.mergeLastSelectedPair(self.vocabs, self.chunk3, self.vocabs_len);
-            thread1.join();
-            thread2.join();
-            thread3.join();
+            wait_group.start();
+            try thread_pool.spawn(job, .{ self, self.vocabs, 0, self.chunk1, &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk1, self.chunk2, &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk2, self.chunk3, &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk3, self.vocabs_len, &wait_group });
 
             if (i % 150 == 149) { // Show progress
                 const progress = i * 100 / MAX_SELECTED_PAIRS;
@@ -411,7 +425,9 @@ pub const BPE = struct {
     // 2/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
     // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
     // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
-    fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize) void {
+    fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize, wg: *WaitGroup) void {
+        defer wg.finish();
+
         const last_symbol_idx = self.total_selected - 1;
         const last_selected = self.selected_symbols[last_symbol_idx];
         const left = getLeftSymbol(last_selected);

@@ -210,7 +210,7 @@ pub fn main() !void {
     }
 
     switch (builtin.mode) {
-        .ReleaseFast => {
+        .Debug, .ReleaseFast => {
             syll_counters.list(20);
             syll_counters.deinit();
 
