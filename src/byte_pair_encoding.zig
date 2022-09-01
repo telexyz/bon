@@ -29,10 +29,10 @@
 // rồi mới áp dụng chiến thuật trên. => Cần chọn 1 ngưỡng mới bắt đầu indexing để đạt hiệu suất cao nhất.
 //
 // Trước khi Indexing
-// [[ BPE LEARN DONE 41s ]]
+// [[ BPE LEARN DONE 53s ]]
 //
 // Sau khi Indexing
-// [[ BPE LEARN DONE 20s ]]
+// [[ BPE LEARN DONE 24s ]]
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -377,9 +377,7 @@ pub const BPE = struct {
     }
 
     inline fn dropout(self: Self) bool {
-        // return self.random.int(u16) < 40; // dropout rate ~= 0.06% (40 / 65536)
-        return self.random.int(u16) < 70;
-        // return self.random.int(u16) < 100; // dropout rate ~= 0.15% (100 / 65536)
+        return self.random.int(u16) < 40; // dropout rate ~= 0.06% (40 / 65536)
     }
     fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
         var min_count: CountType = std.math.maxInt(CountType);
