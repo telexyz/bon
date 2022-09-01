@@ -107,11 +107,11 @@ test "pairDecode" {
     const abcde = 264;
     const abcde_abcde = 265;
 
-    symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1).key;
-    symbols[de] = counts.putCount(makePairKey('d', 'e'), 1).key;
-    symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1).key;
-    symbols[abcde] = counts.putCount(makePairKey(abc, de), 1).key;
-    symbols[abcde_abcde] = counts.putCount(makePairKey(abcde, abcde), 1).key;
+    symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1, 0).key;
+    symbols[de] = counts.putCount(makePairKey('d', 'e'), 1, 0).key;
+    symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1, 0).key;
+    symbols[abcde] = counts.putCount(makePairKey(abc, de), 1, 0).key;
+    symbols[abcde_abcde] = counts.putCount(makePairKey(abcde, abcde), 1, 0).key;
 
     var out: [MAX_KEY_LEN]u8 = undefined;
     var len: usize = 0;

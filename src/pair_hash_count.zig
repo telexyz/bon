@@ -85,7 +85,6 @@ pub fn HashCount(capacity: IndexType) type {
         }
 
         pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: u8) *Entry {
-            _ = curr_chunk;
             var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .in_chunks = .{ .mask = 0 } };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
@@ -219,17 +218,17 @@ test "HashCount for bpe" {
     const x: IndexType = 111;
     try std.testing.expectEqual(counters.get(x), 0);
     // std.debug.print("\n{any}\n", .{counters.entries});
-    _ = counters.putCount(x, 1);
+    _ = counters.putCount(x, 1, 0);
     // std.debug.print("\n{any}\n", .{counters.entries});
     try std.testing.expectEqual(counters.get(x), 1);
-    _ = counters.putCount(x, 1);
+    _ = counters.putCount(x, 1, 0);
     // std.debug.print("\n{any}\n", .{counters.entries});
     try std.testing.expectEqual(@as(CountType, 2), counters.get(x));
 
     const y: IndexType = 888;
     try std.testing.expectEqual(counters.get(y), 0);
-    _ = counters.putCount(y, 1);
-    _ = counters.putCount(y, 1);
+    _ = counters.putCount(y, 1, 0);
+    _ = counters.putCount(y, 1, 0);
     try std.testing.expectEqual(counters.get(y), 2);
 }
 
