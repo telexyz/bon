@@ -28,10 +28,11 @@
 // Lúc đầu tần suất xuất hiện của selected pairs trong vocabs lớn, nên chạy và shinkVocabs() vài lượt
 // rồi mới áp dụng chiến thuật trên. => Cần chọn 1 ngưỡng mới bắt đầu indexing để đạt hiệu suất cao nhất.
 //
-// [[ BPE LEARN DONE 36s ]]
-// Giảm 27% vocabs sau 4 lần shinkVocabs(), BPE Learn đạt 16%. Sau đó độ giảm vocabs ổn định ở 8%
-// [[ BPE LEARN DONE 39s ]]
+// Trước khi Indexing
+// [[ BPE LEARN DONE 41s ]]
 //
+// Sau khi Indexing
+// [[ BPE LEARN DONE 20s ]]
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -41,7 +42,7 @@ const shc = @import("str_hash_count.zig");
 const phc = @import("pair_hash_count.zig");
 const inSet = @import("char_stream.zig").inSet;
 
-const MAX_SELECTED_PAIRS: usize = if (builtin.mode == .Debug) 500 else 8000;
+const MAX_SELECTED_PAIRS: usize = 8000;
 const MAX_TOTAL_CANDIDATES = 8 * MAX_SELECTED_PAIRS / 2;
 const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
 const MAX_TOTAL_SYMBOLS = 1_500_000;
@@ -61,6 +62,10 @@ const MAXX_INDEX = phc.MAXX_INDEX;
 const MAXX_SYMBOL = phc.MAXX_SYMBOL;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 
+const MAX_SHINKS = 1; // no shinking
+// const MAX_SHINKS = 6000; // no indexing
+const MAX_CHUNKS = phc.MAX_CHUNKS;
+
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 inline fn makeCharKey(byte: u8) PairType { // Cách làm đơn giản nhất là coi chars là byte
@@ -78,13 +83,13 @@ inline fn makePairKey(prev_sym: SymbolType, curr_sym: SymbolType) PairType {
 inline fn isSymbol(pair: PairType) bool {
     return (!isChar(pair)) and pair < MAXX_SYMBOL;
 }
-inline fn getLeftSymbol(pair: PairType) PairType {
+inline fn getLeftSymbol(pair: PairType) SymbolType {
     std.debug.assert(pair > MAXX_SYMBOL);
-    return pair >> 16;
+    return @intCast(SymbolType, pair >> 16);
 }
-inline fn getRightSymbol(pair: PairType) PairType {
+inline fn getRightSymbol(pair: PairType) SymbolType {
     std.debug.assert(pair > MAXX_SYMBOL);
-    return pair & 0x0000_ffff;
+    return @intCast(SymbolType, pair & 0x0000_ffff);
 }
 fn printPair(pair: PairType, symbols_to_keys: []const PairType) void {
     var out: [MAX_KEY_LEN]u8 = undefined;
@@ -175,8 +180,6 @@ pub const BPE = struct {
 
     random: std.rand.Random,
 
-    const MAX_SHINKS = 5;
-    const MAX_CHUNKS = 128;
     const Self = @This();
 
     // Bộ từ vựng là các hàm nhỏ, dùng lại nhiều lần, inline để ko làm giảm tốc độ
@@ -209,7 +212,7 @@ pub const BPE = struct {
     inline fn getNewCandidates(self: Self) []const PairType {
         return self.new_candidates[0..self.total_new_candidates];
     }
-    fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType) void {
+    fn adjustNearByLastSelected(self: *Self, pair_reduc: PairType, pair_added: PairType, count: CountType, curr_chunk: u8) void {
         // Dùng lock vì có nhiều thread cùng tham gia vào việc này
         while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
         defer std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
@@ -218,7 +221,7 @@ pub const BPE = struct {
         self.pairs_count.getEntry(pair_reduc).?.count -= count;
 
         // Nếu pair_added mới xuất hiện thì cho vào tập candidates
-        const entry = self.pairs_count.putCount(pair_added, count);
+        const entry = self.pairs_count.putCount(pair_added, count, curr_chunk);
         if (entry.count == count) self.addToNewCandidates(pair_added);
     }
 
@@ -305,20 +308,51 @@ pub const BPE = struct {
             self.removeCandidateAt(index);
 
             // loại bỏ pair được chọn khỏi vocabs
+
+            const last_symbol_idx = self.total_selected - 1;
+            const last_selected = self.selected_symbols[last_symbol_idx];
+            const left = getLeftSymbol(last_selected);
+            const right = getRightSymbol(last_selected);
+            std.debug.assert(left < MAXX_INDEX);
+            std.debug.assert(right < MAXX_INDEX);
+
+            const left_lookup_16 = @splat(16, left);
+            const right_lookup_16 = @splat(16, right);
+
+            const left_lookup_32 = @splat(32, left);
+            const right_lookup_32 = @splat(32, right);
+
+            const left_lookup_48 = @splat(48, left);
+            const right_lookup_48 = @splat(48, right);
+
+            const left_lookup_64 = @splat(64, left);
+            const right_lookup_64 = @splat(64, right);
+
             const job = mergeLastSelectedPair;
             wait_group.reset();
 
-            wait_group.start();
-            try thread_pool.spawn(job, .{ self, self.vocabs, 0, self.chunk1, &wait_group });
+            if (entry.in_chunks.mask > 0) {
+                var c: usize = 0;
+                while (c < MAX_CHUNKS) : (c += 1)
+                    if (entry.in_chunks.isSet(c)) {
+                        const begin = self.chunks[c];
+                        const end = self.chunks[c + 1];
+                        wait_group.start();
+                        try thread_pool.spawn(job, .{ self, self.vocabs, begin, end, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
+                    };
+            } else {
+                wait_group.start();
+                try thread_pool.spawn(job, .{ self, self.vocabs, 0, self.chunk1, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
 
-            wait_group.start();
-            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk1, self.chunk2, &wait_group });
+                wait_group.start();
+                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk1, self.chunk2, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
 
-            wait_group.start();
-            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk2, self.chunk3, &wait_group });
+                wait_group.start();
+                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk2, self.chunk3, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
 
-            wait_group.start();
-            try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk3, self.vocabs_len, &wait_group });
+                wait_group.start();
+                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk3, self.vocabs_len, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
+            }
 
             wait_group.wait();
 
@@ -343,7 +377,9 @@ pub const BPE = struct {
     }
 
     inline fn dropout(self: Self) bool {
-        return self.random.int(u16) < 200; // dropout rate ~= 0.3% (200 / 65536)
+        // return self.random.int(u16) < 40; // dropout rate ~= 0.06% (40 / 65536)
+        return self.random.int(u16) < 70;
+        // return self.random.int(u16) < 100; // dropout rate ~= 0.15% (100 / 65536)
     }
     fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
         var min_count: CountType = std.math.maxInt(CountType);
@@ -377,8 +413,6 @@ pub const BPE = struct {
 
         // Với từng ứng viên mới (phần tử mảng new_candidates)
         for (self.getNewCandidates()) |new_pair_key| {
-            if (self.dropout()) continue;
-
             // Dùng getEntry để chăc chắn `new_pair_key` có trong hashtable
             const new_count = self.pairs_count.getEntry(new_pair_key).?.count;
 
@@ -444,30 +478,35 @@ pub const BPE = struct {
     // 2/ Dùng SIMD để tăng tốc scan. Cần đổi vocabs sang []u32 để tiện load vào vectors
     // Mỗi chunk load 16 phần tử (512-bit), compare 2 patterns đan nhau (0101.., 1010..)
     // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
-    fn mergeLastSelectedPair(self: *Self, vocabs: []SymbolType, begin: usize, end: usize, wg: *WaitGroup) void {
+    fn mergeLastSelectedPair(
+        self: *Self,
+        vocabs: []SymbolType,
+        begin: usize,
+        end: usize,
+        wg: *WaitGroup,
+        left_lookup_16: *const std.meta.Vector(16, SymbolType),
+        right_lookup_16: *const std.meta.Vector(16, SymbolType),
+        left_lookup_32: *const std.meta.Vector(32, SymbolType),
+        right_lookup_32: *const std.meta.Vector(32, SymbolType),
+        left_lookup_48: *const std.meta.Vector(48, SymbolType),
+        right_lookup_48: *const std.meta.Vector(48, SymbolType),
+        left_lookup_64: *const std.meta.Vector(64, SymbolType),
+        right_lookup_64: *const std.meta.Vector(64, SymbolType),
+        last_symbol_idx: SymbolType,
+        left: PairType,
+        right: PairType,
+    ) void {
         defer wg.finish();
 
-        const last_symbol_idx = self.total_selected - 1;
-        const last_selected = self.selected_symbols[last_symbol_idx];
-        const left = getLeftSymbol(last_selected);
-        const right = getRightSymbol(last_selected);
-        std.debug.assert(left < MAXX_INDEX);
-        std.debug.assert(right < MAXX_INDEX);
-
-        const left_lookup_16 = @splat(16, left);
-        const right_lookup_16 = @splat(16, right);
-
-        const left_lookup_32 = @splat(32, left);
-        const right_lookup_32 = @splat(32, right);
-
-        const left_lookup_48 = @splat(48, left);
-        const right_lookup_48 = @splat(48, right);
-
-        const left_lookup_64 = @splat(64, left);
-        const right_lookup_64 = @splat(64, right);
-
         var x: usize = begin;
+        var curr_chunk: u8 = undefined;
+        curr_chunk = if (self.shinkVocabsDone()) 0 else MAX_CHUNKS + 1;
+
         while (x < end) {
+            while (curr_chunk < MAX_CHUNKS and begin + x > self.chunks[curr_chunk + 1]) {
+                // not the last chunk and the current index excess current chunk
+                curr_chunk += 1;
+            }
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const last_char_idx = getEndFromFirstCharIdx(vocabs, first_char_idx) - 1;
             const key_bound = getBoundFromFirstCharIdx(vocabs, first_char_idx);
@@ -488,10 +527,10 @@ pub const BPE = struct {
 
             switch (key_len) {
                 0...16 => {
-                    const input: std.meta.Vector(16, u16) = vocabs[first_char_idx..][0..16].*;
-                    const left_match_vec = input == left_lookup_16; // Zig Vector `==` op
+                    const input: std.meta.Vector(16, SymbolType) = vocabs[first_char_idx..][0..16].*;
+                    const left_match_vec = input == left_lookup_16.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u16, &(left_match_vec)).*;
-                    const right_match_vec = input == right_lookup_16;
+                    const right_match_vec = input == right_lookup_16.*;
                     const right_match_bin = @ptrCast(*const u16, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
                     const match_begin = @ctz(u16, match_bin);
@@ -502,14 +541,14 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs);
+                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
                     }
                 },
                 17...32 => {
-                    const input: std.meta.Vector(32, u16) = vocabs[first_char_idx..][0..32].*;
-                    const left_match_vec = input == left_lookup_32; // Zig Vector `==` op
+                    const input: std.meta.Vector(32, SymbolType) = vocabs[first_char_idx..][0..32].*;
+                    const left_match_vec = input == left_lookup_32.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
-                    const right_match_vec = input == right_lookup_32;
+                    const right_match_vec = input == right_lookup_32.*;
                     const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
                     const match_begin = @ctz(u32, match_bin);
@@ -520,14 +559,14 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs);
+                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
                     }
                 },
                 33...48 => {
-                    const input: std.meta.Vector(48, u16) = vocabs[first_char_idx..][0..48].*;
-                    const left_match_vec = input == left_lookup_48; // Zig Vector `==` op
+                    const input: std.meta.Vector(48, SymbolType) = vocabs[first_char_idx..][0..48].*;
+                    const left_match_vec = input == left_lookup_48.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u48, &(left_match_vec)).*;
-                    const right_match_vec = input == right_lookup_48;
+                    const right_match_vec = input == right_lookup_48.*;
                     const right_match_bin = @ptrCast(*const u48, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
                     const match_begin = @ctz(u48, match_bin);
@@ -538,14 +577,14 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs);
+                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
                     }
                 },
                 else => {
-                    const input: std.meta.Vector(64, u16) = vocabs[first_char_idx..][0..64].*;
-                    const left_match_vec = input == left_lookup_64; // Zig Vector `==` op
+                    const input: std.meta.Vector(64, SymbolType) = vocabs[first_char_idx..][0..64].*;
+                    const left_match_vec = input == left_lookup_64.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u64, &(left_match_vec)).*;
-                    const right_match_vec = input == right_lookup_64;
+                    const right_match_vec = input == right_lookup_64.*;
                     const right_match_bin = @ptrCast(*const u64, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
                     const match_begin = @ctz(u64, match_bin);
@@ -556,7 +595,7 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs);
+                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
                     }
                 },
             }
@@ -577,6 +616,7 @@ pub const BPE = struct {
         left: PairType,
         right: PairType,
         vocabs: []SymbolType,
+        curr_chunk: u8,
     ) void {
         var match_begin = _match_begin;
         var last_char_idx = _last_char_idx;
@@ -594,13 +634,13 @@ pub const BPE = struct {
             if (x > first_char_idx) { // có sym phía trước
                 const prev_pair_reduc = makePairKey(vocabs[x - 1], vocabs[x]);
                 const prev_paid_added = makePairKey(vocabs[x - 1], last_symbol_idx);
-                self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count);
+                self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count, curr_chunk);
             }
 
             if (y < last_char_idx) { // còn sym phía sau
                 const next_pair_reduc = makePairKey(vocabs[y], vocabs[y + 1]);
                 const next_paid_added = makePairKey(last_symbol_idx, vocabs[y + 1]);
-                self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count);
+                self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count, curr_chunk);
             }
 
             while (y < last_char_idx) : (y += 1) vocabs[y] = vocabs[y + 1]; // dồn toa
@@ -618,68 +658,24 @@ pub const BPE = struct {
         if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
     }
 
+    fn shinkVocabsDone(self: Self) bool {
+        return (self.shinks >= MAX_SHINKS);
+    }
     fn shinkVocabs(self: *Self) !void {
-        if (self.shinks > MAX_SHINKS) return;
+        if (self.shinkVocabsDone()) return;
         self.shinks += 1;
 
-        if (self.shinks == MAX_SHINKS) {
-            const not_set = std.math.maxInt(usize);
-            std.mem.set(usize, self.chunks[0..MAX_CHUNKS], not_set);
-
-            self.chunks[0] = 0;
-            self.chunks[MAX_CHUNKS] = self.vocabs_len;
-            const delta = self.vocabs_len / MAX_CHUNKS;
-            var curr = delta;
-
-            var x: usize = 0;
-            var y: usize = 1;
-
-            while (x < self.vocabs_len) {
-                if (self.chunks[y] == not_set and x >= curr) {
-                    self.chunks[y] = x;
-                    y += 1;
-                    curr += delta;
-                }
-                x = getBoundFromFirstCharIdx(self.vocabs, x + 3);
-            }
-
-            // for (self.chunks[0..MAX_CHUNKS]) |c, i| std.debug.print("\nchunks[{d}]={d}\n", .{ i, c });
-            // unreachable;
-            return;
-        }
-
-        if (self.shinks == 0) {
-            // Lần đầu shinks
-            self.chunk1 = self.vocabs_len / 4;
-            self.chunk2 = 2 * self.chunk1;
-            self.chunk3 = 3 * self.chunk1;
-
-            var update_chunk1 = true;
-            var update_chunk2 = true;
-            var update_chunk3 = true;
-
-            var x: usize = 0;
-            while (x < self.vocabs_len) {
-                if (update_chunk1 and x > self.chunk1) {
-                    update_chunk1 = false;
-                    self.chunk1 = x;
-                }
-                if (update_chunk2 and x > self.chunk2) {
-                    update_chunk2 = false;
-                    self.chunk2 = x;
-                }
-                if (update_chunk3 and x > self.chunk3) {
-                    update_chunk3 = false;
-                    self.chunk3 = x;
-                }
-                x = getBoundFromFirstCharIdx(self.vocabs, x + 3);
-            }
-            return;
-        }
+        const not_set = std.math.maxInt(usize);
+        std.mem.set(usize, self.chunks[0..MAX_CHUNKS], not_set);
+        self.chunks[0] = 0;
+        self.chunks[MAX_CHUNKS] = self.vocabs_len;
+        const delta = self.merged_vocabs_len / MAX_CHUNKS;
+        var curr = delta;
 
         var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + 64);
         var x: usize = 0;
         var y: usize = 0;
+        var z: usize = 1;
 
         self.chunk1 = self.merged_vocabs_len / 4;
         self.chunk2 = 2 * self.chunk1;
@@ -705,6 +701,12 @@ pub const BPE = struct {
                 std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
 
                 y += len; // nhảy tới cuối new vocabs
+
+                if (self.chunks[z] == not_set and y >= curr) {
+                    self.chunks[z] = y;
+                    z += 1;
+                    curr += delta;
+                }
 
                 if (update_chunk1 and y > self.chunk1) {
                     update_chunk1 = false;
@@ -815,7 +817,7 @@ pub const BPE = struct {
 
                 if (k > 0) { // có previous char
                     const pair_key = makePairKey(key_str[k - 1], char);
-                    const pair_entry = self.pairs_count.putCount(pair_key, key_count);
+                    const pair_entry = self.pairs_count.putCount(pair_key, key_count, MAX_CHUNKS);
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
                     if (pair_entry.count == key_count) self.addToNewCandidates(pair_key);
                 }

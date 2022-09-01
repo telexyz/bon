@@ -8,19 +8,18 @@ pub const KeyType = u32;
 pub const SymbolType = u16;
 
 pub const MAX_CAPACITY: usize = std.math.maxInt(IndexType);
-
 pub const MAXX_HASH = std.math.maxInt(HashType);
 pub const MAXX_INDEX = std.math.maxInt(IndexType);
 pub const MAXX_SYMBOL = std.math.maxInt(SymbolType);
 
-pub const Entry = struct {
-    hash: HashType, //     u32
-    count: CountType, //   u32
-    key: KeyType, //       u32
-    offset: IndexType, // u24 = 15-bytes (23% cache-line)
+pub const Entry = packed struct {
+    hash: HashType, //           u32
+    count: CountType, //         u32
+    key: KeyType, //             u32
+    in_chunks: InChunksType, //  u64 => 8+12 = 20-bytes
 };
 
-const MAX_CHUNKS = 128;
+pub const MAX_CHUNKS = 64;
 const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS);
 
 pub fn HashCount(capacity: IndexType) type {
@@ -37,7 +36,6 @@ pub fn HashCount(capacity: IndexType) type {
         allocator: std.mem.Allocator,
         spinlock: @TypeOf(lock_init),
 
-        in_chunks: []InChunksType,
         entries: []Entry,
         len: usize,
 
@@ -66,11 +64,8 @@ pub fn HashCount(capacity: IndexType) type {
                 .hash = MAXX_HASH,
                 .key = 0,
                 .count = 0,
-                .offset = MAXX_INDEX,
+                .in_chunks = .{ .mask = 0 },
             });
-
-            self.in_chunks = try self.allocator.alloc(InChunksType, size);
-            std.mem.set(InChunksType, self.in_chunks, .{ .mask = 0 });
         }
 
         inline fn recordStats(self: *Self, _probs: usize) void {
@@ -89,8 +84,9 @@ pub fn HashCount(capacity: IndexType) type {
             return std.hash.Murmur2_32.hashUint32(key);
         }
 
-        pub fn putCount(self: *Self, key: KeyType, count: CountType) *Entry {
-            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .offset = MAXX_INDEX };
+        pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: u8) *Entry {
+            _ = curr_chunk;
+            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .in_chunks = .{ .mask = 0 } };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
 
@@ -106,16 +102,25 @@ pub fn HashCount(capacity: IndexType) type {
             // 2/ Với các entry có hash = it.hash, nếu tìm được entry có key == it.key
             // thì tăng count và return entry.
             const lock_at_step_2 = (count > 1);
-            if (lock_at_step_2) while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {};
+
+            if (lock_at_step_2) {
+                while (@atomicRmw(bool, &self.spinlock, .Xchg, true, .SeqCst)) {}
+            }
 
             var entry = &self.entries[i];
             while (entry.hash == it.hash) : (i += 1) {
                 if (entry.key == key) { // key đã tồn tại từ trước
-                    entry.count += count; // xáo trộn duy nhất là thay đổi giá trị count
+                    entry.count += count;
+                    if (curr_chunk < MAX_CHUNKS) {
+                        entry.in_chunks.set(curr_chunk);
+                    }
                     self.recordStats(i - _i);
 
                     // Đảm bảo độ đúng đắn của spinlock
-                    if (lock_at_step_2) std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
+                    if (lock_at_step_2) {
+                        std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
+                    }
+
                     return entry;
                 }
                 entry = &self.entries[i + 1];
@@ -137,10 +142,12 @@ pub fn HashCount(capacity: IndexType) type {
 
                 // !! Luôn kiểm tra hash == MAXX_HASH để xác định ô rỗng !!
                 // Các so sánh khác khác để bổ trợ trường hợp edge case
-                if (tmp.hash == MAXX_HASH and tmp.offset == MAXX_INDEX) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == MAXX_HASH and tmp.key == 0) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
-
+                    if (curr_chunk < MAX_CHUNKS) {
+                        self.entries[i].in_chunks.set(curr_chunk);
+                    }
                     // Đảm bảo độ đúng đắn của spinlock
                     std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
                     return &self.entries[i];

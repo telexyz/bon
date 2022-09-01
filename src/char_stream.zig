@@ -170,7 +170,7 @@ pub fn main() !void {
     try syll_counters.init(default_allocator);
 
     switch (builtin.mode) {
-        .Debug => {
+        .ReleaseSafe => {
             show_info = true;
             try scanFile("utf8tv.txt");
             show_info = false;
@@ -190,7 +190,7 @@ pub fn main() !void {
             // thread2.join();
             // thread3.join();
         },
-        .ReleaseFast => {
+        .Debug, .ReleaseFast, .ReleaseSmall => {
             const start_time = std.time.milliTimestamp();
 
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
@@ -206,7 +206,6 @@ pub fn main() !void {
             const time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
             std.debug.print("\n[[ TOKENIZATION DONE {d}s ]]\n", .{time_spent});
         },
-        else => {},
     }
 
     switch (builtin.mode) {
