@@ -358,7 +358,7 @@ pub const BPE = struct {
     fn showStatsGetBlanksPercent(self: Self, progress: usize, _new_candidates: usize) usize {
         const blank = self.vocabs_len - self.merged_vocabs_len;
         const blank_percent = blank * 100 / self.vocabs_len;
-        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candi {d: >5}", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates });
+        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candis {d: >5}", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates });
         return blank_percent;
     }
 
@@ -484,13 +484,11 @@ pub const BPE = struct {
 
         var x: usize = begin;
         var curr_chunk: u8 = undefined;
-        curr_chunk = if (self.shinkVocabsDone()) 0 else MAX_CHUNKS + 1;
+        curr_chunk = if (self.shinkVocabsDone()) 0 else MAX_CHUNKS;
 
         while (x < end) {
-            while (curr_chunk < MAX_CHUNKS and begin + x > self.chunks[curr_chunk + 1]) {
-                // not the last chunk and the current index excess current chunk
-                curr_chunk += 1;
-            }
+            while (curr_chunk < MAX_CHUNKS and x > self.chunks[curr_chunk + 1]) : (curr_chunk += 1) {}
+
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const last_char_idx = getEndFromFirstCharIdx(vocabs, first_char_idx) - 1;
             const key_bound = getBoundFromFirstCharIdx(vocabs, first_char_idx);
