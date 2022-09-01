@@ -19,21 +19,6 @@
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
 
-// Ý tưởng cải tiến `mergeLastSelectedPair()`: Càng về sau số lượng keys có chứa selected_pair ngày
-// càng thấp. Có thể dùng indexing để xem đoạn keys nào có chứa pair thì mới quét còn ko thì bỏ qua. Cụ thể:
-// Chia vocabs thành 128 (hoặc 192) đoạn (hệ số của 64). Khi quét vocabs để xác định pair candidates,
-// với mỗi candidate ta dùng 128/192 bit ([2]u64 hoặc [3]u64) để đánh dấu xem candiate này có mặt trong
-// đoạn nào của vocabs.
-//
-// Lúc đầu tần suất xuất hiện của selected pairs trong vocabs lớn, nên chạy và shinkVocabs() vài lượt
-// rồi mới áp dụng chiến thuật trên. => Cần chọn 1 ngưỡng mới bắt đầu indexing để đạt hiệu suất cao nhất.
-//
-// Trước khi Indexing
-// [[ BPE LEARN DONE 53s ]]
-//
-// Sau khi Indexing
-// [[ BPE LEARN DONE 24s ]]
-
 const std = @import("std");
 const builtin = @import("builtin");
 const ThreadPool = @import("ThreadPool.zig");
@@ -43,7 +28,7 @@ const phc = @import("pair_hash_count.zig");
 const inSet = @import("char_stream.zig").inSet;
 
 const MAX_SELECTED_PAIRS: usize = 8000;
-const MAX_TOTAL_CANDIDATES = 8 * MAX_SELECTED_PAIRS / 2;
+const MAX_TOTAL_CANDIDATES = 5 * MAX_SELECTED_PAIRS / 2;
 const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
 const MAX_TOTAL_SYMBOLS = 1_500_000;
 const MAX_SELECTED_SYMBOLS = TOTAL_CHARS + MAX_SELECTED_PAIRS;
@@ -356,7 +341,8 @@ pub const BPE = struct {
 
             wait_group.wait();
 
-            if (i % 100 == 99) { // Show progress
+            // if (i % 50 == 49) { // Show progress
+            if (i % 200 == 199) { // Show progress
                 const progress = i * 100 / MAX_SELECTED_PAIRS;
                 const blank_percent = self.showStatsGetBlanksPercent(progress, _new_candidates);
                 _new_candidates = 0;
@@ -663,11 +649,9 @@ pub const BPE = struct {
         if (self.shinkVocabsDone()) return;
         self.shinks += 1;
 
-        const not_set = std.math.maxInt(usize);
-        std.mem.set(usize, self.chunks[0..MAX_CHUNKS], not_set);
         self.chunks[0] = 0;
-        self.chunks[MAX_CHUNKS] = self.vocabs_len;
-        const delta = self.merged_vocabs_len / MAX_CHUNKS;
+        self.chunks[MAX_CHUNKS] = self.merged_vocabs_len;
+        const delta = self.chunks[MAX_CHUNKS] / MAX_CHUNKS;
         var curr = delta;
 
         var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + 64);
@@ -700,7 +684,7 @@ pub const BPE = struct {
 
                 y += len; // nhảy tới cuối new vocabs
 
-                if (self.chunks[z] == not_set and y >= curr) {
+                if (z < MAX_CHUNKS and y >= curr) {
                     self.chunks[z] = y;
                     z += 1;
                     curr += delta;

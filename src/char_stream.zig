@@ -170,28 +170,18 @@ pub fn main() !void {
     try syll_counters.init(default_allocator);
 
     switch (builtin.mode) {
-        .ReleaseSafe => {
+        .Debug, .ReleaseSafe => {
             show_info = true;
             try scanFile("utf8tv.txt");
             show_info = false;
+        },
+        .ReleaseFast, .ReleaseSmall => {
+            const start_time = std.time.milliTimestamp();
 
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
-
-            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_aa"});
-            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ab"});
-            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ac"});
-            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments_ad"});
-
-            // thread0.join();
-            // thread1.join();
-            // thread2.join();
-            // thread3.join();
-        },
-        .Debug, .ReleaseFast, .ReleaseSmall => {
-            const start_time = std.time.milliTimestamp();
 
             var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
             var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ab"});
@@ -252,10 +242,10 @@ test "TODO" {
         "\n\n", .{});
 }
 
-test "" {
-    // const buf1 = "123456789012345678ngoan9012345mo6789012345678901234567\n890123456";
-    // const buf2 = "7dsdsd8901234567890345\n6789012345678sds901d234567890";
-    // _ _ _: 6789012345678901234567
-    // dsdsd:
-    // _ _ _: 8901234567890345 6789012345678
-}
+// test "" {
+//     const buf1 = "123456789012345678ngoan9012345mo6789012345678901234567\n890123456";
+//     const buf2 = "7dsdsd8901234567890345\n6789012345678sds901d234567890";
+//     _ _ _: 6789012345678901234567
+//     dsdsd:
+//     _ _ _: 8901234567890345 6789012345678
+// }
