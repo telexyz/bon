@@ -18,6 +18,12 @@
 //! BPE-Dropout: ở 2.1/ drop ngẫu nhiên từng pair trong tập candidates với xác suất 0.1% (1000 loại 1)
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
+//
+// Ý tưởng cải tiến `mergeLastSelectedPair()`: Càng về sau số lượng keys có chứa selected_pair ngày
+// càng thấp. Có thể dùng indexing để xem đoạn keys nào có chứa pair thì mới quét còn ko thì bỏ qua. Cụ thể:
+// Chia vocabs thành 128 (hoặc 192) đoạn (hệ số của 64). Khi quét vocabs để xác định pair candidates,
+// với mỗi candidate ta dùng 128/192 bit ([2]u64 hoặc [3]u64) để đánh dấu xem candiate này có mặt trong
+// đoạn nào của vocabs. Đơn giản vậy thôi.
 
 const std = @import("std");
 const builtin = @import("builtin");
