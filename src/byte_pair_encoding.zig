@@ -18,12 +18,20 @@
 //! BPE-Dropout: ở 2.1/ drop ngẫu nhiên từng pair trong tập candidates với xác suất 0.1% (1000 loại 1)
 //! dropout giúp rare-subword ko bị quá lấn át từ đó giúp rare-tokens được hiểu tốt hơn.
 //! Chi tiết tại https://github.com/VProv/BPE-Dropout
-//
+
 // Ý tưởng cải tiến `mergeLastSelectedPair()`: Càng về sau số lượng keys có chứa selected_pair ngày
 // càng thấp. Có thể dùng indexing để xem đoạn keys nào có chứa pair thì mới quét còn ko thì bỏ qua. Cụ thể:
 // Chia vocabs thành 128 (hoặc 192) đoạn (hệ số của 64). Khi quét vocabs để xác định pair candidates,
 // với mỗi candidate ta dùng 128/192 bit ([2]u64 hoặc [3]u64) để đánh dấu xem candiate này có mặt trong
-// đoạn nào của vocabs. Đơn giản vậy thôi.
+// đoạn nào của vocabs.
+//
+// Lúc đầu tần suất xuất hiện của selected pairs trong vocabs lớn, nên chạy và shinkVocabs() vài lượt
+// rồi mới áp dụng chiến thuật trên. => Cần chọn 1 ngưỡng mới bắt đầu indexing để đạt hiệu suất cao nhất.
+//
+// [[ BPE LEARN DONE 36s ]]
+// Giảm 27% vocabs sau 4 lần shinkVocabs(), BPE Learn đạt 16%. Sau đó độ giảm vocabs ổn định ở 8%
+// [[ BPE LEARN DONE 39s ]]
+//
 
 const std = @import("std");
 const builtin = @import("builtin");
@@ -162,9 +170,13 @@ pub const BPE = struct {
     chunk1: usize,
     chunk2: usize,
     chunk3: usize,
+    chunks: [MAX_CHUNKS + 1]usize,
+    shinks: usize = 0,
 
     random: std.rand.Random,
 
+    const MAX_SHINKS = 5;
+    const MAX_CHUNKS = 128;
     const Self = @This();
 
     // Bộ từ vựng là các hàm nhỏ, dùng lại nhiều lần, inline để ko làm giảm tốc độ
@@ -172,7 +184,6 @@ pub const BPE = struct {
     // Bộ từ vựng cho selected symbols
     inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
         std.debug.assert(self.total_selected < MAXX_INDEX);
-        sym_entry.symbol = self.total_selected; // đánh dấu vị trí được kết nạp
         self.selected_symbols[self.total_selected] = sym_entry.key;
         self.total_selected += 1; // thêm 1 symbol mới được chọn
     }
@@ -311,7 +322,7 @@ pub const BPE = struct {
 
             wait_group.wait();
 
-            if (i % 150 == 149) { // Show progress
+            if (i % 100 == 99) { // Show progress
                 const progress = i * 100 / MAX_SELECTED_PAIRS;
                 const blank_percent = self.showStatsGetBlanksPercent(progress, _new_candidates);
                 _new_candidates = 0;
@@ -600,14 +611,72 @@ pub const BPE = struct {
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
             self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
             match_begin += 1; // Bỏ qua symbol đã được merged. VD key = "abcd" và
-            // merge pair `ab` thì được `ab`cd
-            // current match_begin = 0  .01.23  -> next match_begin = 2
+            // merge pair `ab` thì được `ab`cd với current match_begin = 0
+            //                          .01.23  -> next match_begin = 2
             // nên += 1 ở đây trước, và += 1 ở đầu vòng lặp while là thành 2
         } // while match_begin
         if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
     }
 
     fn shinkVocabs(self: *Self) !void {
+        if (self.shinks > MAX_SHINKS) return;
+        self.shinks += 1;
+
+        if (self.shinks == MAX_SHINKS) {
+            const not_set = std.math.maxInt(usize);
+            std.mem.set(usize, self.chunks[0..MAX_CHUNKS], not_set);
+
+            self.chunks[0] = 0;
+            self.chunks[MAX_CHUNKS] = self.vocabs_len;
+            const delta = self.vocabs_len / MAX_CHUNKS;
+            var curr = delta;
+
+            var x: usize = 0;
+            var y: usize = 1;
+
+            while (x < self.vocabs_len) {
+                if (self.chunks[y] == not_set and x >= curr) {
+                    self.chunks[y] = x;
+                    y += 1;
+                    curr += delta;
+                }
+                x = getBoundFromFirstCharIdx(self.vocabs, x + 3);
+            }
+
+            // for (self.chunks[0..MAX_CHUNKS]) |c, i| std.debug.print("\nchunks[{d}]={d}\n", .{ i, c });
+            // unreachable;
+            return;
+        }
+
+        if (self.shinks == 0) {
+            // Lần đầu shinks
+            self.chunk1 = self.vocabs_len / 4;
+            self.chunk2 = 2 * self.chunk1;
+            self.chunk3 = 3 * self.chunk1;
+
+            var update_chunk1 = true;
+            var update_chunk2 = true;
+            var update_chunk3 = true;
+
+            var x: usize = 0;
+            while (x < self.vocabs_len) {
+                if (update_chunk1 and x > self.chunk1) {
+                    update_chunk1 = false;
+                    self.chunk1 = x;
+                }
+                if (update_chunk2 and x > self.chunk2) {
+                    update_chunk2 = false;
+                    self.chunk2 = x;
+                }
+                if (update_chunk3 and x > self.chunk3) {
+                    update_chunk3 = false;
+                    self.chunk3 = x;
+                }
+                x = getBoundFromFirstCharIdx(self.vocabs, x + 3);
+            }
+            return;
+        }
+
         var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + 64);
         var x: usize = 0;
         var y: usize = 0;
@@ -673,6 +742,7 @@ pub const BPE = struct {
     pub fn init(self: *Self, allocator: std.mem.Allocator, totals_entries: usize, entries: []const shc.Entry, keys_bytes: []const u8, keys_bytes_len: usize) !void {
         std.debug.assert(MAX_KEY_LEN <= 64);
 
+        self.shinks = 0;
         self.spinlock = lock_init;
         self.allocator = allocator;
         self.total_types = totals_entries;

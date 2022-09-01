@@ -17,8 +17,11 @@ pub const Entry = struct {
     hash: HashType, //     u32
     count: CountType, //   u32
     key: KeyType, //       u32
-    symbol: SymbolType, // u16 = 14-bytes (21% cache-line)
+    offset: IndexType, // u24 = 15-bytes (23% cache-line)
 };
+
+const MAX_CHUNKS = 128;
+const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS);
 
 pub fn HashCount(capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
@@ -34,6 +37,7 @@ pub fn HashCount(capacity: IndexType) type {
         allocator: std.mem.Allocator,
         spinlock: @TypeOf(lock_init),
 
+        in_chunks: []InChunksType,
         entries: []Entry,
         len: usize,
 
@@ -62,8 +66,11 @@ pub fn HashCount(capacity: IndexType) type {
                 .hash = MAXX_HASH,
                 .key = 0,
                 .count = 0,
-                .symbol = MAXX_SYMBOL,
+                .offset = MAXX_INDEX,
             });
+
+            self.in_chunks = try self.allocator.alloc(InChunksType, size);
+            std.mem.set(InChunksType, self.in_chunks, .{ .mask = 0 });
         }
 
         inline fn recordStats(self: *Self, _probs: usize) void {
@@ -83,7 +90,7 @@ pub fn HashCount(capacity: IndexType) type {
         }
 
         pub fn putCount(self: *Self, key: KeyType, count: CountType) *Entry {
-            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .symbol = MAXX_SYMBOL };
+            var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .offset = MAXX_INDEX };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
 
@@ -127,9 +134,10 @@ pub fn HashCount(capacity: IndexType) type {
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                 const tmp = self.entries[i];
                 self.entries[i] = it;
+
                 // !! Luôn kiểm tra hash == MAXX_HASH để xác định ô rỗng !!
                 // Các so sánh khác khác để bổ trợ trường hợp edge case
-                if (tmp.hash == MAXX_HASH and tmp.symbol == MAXX_SYMBOL) { // ô rỗng, dừng thuật toán
+                if (tmp.hash == MAXX_HASH and tmp.offset == MAXX_INDEX) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
 
@@ -137,6 +145,7 @@ pub fn HashCount(capacity: IndexType) type {
                     std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
                     return &self.entries[i];
                 }
+
                 it = tmp;
             } // while
         }
