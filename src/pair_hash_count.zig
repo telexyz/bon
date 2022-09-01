@@ -85,6 +85,8 @@ pub fn HashCount(capacity: IndexType) type {
         }
 
         pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: u8) *Entry {
+            std.debug.assert(curr_chunk < MAX_CHUNKS);
+
             var it: Entry = .{ .hash = _hash(key), .count = count, .key = key, .in_chunks = .{ .mask = 0 } };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             const _i = i;
@@ -110,9 +112,7 @@ pub fn HashCount(capacity: IndexType) type {
             while (entry.hash == it.hash) : (i += 1) {
                 if (entry.key == key) { // key đã tồn tại từ trước
                     entry.count += count;
-                    if (curr_chunk < MAX_CHUNKS) {
-                        entry.in_chunks.set(curr_chunk);
-                    }
+                    entry.in_chunks.set(curr_chunk);
                     self.recordStats(i - _i);
 
                     // Đảm bảo độ đúng đắn của spinlock
@@ -144,9 +144,7 @@ pub fn HashCount(capacity: IndexType) type {
                 if (tmp.hash == MAXX_HASH and tmp.key == 0) { // ô rỗng, dừng thuật toán
                     self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                     self.recordStats(i - _i);
-                    if (curr_chunk < MAX_CHUNKS) {
-                        self.entries[i].in_chunks.set(curr_chunk);
-                    }
+                    self.entries[i].in_chunks.set(curr_chunk);
                     // Đảm bảo độ đúng đắn của spinlock
                     std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
                     return &self.entries[i];

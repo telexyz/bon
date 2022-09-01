@@ -46,9 +46,6 @@ const GUARD_BYTE = phc.GUARD_BYTE;
 const MAXX_INDEX = phc.MAXX_INDEX;
 const MAXX_SYMBOL = phc.MAXX_SYMBOL;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
-
-const MAX_SHINKS = 1; // no shinking
-// const MAX_SHINKS = 6000; // no indexing
 const MAX_CHUNKS = phc.MAX_CHUNKS;
 
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
@@ -154,12 +151,8 @@ pub const BPE = struct {
 
     vocabs: []SymbolType,
     vocabs_len: usize,
-    merged_vocabs_len: usize,
     pairs_count: PairCount,
 
-    chunk1: usize,
-    chunk2: usize,
-    chunk3: usize,
     chunks: [MAX_CHUNKS + 1]usize,
     shinks: usize = 0,
 
@@ -269,19 +262,16 @@ pub const BPE = struct {
         var thread_pool: ThreadPool = undefined;
         try thread_pool.init(self.allocator);
         defer thread_pool.deinit();
-
         var wait_group: WaitGroup = .{};
 
         // Show progress at beginning
         _ = self.showStatsGetBlanksPercent(0, self.total_new_candidates);
-        try self.shinkVocabs(); // để xác định self.chunk1,2,3
 
         // chọn cho đủ MAX_SELECTED_PAIRS pairs
         while (i < MAX_SELECTED_PAIRS) : (i += 1) {
             // chọn pair có count lớn nhất
             _new_candidates += self.total_new_candidates;
             const index = self.finalizeCandidatesGetMaxCountIdx();
-
             if (index == MAXX_INDEX) break; // not a valid index
 
             // Kết nạp pair được chọn
@@ -293,7 +283,6 @@ pub const BPE = struct {
             self.removeCandidateAt(index);
 
             // loại bỏ pair được chọn khỏi vocabs
-
             const last_symbol_idx = self.total_selected - 1;
             const last_selected = self.selected_symbols[last_symbol_idx];
             const left = getLeftSymbol(last_selected);
@@ -313,53 +302,28 @@ pub const BPE = struct {
             const left_lookup_64 = @splat(64, left);
             const right_lookup_64 = @splat(64, right);
 
-            const job = mergeLastSelectedPair;
             wait_group.reset();
-
-            if (entry.in_chunks.mask > 0) {
-                var c: usize = 0;
-                while (c < MAX_CHUNKS) : (c += 1)
-                    if (entry.in_chunks.isSet(c)) {
-                        const begin = self.chunks[c];
-                        const end = self.chunks[c + 1];
-                        wait_group.start();
-                        try thread_pool.spawn(job, .{ self, self.vocabs, begin, end, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
-                    };
-            } else {
-                wait_group.start();
-                try thread_pool.spawn(job, .{ self, self.vocabs, 0, self.chunk1, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
-
-                wait_group.start();
-                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk1, self.chunk2, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
-
-                wait_group.start();
-                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk2, self.chunk3, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
-
-                wait_group.start();
-                try thread_pool.spawn(job, .{ self, self.vocabs, self.chunk3, self.vocabs_len, &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right });
+            var c: u8 = 0;
+            while (c < MAX_CHUNKS) : (c += 1) {
+                if (entry.in_chunks.isSet(c)) {
+                    wait_group.start();
+                    try thread_pool.spawn(mergeLastSelectedPair, .{ self, self.vocabs, self.chunks[c], self.chunks[c + 1], &wait_group, &left_lookup_16, &right_lookup_16, &left_lookup_32, &right_lookup_32, &left_lookup_48, &right_lookup_48, &left_lookup_64, &right_lookup_64, last_symbol_idx, left, right, c });
+                }
             }
-
             wait_group.wait();
 
-            // if (i % 50 == 49) { // Show progress
             if (i % 200 == 199) { // Show progress
                 const progress = i * 100 / MAX_SELECTED_PAIRS;
-                const blank_percent = self.showStatsGetBlanksPercent(progress, _new_candidates);
+                self.showStatsGetBlanksPercent(progress, _new_candidates);
                 _new_candidates = 0;
-                if (blank_percent >= 5) {
-                    try self.shinkVocabs();
-                }
             }
         }
 
         // Show progress at the end
         _ = self.showStatsGetBlanksPercent(100, 0);
     }
-    fn showStatsGetBlanksPercent(self: Self, progress: usize, _new_candidates: usize) usize {
-        const blank = self.vocabs_len - self.merged_vocabs_len;
-        const blank_percent = blank * 100 / self.vocabs_len;
-        std.debug.print("\n* BPE Learn ({d: >3}%)  blanks {d: >8} ({d: >2}%);  total_candis {d: >5};  new_candis {d: >5}", .{ progress, blank, blank_percent, self.total_candidates, _new_candidates });
-        return blank_percent;
+    fn showStatsGetBlanksPercent(self: Self, progress: usize, _new_candidates: usize) void {
+        std.debug.print("\n* BPE Learn ({d: >3}%)   total_candis {d: >5};  new_candis {d: >5}", .{ progress, self.total_candidates, _new_candidates });
     }
 
     inline fn dropout(self: Self) bool {
@@ -479,16 +443,12 @@ pub const BPE = struct {
         last_symbol_idx: SymbolType,
         left: PairType,
         right: PairType,
+        curr_chunk: u8,
     ) void {
         defer wg.finish();
 
         var x: usize = begin;
-        var curr_chunk: u8 = undefined;
-        curr_chunk = if (self.shinkVocabsDone()) 0 else MAX_CHUNKS;
-
         while (x < end) {
-            while (curr_chunk < MAX_CHUNKS and x > self.chunks[curr_chunk + 1]) : (curr_chunk += 1) {}
-
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
             const last_char_idx = getEndFromFirstCharIdx(vocabs, first_char_idx) - 1;
             const key_bound = getBoundFromFirstCharIdx(vocabs, first_char_idx);
@@ -631,84 +591,11 @@ pub const BPE = struct {
 
             last_char_idx -= 1;
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
-            self.merged_vocabs_len -= 1; // dung tích thực trừ đi 1
             match_begin += 1; // Bỏ qua symbol đã được merged. VD key = "abcd" và
             // merge pair `ab` thì được `ab`cd với current match_begin = 0
             //                          .01.23  -> next match_begin = 2
             // nên += 1 ở đây trước, và += 1 ở đầu vòng lặp while là thành 2
         } // while match_begin
-        if (key_len_ptr.* == 1) self.merged_vocabs_len -= 4; // key có 1 symbol loại toàn bộ
-    }
-
-    fn shinkVocabsDone(self: Self) bool {
-        return (self.shinks >= MAX_SHINKS);
-    }
-    fn shinkVocabs(self: *Self) !void {
-        if (self.shinkVocabsDone()) return;
-        self.shinks += 1;
-
-        self.chunks[0] = 0;
-        self.chunks[MAX_CHUNKS] = self.merged_vocabs_len;
-        const delta = self.chunks[MAX_CHUNKS] / MAX_CHUNKS;
-        var curr = delta;
-
-        var new_vocabs = try self.allocator.alloc(SymbolType, self.merged_vocabs_len + 64);
-        var x: usize = 0;
-        var y: usize = 0;
-        var z: usize = 1;
-
-        self.chunk1 = self.merged_vocabs_len / 4;
-        self.chunk2 = 2 * self.chunk1;
-        self.chunk3 = 3 * self.chunk1;
-
-        var update_chunk1 = true;
-        var update_chunk2 = true;
-        var update_chunk3 = true;
-
-        while (x < self.vocabs_len) {
-            //
-            const begin = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
-            const len = getLenFromFirstCharIdx(self.vocabs, begin);
-            const key_bound = getBoundFromFirstCharIdx(self.vocabs, begin);
-
-            if (len > 1) { // chỉ ghi nhận những key có nhiều hơn 1 symbols
-                // copy count
-                new_vocabs[y] = self.vocabs[x];
-                new_vocabs[y + 1] = self.vocabs[x + 1];
-                new_vocabs[y + 2] = makeKeyBoundKeyLen(@intCast(SymbolType, len));
-
-                y += 3; // trỏ tới đầu key mới và copy phần nội dung của key
-                std.mem.copy(SymbolType, new_vocabs[y .. y + len], self.vocabs[begin .. begin + len]);
-
-                y += len; // nhảy tới cuối new vocabs
-
-                if (z < MAX_CHUNKS and y >= curr) {
-                    self.chunks[z] = y;
-                    z += 1;
-                    curr += delta;
-                }
-
-                if (update_chunk1 and y > self.chunk1) {
-                    update_chunk1 = false;
-                    self.chunk1 = y;
-                }
-                if (update_chunk2 and y > self.chunk2) {
-                    update_chunk2 = false;
-                    self.chunk2 = y;
-                }
-                if (update_chunk3 and y > self.chunk3) {
-                    update_chunk3 = false;
-                    self.chunk3 = y;
-                }
-            }
-            //
-            x = key_bound; // nhảy tới key tiếp theo
-        }
-
-        self.allocator.free(self.vocabs);
-        self.vocabs = new_vocabs;
-        self.vocabs_len = y;
-        self.merged_vocabs_len = y;
     }
     // Kết thúc phần liên quan tới BPE learn
     // - - - - - - - - - - - - - - - - - - -
@@ -760,17 +647,22 @@ pub const BPE = struct {
             }
             i += 1;
         }
-        std.debug.print("\n(( small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} ))\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
+        std.debug.print("\n\n(( small string count: {d}, ss puts: {d}, ss bytes: {d}, remain: {d} ))\n", .{ ss_count, ss_puts, ss_bytes, keys_bytes_len });
 
         // Sắp xếp entries vừa lọc
         std.sort.sort(shc.Entry, self.type_entries, self, keyCountDesc);
 
         // Khởi tạo vocabs
-        self.vocabs = try self.allocator.alloc(SymbolType, keys_bytes_len + self.total_types * 2 + ss_count * 10);
+        const n = keys_bytes_len + self.total_types + ss_bytes + ss_count * 2;
+        self.vocabs = try self.allocator.alloc(SymbolType, n + 64);
 
         var x: usize = 0;
         var ss: shc.HashType = undefined;
         const ss_ptr = &ss;
+
+        const delta = (n / MAX_CHUNKS);
+        var curr = delta;
+        var chunk: u8 = 0;
 
         for (self.type_entries) |type_entry| {
             const key_str = self.keyStr(type_entry, ss_ptr);
@@ -797,7 +689,7 @@ pub const BPE = struct {
 
                 if (k > 0) { // có previous char
                     const pair_key = makePairKey(key_str[k - 1], char);
-                    const pair_entry = self.pairs_count.putCount(pair_key, key_count, MAX_CHUNKS);
+                    const pair_entry = self.pairs_count.putCount(pair_key, key_count, chunk);
                     // Add pair_entry lần đầu tiên gặp vào danh sách ứng viên
                     if (pair_entry.count == key_count) self.addToNewCandidates(pair_key);
                 }
@@ -805,10 +697,20 @@ pub const BPE = struct {
             const len = key_len_ptr.*;
             key_len_ptr.* = makeKeyBoundKeyLen(len); // key_bound|key_len
             // Lúc khởi tạo key_bound = key_lend
+
+            if (chunk < MAX_CHUNKS and x >= curr) {
+                self.chunks[chunk + 1] = x;
+                curr += delta;
+                chunk += 1;
+                // std.debug.print("chunks[{d}]={d}\n", .{ chunk, x });
+            }
         }
+
         self.vocabs_len = x;
-        self.merged_vocabs_len = x;
+        self.chunks[0] = 0;
+        while (chunk < MAX_CHUNKS) : (chunk += 1) self.chunks[chunk + 1] = x;
     }
+
     fn keyCountDesc(context: *Self, a: shc.Entry, b: shc.Entry) bool {
         _ = context;
         return a.count > b.count;
