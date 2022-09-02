@@ -1,3 +1,5 @@
+// https://github.com/ziglang/zig/blob/master/src/WaitGroup.zig
+
 const std = @import("std");
 const Atomic = std.atomic.Atomic;
 const assert = std.debug.assert;

@@ -1,3 +1,5 @@
+// https://github.com/ziglang/zig/blob/master/src/ThreadPool.zig
+
 const std = @import("std");
 const builtin = @import("builtin");
 const ThreadPool = @This();
@@ -135,21 +137,5 @@ fn worker(pool: *ThreadPool) void {
         } else {
             break;
         }
-    }
-}
-
-pub fn waitAndWork(pool: *ThreadPool, wait_group: *WaitGroup) void {
-    while (!wait_group.isDone()) {
-        if (blk: {
-            pool.mutex.lock();
-            defer pool.mutex.unlock();
-            break :blk pool.run_queue.popFirst();
-        }) |run_node| {
-            run_node.data.runFn(&run_node.data);
-            continue;
-        }
-
-        wait_group.wait();
-        return;
     }
 }

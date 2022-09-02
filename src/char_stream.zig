@@ -4,6 +4,9 @@ const parseSyllable = @import("am_tiet.zig").parseSyllable;
 const cmn = @import("common.zig");
 const shc = @import("str_hash_count.zig");
 const BPE = @import("byte_pair_encoding.zig").BPE;
+const ThreadPool = @import("ThreadPool.zig");
+const WaitGroup = @import("WaitGroup.zig");
+
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 // Init HashCount để count các tokens ko phải âm tiết tiếng Việt
 pub const NotSyllHashCount = shc.HashCount(2_500_000);
@@ -49,9 +52,11 @@ pub inline fn inSet(bits: anytype, idx: usize) bool {
     return (idx_bits[idx] & bits) != 0;
 }
 
-fn scanFile(file_name: []const u8) !void {
+fn scanFile(file_name: []const u8, wg: *WaitGroup) void {
+    defer wg.finish();
+
     // cwd(): curr_bytesent working directory
-    var file = try std.fs.cwd().openFile(file_name, .{});
+    var file = std.fs.cwd().openFile(file_name, .{}) catch unreachable;
     defer file.close();
 
     // sử dụng bufferred reader để tăng tốc độ đọc file
@@ -77,7 +82,7 @@ fn scanFile(file_name: []const u8) !void {
 
         // đọc dữ liệu
         const curr_bytes = curr_buf[MAX_READ_BYTES..];
-        const len = try in_stream.read(curr_bytes);
+        const len = in_stream.read(curr_bytes) catch unreachable;
         if (len == 0) break;
 
         // cần prev_bytes_bytes vì 1 ký tự utf8 (2-4 bytes) hoặc một token nằm ngay
@@ -175,26 +180,36 @@ pub fn main() !void {
     switch (builtin.mode) {
         .Debug, .ReleaseSafe => {
             show_info = true;
-            try scanFile("utf8tv.txt");
-            show_info = false;
+            var wait_group: WaitGroup = .{};
+            wait_group.start();
+            try scanFile("utf8tv.txt", &wait_group);
         },
         .ReleaseFast, .ReleaseSmall => {
             const start_time = std.time.milliTimestamp();
-
+            // Manually create threads
             // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
             // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
             // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
             // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
+            // thread0.join(); thread1.join(); thread2.join(); thread3.join();
 
-            var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_aa"});
-            var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ab"});
-            var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ac"});
-            var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/combined_ad"});
-            try scanFile("utf8tv.txt");
-            thread0.join();
-            thread1.join();
-            thread2.join();
-            thread3.join();
+            var thread_pool: ThreadPool = undefined;
+            try thread_pool.init(default_allocator);
+            defer thread_pool.deinit();
+            var wait_group: WaitGroup = .{};
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_aa", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ab", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ac", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ad", &wait_group });
+            wait_group.wait();
 
             syll_counters.list(20);
             syll_counters.deinit();
