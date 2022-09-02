@@ -323,7 +323,7 @@ pub const BPE = struct {
         _ = self.showStatsGetBlanksPercent(100, 0);
     }
     fn showStatsGetBlanksPercent(self: Self, progress: usize, _new_candidates: usize) void {
-        std.debug.print("\n* BPE Learn ({d: >3}%)   total_candis {d: >5};  new_candis {d: >5}", .{ progress, self.total_candidates, _new_candidates });
+        std.debug.print("\n* BPE Learn ({d: >3}%)  total_candis {d: >5}  new_candis {d: >5}", .{ progress, self.total_candidates, _new_candidates });
     }
 
     inline fn dropout(self: Self) bool {

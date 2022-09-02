@@ -159,9 +159,12 @@ inline fn processToken(token: []const u8) void {
 }
 
 pub fn main() !void {
+    var tknz_time_spent: i64 = undefined;
+    const total_start_time = std.time.milliTimestamp();
+
     // Use c_allocator to run Valgrind mem leak check
-    const default_allocator = std.heap.c_allocator;
-    // const default_allocator = std.heap.page_allocator;
+    // const default_allocator = std.heap.c_allocator;
+    const default_allocator = std.heap.page_allocator;
 
     defer syll_counters.deinit();
     defer type_counters.deinit();
@@ -193,16 +196,15 @@ pub fn main() !void {
             thread2.join();
             thread3.join();
 
-            const time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
-            std.debug.print("\n[[ TOKENIZATION DONE {d}s ]]\n", .{time_spent});
+            syll_counters.list(20);
+            syll_counters.deinit();
+
+            tknz_time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
         },
     }
 
     switch (builtin.mode) {
         .Debug, .ReleaseFast => {
-            syll_counters.list(20);
-            syll_counters.deinit();
-
             var bpe: BPE = undefined;
             defer bpe.deinit();
             const start_time = std.time.milliTimestamp();
@@ -219,11 +221,17 @@ pub fn main() !void {
 
             bpe.listVocabs(bpe.vocabs, bpe.vocabs_len, 300);
             try bpe.learn();
-            const time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
-            std.debug.print("\n\n[[ BPE LEARN DONE {d}s ]]\n", .{time_spent});
 
             bpe.showSelectedSymbols(1000);
             bpe.pairs_count.showStats();
+
+            const now = std.time.milliTimestamp();
+            const bpe_time_spent = @divTrunc(now - start_time, 1000);
+            const total_time_spent = @divTrunc(now - total_start_time, 1000);
+
+            std.debug.print("\n[ TOKENIZATION {d}s ]\n", .{tknz_time_spent});
+            std.debug.print("[ BPE LEARN {d}s ]\n", .{bpe_time_spent});
+            std.debug.print("[ TOTAL TIME {d}s ]\n", .{total_time_spent});
         },
         else => {
             type_counters.showStats();
