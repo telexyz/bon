@@ -13,9 +13,9 @@ pub const MAXX_INDEX = std.math.maxInt(IndexType);
 pub const MAXX_SYMBOL = std.math.maxInt(SymbolType);
 
 pub const Entry = packed struct {
-    hash: HashType, //           u32
+    hash: HashType, //           u64
     count: CountType, //         u32
-    in_chunks: InChunksType, //  u64 => 8+12 = 20-bytes
+    in_chunks: InChunksType, //  u64 => 8+4+8 = 20-bytes
 
     // Với u64: x == (x *% 0x517cc1b727220a95) *% 0x2040003d780970bd // wrapping_mul
     pub inline fn key(self: Entry) KeyType {
