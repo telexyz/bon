@@ -104,11 +104,11 @@ test "pairDecode" {
     const abcde = 264;
     const abcde_abcde = 265;
 
-    symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1, 0).key;
-    symbols[de] = counts.putCount(makePairKey('d', 'e'), 1, 0).key;
-    symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1, 0).key;
-    symbols[abcde] = counts.putCount(makePairKey(abc, de), 1, 0).key;
-    symbols[abcde_abcde] = counts.putCount(makePairKey(abcde, abcde), 1, 0).key;
+    symbols[ab] = counts.putCount(makePairKey('a', 'b'), 1, 0).key();
+    symbols[de] = counts.putCount(makePairKey('d', 'e'), 1, 0).key();
+    symbols[abc] = counts.putCount(makePairKey(ab, 'c'), 1, 0).key();
+    symbols[abcde] = counts.putCount(makePairKey(abc, de), 1, 0).key();
+    symbols[abcde_abcde] = counts.putCount(makePairKey(abcde, abcde), 1, 0).key();
 
     var out: [MAX_KEY_LEN]u8 = undefined;
     var len: usize = 0;
@@ -165,7 +165,7 @@ pub const BPE = struct {
     // Bộ từ vựng cho selected symbols
     inline fn selectSymbol(self: *Self, sym_entry: *Entry) void {
         std.debug.assert(self.total_selected < MAXX_INDEX);
-        self.selected_symbols[self.total_selected] = sym_entry.key;
+        self.selected_symbols[self.total_selected] = sym_entry.key();
         self.total_selected += 1; // thêm 1 symbol mới được chọn
     }
     inline fn getSelectedSymbols(self: Self) []const PairType {

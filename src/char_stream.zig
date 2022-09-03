@@ -182,7 +182,7 @@ pub fn main() !void {
             show_info = true;
             var wait_group: WaitGroup = .{};
             wait_group.start();
-            try scanFile("utf8tv.txt", &wait_group);
+            scanFile("utf8tv.txt", &wait_group);
         },
         .ReleaseFast, .ReleaseSmall => {
             const start_time = std.time.milliTimestamp();
