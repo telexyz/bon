@@ -6,6 +6,8 @@
 
 * Dùng từ điển (và có thể RNN) làm token-repair và nhóm âm tiết thành từ.
 
+_NOTE: `turbo` bắt đầu như một thử nghiệm để tăng tốc tối đa cho `engine`, rồi dần trở thành bản viết lại đơn giản nhưng hiệu quả hơn của `engine`_
+
 - - - 
 
 Các kỹ thuật có thể áp dụng: data-oriented programming, SIMD (vectorized), branchless, multi-threading. Kỳ vọng tăng tốc `~10x` so với scalar, single thread code.
