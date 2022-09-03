@@ -185,18 +185,22 @@ pub fn main() !void {
             scanFile("utf8tv.txt", &wait_group);
         },
         .ReleaseFast, .ReleaseSmall => {
+            var wait_group: WaitGroup = .{};
             const start_time = std.time.milliTimestamp();
+
             // Manually create threads
-            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{"../data/vi_wiki_all.txt"});
-            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{"../data/vietai_sat.txt"});
-            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{"../data/news_titles.txt"});
-            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{"../data/fb_comments.txt"});
-            // thread0.join(); thread1.join(); thread2.join(); thread3.join();
+            // var thread3 = try std.Thread.spawn(.{}, scanFile, .{ "../data/vi_wiki_all.txt", &wait_group });
+            // var thread2 = try std.Thread.spawn(.{}, scanFile, .{ "../data/vietai_sat.txt", &wait_group });
+            // var thread1 = try std.Thread.spawn(.{}, scanFile, .{ "../data/news_titles.txt", &wait_group });
+            // var thread0 = try std.Thread.spawn(.{}, scanFile, .{ "../data/fb_comments.txt", &wait_group });
+            // thread0.join();
+            // thread1.join();
+            // thread2.join();
+            // thread3.join();
 
             var thread_pool: ThreadPool = undefined;
             try thread_pool.init(default_allocator);
             defer thread_pool.deinit();
-            var wait_group: WaitGroup = .{};
 
             wait_group.start();
             try thread_pool.spawn(scanFile, .{ "../data/combined_aa", &wait_group });
