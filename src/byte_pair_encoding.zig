@@ -303,15 +303,12 @@ pub const BPE = struct {
                     wait_group.start();
                     try thread_pool.spawn(mergeLastSelectedPair, .{
                         self,
-                        self.vocabs,
                         &wait_group,
                         &left_lookup_16,
                         &right_lookup_16,
                         &left_lookup_32,
                         &right_lookup_32,
                         last_symbol_idx,
-                        left,
-                        right,
                         c,
                     });
                 }
@@ -434,43 +431,44 @@ pub const BPE = struct {
     // Cần lắp với đít chunk trước vào đầu chunk đang xem xét.
     fn mergeLastSelectedPair(
         self: *Self,
-        vocabs: []SymbolType,
         wg: *WaitGroup,
         left_lookup_16: *const std.meta.Vector(16, SymbolType),
         right_lookup_16: *const std.meta.Vector(16, SymbolType),
         left_lookup_32: *const std.meta.Vector(32, SymbolType),
         right_lookup_32: *const std.meta.Vector(32, SymbolType),
         last_symbol_idx: SymbolType,
-        left: PairType,
-        right: PairType,
         curr_chunk: u8,
     ) void {
         defer wg.finish();
+
+        const left = left_lookup_16.*[0];
+        const right = right_lookup_16.*[0];
+
         var x = self.chunks[curr_chunk];
         const end = self.chunks[curr_chunk + 1];
 
         while (x < end) {
             const first_char_idx = x + 3; // bỏ qua 2 phần tử lưu key count và 1 phần tử lưu key len
-            const last_char_idx = getEndFromFirstCharIdx(vocabs, first_char_idx) - 1;
-            const key_bound = getBoundFromFirstCharIdx(vocabs, first_char_idx);
+            const last_char_idx = getEndFromFirstCharIdx(self.vocabs, first_char_idx) - 1;
+            const key_bound = getBoundFromFirstCharIdx(self.vocabs, first_char_idx);
 
             if (first_char_idx == last_char_idx) { // key chỉ có 1 symbol
                 x = key_bound;
                 continue;
             }
 
-            const count = getCountFromFirstCharIdx(vocabs, first_char_idx);
-            const key_len_ptr = &vocabs[first_char_idx - 1];
+            const count = getCountFromFirstCharIdx(self.vocabs, first_char_idx);
+            const key_len_ptr = &self.vocabs[first_char_idx - 1];
 
             // 2/ Dùng SIMD để tìm kiếm pair theo mẻ
             // Chia key_len thành từng mức 16, 32, 48, 64 để tối ưu cho AVX2 256-bit (16x16)
             // AVX512 (32x16) tự lựa theo.
-            var key_len = getLenFromFirstCharIdx(vocabs, first_char_idx);
+            var key_len = getLenFromFirstCharIdx(self.vocabs, first_char_idx);
             // std.debug.assert(key_len <= 64);
 
             switch (key_len) {
                 0...16 => {
-                    const input: std.meta.Vector(16, SymbolType) = vocabs[first_char_idx..][0..16].*;
+                    const input: std.meta.Vector(16, SymbolType) = self.vocabs[first_char_idx..][0..16].*;
                     const left_match_vec = input == left_lookup_16.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u16, &(left_match_vec)).*;
                     const right_match_vec = input == right_lookup_16.*;
@@ -484,11 +482,11 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
+                            last_symbol_idx, count, left, right, curr_chunk);
                     }
                 },
                 17...32 => {
-                    const input: std.meta.Vector(32, SymbolType) = vocabs[first_char_idx..][0..32].*;
+                    const input: std.meta.Vector(32, SymbolType) = self.vocabs[first_char_idx..][0..32].*;
                     const left_match_vec = input == left_lookup_32.*; // Zig Vector `==` op
                     const left_match_bin = @ptrCast(*const u32, &(left_match_vec)).*;
                     const right_match_vec = input == right_lookup_32.*;
@@ -502,7 +500,7 @@ pub const BPE = struct {
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
                             first_char_idx, last_char_idx, key_len_ptr, //
-                            last_symbol_idx, count, left, right, vocabs, curr_chunk);
+                            last_symbol_idx, count, left, right, curr_chunk);
                     }
                 },
                 else => unreachable,
@@ -523,7 +521,6 @@ pub const BPE = struct {
         count: CountType,
         left: PairType,
         right: PairType,
-        vocabs: []SymbolType,
         curr_chunk: u8,
     ) void {
         var match_begin = _match_begin;
@@ -536,24 +533,24 @@ pub const BPE = struct {
             const x = match_begin + first_char_idx - matchs_count; // điều chỉnh dồn toa (bên dưới)
             var y = x + 1;
 
-            std.debug.assert(left == vocabs[x]);
-            std.debug.assert(right == vocabs[y]);
+            std.debug.assert(left == self.vocabs[x]);
+            std.debug.assert(right == self.vocabs[y]);
 
             if (x > first_char_idx) { // có sym phía trước
-                const prev_pair_reduc = makePairKey(vocabs[x - 1], vocabs[x]);
-                const prev_paid_added = makePairKey(vocabs[x - 1], last_symbol_idx);
+                const prev_pair_reduc = makePairKey(self.vocabs[x - 1], self.vocabs[x]);
+                const prev_paid_added = makePairKey(self.vocabs[x - 1], last_symbol_idx);
                 self.adjustNearByLastSelected(prev_pair_reduc, prev_paid_added, count, curr_chunk);
             }
 
             if (y < last_char_idx) { // còn sym phía sau
-                const next_pair_reduc = makePairKey(vocabs[y], vocabs[y + 1]);
-                const next_paid_added = makePairKey(last_symbol_idx, vocabs[y + 1]);
+                const next_pair_reduc = makePairKey(self.vocabs[y], self.vocabs[y + 1]);
+                const next_paid_added = makePairKey(last_symbol_idx, self.vocabs[y + 1]);
                 self.adjustNearByLastSelected(next_pair_reduc, next_paid_added, count, curr_chunk);
             }
 
-            while (y < last_char_idx) : (y += 1) vocabs[y] = vocabs[y + 1]; // dồn toa
-            vocabs[last_char_idx] = 0; // ô cuối bỏ đi
-            vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
+            while (y < last_char_idx) : (y += 1) self.vocabs[y] = self.vocabs[y + 1]; // dồn toa
+            self.vocabs[last_char_idx] = 0; // ô cuối bỏ đi
+            self.vocabs[x] = last_symbol_idx; // symbol mới đại diện cho pair được merged
 
             last_char_idx -= 1;
             key_len_ptr.* -= 1; // Note: key_len_ptr mang cả key_bound nhưng -=1 chỉ ảnh hưởng tới key_len
