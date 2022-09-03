@@ -721,7 +721,7 @@ pub const BPE = struct {
 
     // List để kiểm tra xem việc tạo dựng mảng vocabs đã chuẩn chưa
     pub fn listVocabs(self: Self, vocabs: []SymbolType, vocabs_len: usize, max: usize) void {
-        std.debug.print("\n\n(( List {d} type counts sorted by len ))\n\n", .{max});
+        std.debug.print("\n\n(( List {d} type counts ))\n\n", .{max});
 
         const n = if (max < self.total_types) max else self.total_types;
         var x: usize = 0;
