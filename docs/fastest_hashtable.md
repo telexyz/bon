@@ -1,3 +1,7 @@
+https://martin.ankerl.com/2022/08/27/hashmap-bench-01
+
+- - -
+
 Hashtable lý tưởng được dùng bởi nhiều threads mà ko conflict, cache friendly (flat_map), tận dụng SIMD intrinsics cho các thao tác comparing, hashing, probing ...
 
 NGUỒN: https://github.com/search?q=simd+hash+table
