@@ -1,38 +1,39 @@
+> Hashtable lý tưởng được dùng bởi nhiều threads mà ko conflict, cache friendly (flat_map), tận dụng SIMD intrinsics cho các thao tác comparing, hashing, probing ...
+
 https://martin.ankerl.com/2022/08/27/hashmap-bench-01
 
 - - -
 
-Hashtable lý tưởng được dùng bởi nhiều threads mà ko conflict, cache friendly (flat_map), tận dụng SIMD intrinsics cho các thao tác comparing, hashing, probing ...
+## [All hash table sizes you will ever need](http://databasearchitects.blogspot.com/2020/01/all-hash-table-sizes-you-will-ever-need.html)
 
-NGUỒN: https://github.com/search?q=simd+hash+table
+Khi chọn kích thước bảng băm ta thường có 2 lựa chọn: số nguyên tố hoặc lũy thừa 2. Lũy thừa bậc 2 dễ sử dụng nhưng 1/ tốn không gian lưu trữ và 2/ đòi hỏi hàm băm phải tốt hơn.
 
-https://github.com/matmuher/hash_table_optimize thử nghiệm nhiều hàm hash và nhiều cách optimize hashtable bao gồm SIMD
+Các số nguyên tố dễ dàng hơn cho hàm băm và chúng ta có nhiều lựa chọn hơn liên quan đến kích thước, dẫn đến chi phí thấp hơn. Nhưng việc sử dụng một số nguyên tố cần phải tính toán chia mô đun, điều này rất tốn kém. Và chúng ta phải tìm một số nguyên tố phù hợp trong thời gian chạy, điều này cũng không hề đơn giản.
 
-https://github.com/michaelvlach/ADbHash
-The ADbHash is a hash table inspired by google's "Swiss table" presented at CppCon 2017 by Matt Kulukundis. It is based on open-addressing hash table storing extra byte per element (key-value pair). In this byte there are stored a control bit (controlling whether the element is empty or full) and the rest of the byte is taken from the hash of the key. When searching through the table 16 of these control bytes are loaded from the position the element we look for is supposed to be. Then they are compared to a byte constructed from the hash we search for. This is achieved by using Single Instruction Multiple Data (SIMD) and thus a typical search in this hash table will take exactly two instructions:
+May mắn thay chúng ta có thể giải quyết cả 2 vấn đề trên cùng một lúc. Chúng ta có thể tính toán trước các số nguyên tố cần dùng. Nếu chọn khoảng cách giữa chúng là 5% thì trong khoảng trong khoảng 0 - 2^64 chỉ có 841 số nguyên tố. Với phép chia mô đun, ta có thể tính toán trước magic numbers trong cuốn sách Hacker's Delight cho mỗi số nguyên tố đã chọn để sử dụng phép nhân để thực hiện phép chia mô đun. Và ta có thể bỏ qua các số nguyên tố mà có magic numbers không thuận tiện cho việc tính toán, đơn giản là chọn số nguyên tố hợp lý tiếp theo.
 
-Compare 16 bytes with 1 byte. - and Jump to the matching element.
-
-https://github.com/telekons/42nd-at-threadmill a nearly lock-free* hash table based on Cliff Click's NonBlockingHashMap, and Abseil's flat_hash_map. use SSE2 intrinsics for fast probing, and optionally use AVX2 for faster byte broadcasting.
-
-https://github.com/efficient/libcuckoo
-
-
-https://www.youtube.com/watch?v=ncHmEUmJZf4
-CppCon 2017: Matt Kulukundis “Designing a Fast, Efficient, Cache-friendly Hash Table, Step by Step”
-
-https://www.youtube.com/watch?v=JZE3_0qvrMg
-Abseil's Open Source Hashtables: 2 Years In - Matt Kulukundis - CppCon 2019.
-
+https://db.in.tum.de/~neumann/primes.hpp
+```cpp
+   struct Number {
+      uint64_t value, magic, shift;
+   };
+   /// All pre-computed numbers
+   static constexpr unsigned primeCount = 814;
+   static constexpr Number primes[primeCount] = {
+         {3ull, 12297829382473034411ull, 1},
+         {5ull, 14757395258967641293ull, 2},
+         {11ull, 3353953467947191203ull, 1},
+         {13ull, 5675921253449092805ull, 2},
+         {17ull, 17361641481138401521ull, 4},
+         {19ull, 15534100272597517151ull, 4},
+         {37ull, 15953940820505558155ull, 5},
+         {41ull, 14397458789236723213ull, 5},
+         ... // `ull` suffix makes it type unsigned long long.
+```
 
 - - -
 
-
-In practice, cuckoo hashing is about 20–30% slower than linear probing, which is the fastest of the common approaches.[1] The reason is that cuckoo hashing often causes two cache misses per search, to check the two locations where a key might be stored, while linear probing usually causes only one cache miss per search. However, because of its worst case guarantees on search time, cuckoo hashing can still be valuable when real-time response rates are required. One advantage of cuckoo hashing is its link-list free property, which fits GPU processing well.
-
-- - -
-
-https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable
+## [I Wrote The Fastest Hashtable](https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable)
 
 ## Open addressing
 
