@@ -89,7 +89,7 @@ Làm Terminal-based Text-editor để tích hợp bộ gõ song ngữ Anh - Vi�
 - BPE Learn v5; chia vocabs làm 64 khoảng và đánh dấu từng pair candidate thuộc và ko thuộc khoảng nào
   và chỉ scan vocabs trong khoảng mà selected candidate thuộc vào. Tăng tốc `1.7x` so với v4.
 
-- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, nhanh hơn [fastBPE](https://github.com/glample/fastBPE) khoảng `10x`
+- BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, tăng hơn `10x` so với v2.
 
 - BPE Learn v1, v2; naive impl, tốc độ = [fastBPE](https://github.com/glample/fastBPE)
 
