@@ -185,9 +185,9 @@ pub fn main() !void {
             show_info = true;
             scanFile("utf8tv.txt", &wait_group);
 
-            wait_group.start();
-            show_info = false;
-            scanFile("../data/combined_ab", &wait_group);
+            // wait_group.start();
+            // show_info = false;
+            // scanFile("../data/combined_ab", &wait_group);
         },
         .ReleaseFast, .ReleaseSmall => {
             var wait_group: WaitGroup = .{};
