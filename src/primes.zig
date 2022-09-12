@@ -1,52 +1,98 @@
-// Ported from https://db.in.tum.de/~neumann/primes.hpp
+//! [All hash table sizes you will ever need](http://databasearchitects.blogspot.com/2020/01/all-hash-table-sizes-you-will-ever-need.html)
+//!
+//! Khi chọn kích thước bảng băm ta thường có 2 lựa chọn: số nguyên tố hoặc lũy thừa 2. Lũy thừa bậc 2 dễ sử dụng nhưng 1/ tốn không gian lưu trữ và 2/ đòi hỏi hàm băm phải tốt hơn.
+//!
+//! Các số nguyên tố dễ dãi hơn với hàm băm (ko yêu cầu nó phải phân bổ đều như lũy thừa của 2) và chúng ta có nhiều lựa chọn hơn liên quan đến kích thước, dẫn đến chi phí thấp hơn. Nhưng việc sử dụng một số nguyên tố cần phải thực hiện phép chia mô đun, điều này rất tốn kém. Và chúng ta phải tìm một số nguyên tố phù hợp trong thời gian chạy, điều này cũng không hề đơn giản.
+//!
+//! May mắn thay chúng ta có thể giải quyết cả 2 vấn đề trên cùng một lúc. Chúng ta có thể tính toán trước các số nguyên tố cần dùng. Nếu chọn khoảng cách giữa chúng là 5% thì trong khoảng trong khoảng 0 - 2^64 chỉ có 841 số nguyên tố. Với phép chia mô đun, ta có thể tính toán trước magic numbers như trong cuốn Hacker's Delight cho các số nguyên tố để thực hiện phép chia mô đun nhanh (~8x).
+//!
+//! Chuyển đổi mã nguồn từ https://db.in.tum.de/~neumann/primes.hpp
+
 const std = @import("std");
+test "Prime" {
+    try std.testing.expectEqual(Prime.pick(5).value, 5);
+    const x: u64 = 4494041191586404219;
+    const p = Prime.pick(x - 1);
+    try std.testing.expectEqual(p.value, x);
+
+    try std.testing.expectEqual(p.mod(3), 3);
+    try std.testing.expectEqual(p.mod(p.value + 3), 3);
+
+    var prev: u64 = 0;
+    for (Prime.primes) |prime| {
+        var i: usize = 0;
+        while (i < 10_000) : (i += 1) {
+            const n1 = prime.value + i;
+            const n2 = std.math.maxInt(u64) - i;
+            try std.testing.expectEqual(prime.mod(n1), n1 % prime.value);
+            try std.testing.expectEqual(prime.mod(n2), n2 % prime.value);
+        }
+
+        i = 0;
+        const n = std.math.min(100, (prime.value - prev) / 2);
+        // std.debug.print("\nn={d}, prime={d}", .{ n, prime.value });
+        while (i <= n) : (i += 1) {
+            const lower = Prime.pick(prev + i);
+            const upper = Prime.pick(prime.value - i);
+            // std.debug.print(", [{d}, {d}]", .{ prev + i, prime.value - i });
+            try std.testing.expectEqual(lower, prime);
+            try std.testing.expectEqual(upper, prime);
+        }
+        prev = prime.value + 1;
+    }
+}
 
 const Prime = struct {
-    /// A pre-computed number, i.e. Prime without the logic.
-    /// We cannot use Prime in the primes array because the array is constexpr
-    /// and Prime is not complete at the definition
     pub const Number = struct {
-        value: u64, // The value itself
+        value: u64, // Giá trị của số nguyên tố
         magic: u64, // The magic multiplication number
-        shift: u6, // The shift after multiplication
+        shift: u6, //  The shift after multiplication
 
         /// Divide the argument by the prime number
-        pub fn div(self: Number, x: u64) u64 {
+        pub inline fn div(self: Number, x: u64) u64 {
             return @intCast(u64, (@intCast(u128, x) * self.magic) >> 64) >> self.shift;
         }
 
         /// Return the remainder after division
-        pub fn mod(self: Number, x: u64) u64 {
+        pub inline fn mod(self: Number, x: u64) u64 {
             return x - self.div(x) * self.value;
         }
     };
 
-    pub const prime_count = 814;
-
     /// Pick a suitable prime number larger than the argument
     pub fn pick(desired_size: u64) Number {
-        // Sanity check, should never happen for practical usage as we are close to 2^64
-        if (desired_size >= primes[prime_count - 1].value) {
-            return primes[prime_count - 1];
-        }
-
-        // Pick a number
         var lower: u64 = 0;
         var upper: u64 = prime_count - 1;
 
+        // Kiểm tra cận trên. Tiệm cận với 2^64 là một số rất lớn nên
+        // trong thực tế hầu như không dùng số lớn như vậy
+        if (desired_size >= primes[prime_count - 1].value) {
+            return primes[upper];
+        }
+
+        // Vì primes là mảng tăng dần nên ta có thể sử dụng chia để trị
         while (lower != upper) {
             const middle = lower / 2 + upper / 2;
-            if (primes[middle].value < desired_size) {
-                lower = middle + 1;
-            } else if (primes[middle].value > desired_size) {
-                upper = middle;
-            } else {
+            const midval = primes[middle].value;
+
+            if (midval == desired_size) {
                 return primes[middle];
+            } else {
+                if (midval < desired_size) {
+                    lower = middle + 1;
+                } else {
+                    upper = middle;
+                }
             }
         }
+
         return primes[lower];
     }
 
+    /// Tính toán trước dãy 814 số nguyên tố lấp đầy khoảng từ 0 - 2^64
+    /// Mảng này bỏ qua các số nguyên tố mà magic number của nó không thuận tiện
+    /// cho phép chia mô đun.
+    pub const prime_count = 814;
     pub const primes = [prime_count]Number{ .{
         .value = 3,
         .magic = 12297829382473034411,
@@ -3305,12 +3351,3 @@ const Prime = struct {
         .shift = 63,
     } };
 };
-
-test "Prime" {
-    try std.testing.expectEqual(Prime.pick(5).value, 5);
-    const x: u64 = 4494041191586404219;
-    const p = Prime.pick(x - 1);
-    try std.testing.expectEqual(p.value, x);
-    try std.testing.expectEqual(p.mod(3), 3);
-    try std.testing.expectEqual(p.mod(x + 3), 3);
-}

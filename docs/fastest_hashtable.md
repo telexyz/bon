@@ -4,35 +4,6 @@ https://martin.ankerl.com/2022/08/27/hashmap-bench-01
 
 - - -
 
-## [All hash table sizes you will ever need](http://databasearchitects.blogspot.com/2020/01/all-hash-table-sizes-you-will-ever-need.html)
-
-Khi chọn kích thước bảng băm ta thường có 2 lựa chọn: số nguyên tố hoặc lũy thừa 2. Lũy thừa bậc 2 dễ sử dụng nhưng 1/ tốn không gian lưu trữ và 2/ đòi hỏi hàm băm phải tốt hơn.
-
-Các số nguyên tố dễ dàng hơn cho hàm băm và chúng ta có nhiều lựa chọn hơn liên quan đến kích thước, dẫn đến chi phí thấp hơn. Nhưng việc sử dụng một số nguyên tố cần phải tính toán chia mô đun, điều này rất tốn kém. Và chúng ta phải tìm một số nguyên tố phù hợp trong thời gian chạy, điều này cũng không hề đơn giản.
-
-May mắn thay chúng ta có thể giải quyết cả 2 vấn đề trên cùng một lúc. Chúng ta có thể tính toán trước các số nguyên tố cần dùng. Nếu chọn khoảng cách giữa chúng là 5% thì trong khoảng trong khoảng 0 - 2^64 chỉ có 841 số nguyên tố. Với phép chia mô đun, ta có thể tính toán trước magic numbers trong cuốn sách Hacker's Delight cho mỗi số nguyên tố đã chọn để sử dụng phép nhân để thực hiện phép chia mô đun. Và ta có thể bỏ qua các số nguyên tố mà có magic numbers không thuận tiện cho việc tính toán, đơn giản là chọn số nguyên tố hợp lý tiếp theo.
-
-https://db.in.tum.de/~neumann/primes.hpp
-```cpp
-   struct Number {
-      uint64_t value, magic, shift;
-   };
-   /// All pre-computed numbers
-   static constexpr unsigned primeCount = 814;
-   static constexpr Number primes[primeCount] = {
-         {3ull, 12297829382473034411ull, 1},
-         {5ull, 14757395258967641293ull, 2},
-         {11ull, 3353953467947191203ull, 1},
-         {13ull, 5675921253449092805ull, 2},
-         {17ull, 17361641481138401521ull, 4},
-         {19ull, 15534100272597517151ull, 4},
-         {37ull, 15953940820505558155ull, 5},
-         {41ull, 14397458789236723213ull, 5},
-         ... // `ull` suffix makes it type unsigned long long.
-```
-
-- - -
-
 ## [I Wrote The Fastest Hashtable](https://probablydance.com/2017/02/26/i-wrote-the-fastest-hashtable)
 
 ## Open addressing
