@@ -55,6 +55,7 @@ pub const Prime = struct {
 
         /// Return the remainder after division
         pub inline fn mod(self: Number, x: u64) u64 {
+            // return x % self.value;
             return x - self.div(x) * self.value;
         }
     };

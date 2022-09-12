@@ -1,5 +1,6 @@
 const std = @import("std");
 const builtin = @import("builtin");
+const Prime = @import("primes.zig").Prime;
 
 pub const HashType = u64;
 pub const CountType = u32;
@@ -30,6 +31,9 @@ pub fn HashCount(capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
     const size = (@as(usize, 2) << bits) + (capacity / 8);
+
+    // const prime = Prime.pick((capacity) * 2);
+    // const size = prime.value;
 
     std.debug.assert(size < MAX_CAPACITY);
     std.debug.assert(size > capacity);
@@ -102,6 +106,7 @@ pub fn HashCount(capacity: IndexType) type {
                 .in_chunks = .{ .mask = 0 },
             };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
+            // var i = prime.mod(it.hash);
             // const _i = i;
 
             // Ba bước để đặt `it` vào hashtable
@@ -158,6 +163,7 @@ pub fn HashCount(capacity: IndexType) type {
         pub fn getEntry(self: Self, key: KeyType) ?*Entry {
             const hash = _hash(key);
             var i = hash >> shift;
+            // var i = prime.mod(hash);
             while (self.entries[i].hash < hash) : (i += 1) {}
             if (self.entries[i].hash == hash) return &self.entries[i];
             return null;
@@ -168,7 +174,7 @@ pub fn HashCount(capacity: IndexType) type {
 
             for (self.entries[0..]) |*entry| {
                 const curr = entry.hash;
-                if (curr < MAXX_HASH) {
+                if (curr < MAXX_HASH and prev < MAXX_HASH) {
                     if (prev > curr) {
                         std.debug.print("\n!! hash ko tăng dần !!\n", .{});
                         return false;

@@ -19,19 +19,20 @@
 //
 // - - -
 //
-// Có 2 cách cài đặt hash map tốt là `libs/youtokentome/third_party/flat_hash_map.h` và
-// `cswisstable`; có thể tìm hiểu cả 2 để có lựa chọn tốt nhất cho HashCount.
+// Tham khảo https://github.com/VKCOM/YouTokenToMe/blob/master/youtokentome/cpp/third_party/flat_hash_map.h
 //
-// >> small strings: 1_099_201, ss puts: 38_210_356, ss bytes: 6_788_771, remain: 14_427_001 <<
-//    total          2_051_991           43_811_775
-// => Chiếm 87% số lần put vào HashCount
+// >> small strings: 1_099_201, ss puts: 38_210_356, ss bytes: 6_788_771
+//    total          2_051_991           43_811_775           21_215_772
+// => Chiếm 50% types, 87% số lần put vào HashCount, và 32% lượng bytes
 
 const std = @import("std");
 const builtin = @import("builtin");
+const Prime = @import("primes.zig").Prime;
 
 pub const HashType = u64;
 pub const CountType = u32;
 pub const IndexType = u24;
+pub const KeyType = []const u8;
 
 pub const GUARD_BYTE = 32; // vì token ko có space nên gán = 32 để in ra dễ đọc
 
@@ -52,7 +53,9 @@ pub fn HashCount(capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
     const size = (@as(usize, 2) << bits) + (capacity / 8);
-    const KeyType = []const u8;
+
+    // const prime = Prime.pick((capacity / 2) * 3);
+    // const size = prime.value;
 
     std.debug.assert(size < MAX_CAPACITY);
     std.debug.assert(size > capacity);
@@ -142,6 +145,7 @@ pub fn HashCount(capacity: IndexType) type {
 
             var it: Entry = .{ .hash = _hash(key), .count = 1 };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
+            // var i = prime.mod(it.hash);
             // const _i = i;
 
             while (self.entries[i].hash < it.hash) : (i += 1) {}
@@ -187,8 +191,9 @@ pub fn HashCount(capacity: IndexType) type {
                     const tmp = self.entries[i];
                     self.entries[i] = it;
                     // !! Luôn kiểm tra hash == MAXX_HASH để xác định ô rỗng !!
-                    // Các so sánh khác khác để bổ trợ trường hợp edge case
-                    if (tmp.hash == MAXX_HASH and tmp.offset == 0) { // ô rỗng, dừng thuật toán
+                    // Các so sánh khác để bổ trợ trường hợp edge case
+                    if (tmp.hash == MAXX_HASH and tmp.offset == 0) {
+                        // ô rỗng, dừng thuật toán
                         self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
                         // self.recordStats(i - _i);
                         return;
@@ -202,6 +207,7 @@ pub fn HashCount(capacity: IndexType) type {
             if (key.len > MAX_KEY_LEN) return 0;
             const hash = _hash(key);
             var i = hash >> shift;
+            // var i = prime.mod(hash);
 
             while (self.entries[i].hash < hash) : (i += 1) {}
 
@@ -225,7 +231,7 @@ pub fn HashCount(capacity: IndexType) type {
 
             for (self.entries[0..]) |*entry| {
                 const curr = entry.hash;
-                if (curr < MAXX_HASH) {
+                if (curr < MAXX_HASH and prev < MAXX_HASH) {
                     if (prev > curr) {
                         std.debug.print("\n!! hash ko tăng dần !!\n", .{});
                         return false;

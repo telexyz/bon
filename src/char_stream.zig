@@ -228,6 +228,7 @@ pub fn main() !void {
     }
 
     switch (builtin.mode) {
+        // .Debug => {
         .Debug, .ReleaseFast => {
             var bpe: BPE = undefined;
             defer bpe.deinit();
