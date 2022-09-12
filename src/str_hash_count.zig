@@ -87,7 +87,7 @@ pub fn HashCount(capacity: IndexType) type {
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.max_probs = 0;
             self.total_probs = 0;
-            self.total_puts = 0;
+            self.total_puts = 1; // tránh chia cho 0
 
             self.len = 0;
             self.keys_bytes_len = MAX_KEY_LEN + 1;
@@ -135,16 +135,16 @@ pub fn HashCount(capacity: IndexType) type {
         pub fn put(self: *Self, key: KeyType) void {
             if (key.len > MAX_KEY_LEN) return; // reject
 
+            if (self.len == capacity) {
+                std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                unreachable;
+            }
+
             var it: Entry = .{ .hash = _hash(key), .count = 1 };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
-            const _i = i;
+            // const _i = i;
 
-            while (self.entries[i].hash < it.hash) : (i += 1) {
-                if (i == size) {
-                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
-                    unreachable;
-                }
-            }
+            while (self.entries[i].hash < it.hash) : (i += 1) {}
 
             var ss: HashType = undefined;
             const ss_ptr = &ss;
@@ -155,7 +155,7 @@ pub fn HashCount(capacity: IndexType) type {
                     (std.mem.eql(u8, self.keyStr(entry, ss_ptr), key));
                 if (found) { // key đã tồn tại từ trước
                     entry.count += 1; // xáo trộn duy nhất là thay đổi giá trị count
-                    self.recordStats(i - _i);
+                    // self.recordStats(i - _i);
                     return;
                 }
                 entry = &self.entries[i + 1];
@@ -183,10 +183,6 @@ pub fn HashCount(capacity: IndexType) type {
                 }
 
                 while (true) : (i += 1) {
-                    if (i == size) {
-                        std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
-                        unreachable;
-                    }
                     // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                     const tmp = self.entries[i];
                     self.entries[i] = it;
@@ -194,7 +190,7 @@ pub fn HashCount(capacity: IndexType) type {
                     // Các so sánh khác khác để bổ trợ trường hợp edge case
                     if (tmp.hash == MAXX_HASH and tmp.offset == 0) { // ô rỗng, dừng thuật toán
                         self.len += 1; // thêm 1 phần tử mới được ghi vào HashCount
-                        self.recordStats(i - _i);
+                        // self.recordStats(i - _i);
                         return;
                     }
                     it = tmp;

@@ -57,7 +57,7 @@ pub fn HashCount(capacity: IndexType) type {
         pub fn init(self: *Self, init_allocator: std.mem.Allocator) !void {
             self.max_probs = 0;
             self.total_probs = 0;
-            self.total_puts = 0;
+            self.total_puts = 1;
 
             self.len = 0;
             self.spinlock = lock_init;
@@ -91,18 +91,22 @@ pub fn HashCount(capacity: IndexType) type {
         pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: u8) *Entry {
             std.debug.assert(curr_chunk < MAX_CHUNKS);
 
-            var it: Entry = .{ .hash = _hash(key), .count = count, .in_chunks = .{ .mask = 0 } };
+            if (self.len == capacity) {
+                std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                unreachable;
+            }
+
+            var it: Entry = .{
+                .hash = _hash(key),
+                .count = count,
+                .in_chunks = .{ .mask = 0 },
+            };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
-            const _i = i;
+            // const _i = i;
 
             // Ba bước để đặt `it` vào hashtable
             // 1/ Bỏ qua các entry có hash < it.hash
-            while (self.entries[i].hash < it.hash) : (i += 1) {
-                if (i == size) {
-                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
-                    unreachable;
-                }
-            }
+            while (self.entries[i].hash < it.hash) : (i += 1) {}
 
             // 2/ Với các entry có hash = it.hash, nếu tìm được entry có key == it.key
             // thì tăng count và return entry.
@@ -114,7 +118,7 @@ pub fn HashCount(capacity: IndexType) type {
                 const entry = &self.entries[i];
                 entry.count += count;
                 entry.in_chunks.set(curr_chunk);
-                self.recordStats(i - _i);
+                // self.recordStats(i - _i);
                 if (lock_at_step_2) { // Đảm bảo độ đúng đắn của spinlock,
                     std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));
                 } // trước khi trả về kết quả
@@ -129,17 +133,13 @@ pub fn HashCount(capacity: IndexType) type {
             }
 
             while (true) : (i += 1) {
-                if (i == size) {
-                    std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
-                    unreachable;
-                }
                 // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
                 const tmp = self.entries[i];
                 self.entries[i] = it;
 
                 if (tmp.hash == MAXX_HASH and tmp.in_chunks.mask == 0) { // ô rỗng,
                     self.len += 1; // thêm 1 phần tử mới vào HashCount
-                    self.recordStats(i - _i);
+                    // self.recordStats(i - _i);
                     self.entries[i].in_chunks.set(curr_chunk);
                     // Đảm bảo độ đúng đắn của spinlock
                     std.debug.assert(@atomicRmw(bool, &self.spinlock, .Xchg, false, .SeqCst));

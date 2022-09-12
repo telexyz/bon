@@ -9,7 +9,7 @@ const WaitGroup = @import("WaitGroup.zig");
 
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 // Init HashCount để count các tokens ko phải âm tiết tiếng Việt
-pub const NotSyllHashCount = shc.HashCount(2_500_000);
+pub const NotSyllHashCount = shc.HashCount(1_000_000);
 
 var type_counters: NotSyllHashCount = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
@@ -179,10 +179,15 @@ pub fn main() !void {
 
     switch (builtin.mode) {
         .Debug, .ReleaseSafe => {
-            show_info = true;
             var wait_group: WaitGroup = .{};
+
             wait_group.start();
+            show_info = true;
             scanFile("utf8tv.txt", &wait_group);
+
+            wait_group.start();
+            show_info = false;
+            scanFile("../data/combined_ab", &wait_group);
         },
         .ReleaseFast, .ReleaseSmall => {
             var wait_group: WaitGroup = .{};

@@ -42,7 +42,7 @@ test "Prime" {
     }
 }
 
-const Prime = struct {
+pub const Prime = struct {
     pub const Number = struct {
         value: u64, // Giá trị của số nguyên tố
         magic: u64, // The magic multiplication number
