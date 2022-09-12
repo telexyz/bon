@@ -29,7 +29,7 @@ const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS);
 pub fn HashCount(capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
-    const size = (@as(usize, 2) << bits) + capacity;
+    const size = (@as(usize, 2) << bits) + (capacity / 8);
 
     std.debug.assert(size < MAX_CAPACITY);
     std.debug.assert(size > capacity);

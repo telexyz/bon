@@ -51,7 +51,7 @@ pub const Entry = packed struct {
 pub fn HashCount(capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
-    const size = (@as(usize, 2) << bits) + capacity;
+    const size = (@as(usize, 2) << bits) + (capacity / 8);
     const KeyType = []const u8;
 
     std.debug.assert(size < MAX_CAPACITY);
