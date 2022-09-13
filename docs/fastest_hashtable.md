@@ -1,6 +1,10 @@
 > Hashtable lý tưởng được dùng bởi nhiều threads mà ko conflict, cache friendly (flat_map), tận dụng SIMD intrinsics cho các thao tác comparing, hashing, probing ...
 
-https://martin.ankerl.com/2022/08/27/hashmap-bench-01
+=> https://github.com/martinus/unordered_dense/blob/main/include/ankerl/unordered_dense.h
+
+__GOOD__: The map is an excellent allrounder. Search very fast, fastest string search. Iteration speed is unbeatable because all the data lies in a contiguous block of memory. It has support for custom allocators, custom containers, and fancy pointers. It is e.g. possible to simply replace the internally used std::vector with other types to make use of shared memory.
+
+__BAD__: Removing an element can be relatively slow, since it requires two lookups because the map keeps a densely stored vector at all times.
 
 - - -
 
@@ -22,6 +26,7 @@ https://martin.ankerl.com/2022/08/27/hashmap-bench-01
 
 Khi thêm phần tử mới sử dụng thăm dò tuyến tính, tính khoảng cách từ vị trí hiện tại tới vị trí lý tưởng, nếu nó xa hơn hơn khoảng cách của phần tử hiện tại thì hoán đổi phần tử mới với phần tử hiện tại và tìm vị trí mới cho phần tử hiện tại.
 
+More: https://programming.guide/robin-hood-hashing.html
 
 ## Prime number amount of slots
 
