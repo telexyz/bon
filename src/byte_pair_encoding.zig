@@ -30,7 +30,7 @@ const inSet = @import("char_stream.zig").inSet;
 const MAX_SELECTED_PAIRS: usize = 8000;
 const MAX_TOTAL_CANDIDATES = 5 * MAX_SELECTED_PAIRS / 2;
 const TOTAL_CHARS = 256; // coi chars là byte nên có 256 chars
-const MAX_TOTAL_SYMBOLS = 1_500_000;
+const MAX_TOTAL_SYMBOLS = 1_000_000;
 const MAX_SELECTED_SYMBOLS = TOTAL_CHARS + MAX_SELECTED_PAIRS;
 const MAX_CANDIDATES = MAX_TOTAL_SYMBOLS / 3;
 
