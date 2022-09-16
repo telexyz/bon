@@ -82,8 +82,6 @@ Tìm hiểu sâu về phần cứng để tối ưu code và chuẩn bị tươn
 
 https://github.com/telexyz/turbo/issues
 
-Làm Terminal-based Text-editor để tích hợp bộ gõ song ngữ Anh - Việt thông minh, tự cải thiện trong quá trình tương tác với người dùng.
-
 ## [ DONE ]
 
 - BPE Learn v5; chia vocabs làm 64 khoảng và đánh dấu từng pair candidate thuộc và ko thuộc khoảng nào
