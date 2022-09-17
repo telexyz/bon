@@ -17,10 +17,11 @@ const TokenToSyll = struct {
         lolb: u8 = 0,
         // lolb: len_or_last_byte có giá trị 1..8 nến key.len < 8 hoặc last_byte của key
         // bởi với các âm tiết utf-8 viết thường max sylalble bytes = 9
-        pub inline fn keyStr(self: Entry, ss_ptr: *u72) []const u8 {
-            ss_ptr.* = (@intCast(u72, self.hash *% 0x2040003d780970bd) << 8) + self.lolb;
-            const n = if (self.lolb < 8) self.lolb else 9;
-            return std.mem.asBytes(ss_ptr)[0..n];
+        pub inline fn keyStr(self: Entry, buf: Syllable.Utf8Buff) []const u8 {
+            @ptrCast(*align(1) HashType, buf[0..8]).* = self.hash *% 0x2040003d780970bd;
+            buf[8] = self.lolb;
+            const n: usize = if (self.lolb > 8) 9 else self.lolb;
+            return buf[0..n];
         }
     };
 
@@ -54,20 +55,28 @@ const TokenToSyll = struct {
         });
     }
 
-    inline fn _hash(key: [9]u8) HashType {
-        const value = std.mem.readIntNative(HashType, key[0..8]);
+    inline fn _hash(key: Syllable.Utf8Buff) HashType {
+        const value = @ptrCast(*align(1) const HashType, &key).*;
         return value *% 0x517cc1b727220a95;
     }
 
-    pub fn put(self: *Self, key: [9]u8, len: usize, syll: Syllable.UniqueId) void {
+    pub fn put(self: *Self, key: Syllable.Utf8Buff, len: usize, syll: Syllable.UniqueId) void {
+        // Đảm bảo len của key đầu vào luôn <= 9
         std.debug.assert(len <= 9);
 
         var it: Entry = .{ .hash = _hash(key), .syll = syll };
         var i = @intCast(usize, it.hash >> shift);
-        while (self.entries[i].hash <= it.hash) : (i += 1) {}
+        while (self.entries[i].hash <= it.hash) : (i += 1) {
+            const entry = self.entries[i];
+            if (entry.hash == it.hash and
+                (entry.lolb == len or entry.lolb == key[8])) return;
+        }
 
         // key lần đầu xuất hiện, ghi lại offset
         it.lolb = if (len < 9) @intCast(u8, len) else key[8];
+        // lolb (len or last byte) chỉ có <= 8 hoặc 'g' hoặc 'h', là ký tự cuối
+        // của âm cuối dài nhất `ng`, `nh`, `ch`
+        std.debug.assert(it.lolb <= 8 or it.lolb == 'g' or it.lolb == 'h');
 
         while (true) : (i += 1) {
             // Tráo giá trị it và entries[i] để đảm bảo tính tăng dần của hash
@@ -81,7 +90,7 @@ const TokenToSyll = struct {
         } // while
     }
 
-    pub fn get(self: Self, key: [9]u8, len: usize) ?*Entry {
+    pub fn get(self: Self, key: Syllable.Utf8Buff, len: usize) ?*Entry {
         if (len > 9) return null;
 
         const hash = _hash(key);
@@ -99,6 +108,29 @@ const TokenToSyll = struct {
 
         return null;
     }
+
+    pub fn validate(self: *Self) bool {
+        var prev: HashType = 0;
+        for (self.entries[0..]) |*entry| {
+            const curr = entry.hash;
+            if (curr < MAXX_HASH and prev < MAXX_HASH) {
+                if (prev > curr) {
+                    std.debug.print("\n!! hash ko tăng dần !!\n", .{});
+                    return false;
+                }
+                prev = curr;
+
+                // var buff: Syllable.Utf8Buff = undefined;
+                // _ = entry.keyStr(buff);
+                // const hash = _hash(buff);
+                // if (curr != hash) {
+                //     std.debug.print("\n!! hash ko trùng với key !!\n", .{});
+                //     return false;
+                // }
+            }
+        }
+        return true;
+    }
 };
 
 pub fn main() !void {
@@ -107,25 +139,42 @@ pub fn main() !void {
     try token2syll.init(std.heap.page_allocator);
 
     var syll: Syllable.UniqueId = 0;
-    var buffer: [9]u8 = undefined;
-    const buf = buffer[0..];
+    var buff: Syllable.Utf8Buff = undefined;
 
     while (syll < Syllable.MAXX_ID) : (syll += 1) {
-        const token = Syllable.newFromId(syll).printBuffUtf8(buf);
+        var am_tiet = Syllable.newFromId(syll);
+        if (am_tiet.am_giua == .ah or am_tiet.am_giua == .oah) continue; // bỏ qua 2 âm hỗ trợ
+        const token = am_tiet.printBuffUtf8(buff[0..]);
+
         if (token.len > 8) {
-            std.debug.print("{d}:{s} ", .{ token.len, token });
+            std.debug.print("\n{d}:{s}", .{ token.len, token });
         }
-        token2syll.put(buffer, token.len, syll);
+
+        token2syll.put(buff, token.len, syll);
     }
 
-    syll = 0;
-    var ss: u72 = undefined;
+    std.debug.print("\n\n(( token2syll validation: {any} ))\n\n", .{token2syll.validate()});
 
+    syll = 0;
     while (syll < Syllable.MAXX_ID) : (syll += 1) {
-        const token = Syllable.newFromId(syll).printBuffUtf8(buf);
-        const entry = token2syll.get(buffer, token.len);
-        if (entry != null and entry.?.syll != syll) {
-            std.debug.print("{s} {d} {s}; ", .{ token, syll, entry.?.keyStr(&ss) });
+        var am_tiet = Syllable.newFromId(syll);
+        if (am_tiet.am_giua == .ah or am_tiet.am_giua == .oah) continue; // bỏ qua 2 âm hỗ trợ
+        const token = am_tiet.printBuffUtf8(buff[0..]);
+
+        const entry = token2syll.get(buff, token.len);
+        if (entry == null) {
+            // std.debug.print("{s} null {d}; ", .{ token, syll });
+        } else {
+            const value = entry.?.syll;
+            // const key = entry.?.keyStr(buff);
+
+            if (syll != value) {
+                std.debug.print("{s} {d} {d}; ", .{ token, syll, value });
+            }
+
+            // if (!std.mem.eql(u8, token, key)) {
+            //     std.debug.print("{s}|{s}; ", .{ token, key });
+            // }
             // unreachable;
         }
     }

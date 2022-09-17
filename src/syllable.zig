@@ -5,7 +5,7 @@ const fmt = std.fmt;
 pub const AmDau = enum {
     // 25 âm đầu
     _none,
-    b, // 1th
+    b,
     c, // Viết thành k trước các nguyên âm e, ê, i (iê, ia) => cần kiểm tra từ vay mượn Bắc Kạn
     d,
     q, // => c; q chỉ đi với + âm đệm u
@@ -27,8 +27,8 @@ pub const AmDau = enum {
     nh, // 20th
     ph,
     th,
-    tr, // 23th
-    zd, // âm đ
+    tr,
+    zd, // âm đ, 24th
     // Transit states: gh, ngh trước các nguyên âm e, ê, i, iê (ia).
     gh, // => g
     ngh, // ng
@@ -113,8 +113,8 @@ pub const AmGiua = enum {
     aw, // ă
     ez, // ê
     oz, // ô
-    ow, // ơ
-    uw, // ư // 11th
+    ow, // ơ // 10th
+    uw, // ư
 
     oa,
     oe,
@@ -125,12 +125,12 @@ pub const AmGiua = enum {
 
     iez, //  iê <= ie (tiên <= tien, tieen, tiezn)
     oaw, //  oă (loắt choắt)
-    uaz, //  uâ (tuân <= tuan), ua mà có âm cuối chuyển thanh uaz
+    uaz, //  uâ (tuân <= tuan), ua mà có âm cuối chuyển thanh uaz; 20th
     uez, //  uê <= ue (tuê <= tue) tuềnh toàng, que => coe
     uoz, //  uô
     uow, //  ươ
     u_ow, // uơ <= quơ, huơ, thuở
-    uyez, // uyê // 25
+    uyez, // uyê // 25th
 
     // Hỗ trợ
     // - - - - - - - - - - - - -
@@ -304,6 +304,9 @@ pub const Syllable = struct {
     normalized: bool = false,
 
     pub const UniqueId = u15;
+    pub const Utf8Buff = [MAXX_BYTES]u8;
+
+    pub const MAXX_BYTES: usize = 9;
     pub const MAXX_AM_DAU: UniqueId = 25;
     pub const MAXX_AM_GIUA: UniqueId = 28;
     pub const MAXX_AM_CUOI_TONE: UniqueId = 42;
@@ -401,10 +404,10 @@ pub const Syllable = struct {
                 am_cuoi = .i;
                 if (am_giua == .a) am_giua = .aw else if (am_giua == .oa) am_giua = .oaw;
             },
-            //  a o => aw u
-            //  e o =>  e u
+            //  a o =>  aw u
+            //  e o =>  e  u
             // oa o => oaw u
-            // oe o => oe u
+            // oe o => oe  u
             .o => {
                 am_cuoi = .u;
                 if (am_giua == .a) am_giua = .aw;
@@ -823,6 +826,7 @@ pub const Syllable = struct {
                 n += 1;
             }
         }
+        std.debug.assert(n <= MAXX_BYTES);
         return buff[0..n];
     }
 
@@ -864,21 +868,23 @@ test "Syllable's printBuff" {
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngôn");
 }
 
+//
 const parseSyllable = @import("am_tiet_parse.zig").parseSyllable;
 const cmn = @import("common.zig");
+
 pub fn main() void {
-    var buffer: [12]u8 = undefined;
+    var buffer: [Syllable.MAXX_BYTES + 5]u8 = undefined;
     const buf1 = buffer[0..];
 
-    var buffer2: [12]u8 = undefined;
+    var buffer2: [Syllable.MAXX_BYTES + 5]u8 = undefined;
     const buf2 = buffer2[0..];
 
     var i: Syllable.UniqueId = 0;
     var n: usize = 0;
     while (i < Syllable.MAXX_ID) : (i += 1) {
         var syll = Syllable.newFromId(i);
-        // bỏ qua 2 âm hỗ trợ
-        if (syll.am_giua == .ah or syll.am_giua == .oah) continue;
+
+        if (syll.am_giua == .ah or syll.am_giua == .oah) continue; // bỏ qua 2 âm hỗ trợ
         if (syll.am_giua == .i and syll.am_cuoi == .i) continue;
         if (syll.am_giua == .o and syll.am_cuoi == .o) continue;
 
@@ -890,11 +896,11 @@ pub fn main() void {
 
         n += 1;
         if (n < 200) {
-            std.debug.print("{s: >13}  ", .{a});
+            std.debug.print("{s: >9}  ", .{a});
             if ((n + 1) % 8 == 0) std.debug.print("\n", .{});
         }
 
-        if (std.mem.eql(u8, a, b)) continue; // bỏ qua uoz!=ua[bụa bụa]
+        if (std.mem.eql(u8, a, b)) continue; // bỏ qua uoz!=ua[bụa bụa] ez!=iez[giệu giệu]
 
         if ( //syll.am_dau != reve.am_dau or
         syll.am_giua != reve.am_giua or
