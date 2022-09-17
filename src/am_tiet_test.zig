@@ -1,6 +1,6 @@
 const std = @import("std");
 const cmn = @import("common.zig");
-const parseSyllable = @import("am_tiet.zig").parseSyllable;
+const parseSyllable = @import("am_tiet_parse.zig").parseSyllable;
 const sds = @import("syllable.zig");
 
 test "Các âm tiết hợp lệ" {

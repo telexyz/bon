@@ -23,8 +23,8 @@ const std = @import("std");
 const builtin = @import("builtin");
 const ThreadPool = @import("ThreadPool.zig");
 const WaitGroup = @import("WaitGroup.zig");
-const shc = @import("str_hash_count.zig");
-const phc = @import("pair_hash_count.zig");
+const shc = @import("hash_count_str.zig");
+const phc = @import("hash_count_pair.zig");
 const inSet = @import("char_stream.zig").inSet;
 
 const MAX_SELECTED_PAIRS: usize = 8000;
@@ -705,7 +705,7 @@ pub const BPE = struct {
         std.debug.print("\nTOTAL: {d} symbols selected.\n", .{self.totalSelectedPairs()});
     }
 
-    // Copy `keyStr()` từ str_hash_count.zig
+    // Copy `keyStr()` từ hash_count_str.zig
     pub fn keyStr(self: Self, entry: shc.Entry, ss_ptr: *shc.HashType) []const u8 {
         const offset = entry.offset;
         if (offset <= 8) { // small string

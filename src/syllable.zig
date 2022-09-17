@@ -864,7 +864,7 @@ test "Syllable's printBuff" {
     try std.testing.expectEqualStrings(syll.printBuffUtf8(buff), "ngôn");
 }
 
-const parseSyllable = @import("am_tiet.zig").parseSyllable;
+const parseSyllable = @import("am_tiet_parse.zig").parseSyllable;
 const cmn = @import("common.zig");
 pub fn main() void {
     var buffer: [12]u8 = undefined;

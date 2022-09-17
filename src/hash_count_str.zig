@@ -139,7 +139,7 @@ pub fn HashCount(capacity: IndexType) type {
             if (key.len > MAX_KEY_LEN) return; // reject
 
             if (self.len == capacity) {
-                std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                std.debug.print("`hash_count_str.zig`: hashtable bị đầy.", .{});
                 unreachable;
             }
 

@@ -13,11 +13,11 @@ https://lldb.llvm.org/use/tutorial.html
 
 ```
 zig build
-lldb zig-out/bin/str_hash_count
+lldb zig-out/bin/hash_count_str
 (lldb) help
 
-b str_hash_count.zig:139
-b str_hash_count.zig:143
+b hash_count_str.zig:139
+b hash_count_str.zig:143
 
 run
 

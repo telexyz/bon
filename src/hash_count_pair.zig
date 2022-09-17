@@ -82,7 +82,7 @@ pub fn HashCount(capacity: IndexType) type {
             if (probs > self.max_probs) self.max_probs = probs;
             if (self.max_probs > 500) {
                 const percent = (self.len * 100) / size;
-                std.debug.print("!!! pair_hash_count.zig:  capacity ko đủ lớn; hastable đầy {d}% !!!", .{percent});
+                std.debug.print("!!! hash_count_pair.zig:  capacity ko đủ lớn; hastable đầy {d}% !!!", .{percent});
                 unreachable;
             }
         }
@@ -96,7 +96,7 @@ pub fn HashCount(capacity: IndexType) type {
             std.debug.assert(curr_chunk < MAX_CHUNKS);
 
             if (self.len == capacity) {
-                std.debug.print("`str_hash_count.zig`: hashtable bị đầy.", .{});
+                std.debug.print("`hash_count_str.zig`: hashtable bị đầy.", .{});
                 unreachable;
             }
 
