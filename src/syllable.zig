@@ -304,9 +304,9 @@ pub const Syllable = struct {
     normalized: bool = false,
 
     pub const UniqueId = u15;
-    pub const Utf8Buff = [MAXX_BYTES]u8;
+    pub const BytesBuf = [MAX_BYTES]u8;
 
-    pub const MAXX_BYTES: usize = 9;
+    pub const MAX_BYTES: usize = 9;
     pub const MAXX_AM_DAU: UniqueId = 25;
     pub const MAXX_AM_GIUA: UniqueId = 28;
     pub const MAXX_AM_CUOI_TONE: UniqueId = 42;
@@ -826,7 +826,7 @@ pub const Syllable = struct {
                 n += 1;
             }
         }
-        std.debug.assert(n <= MAXX_BYTES);
+        std.debug.assert(n <= MAX_BYTES);
         return buff[0..n];
     }
 
@@ -873,10 +873,10 @@ const parseSyllable = @import("am_tiet_parse.zig").parseSyllable;
 const cmn = @import("common.zig");
 
 pub fn main() void {
-    var buffer: [Syllable.MAXX_BYTES + 5]u8 = undefined;
+    var buffer: [Syllable.MAX_BYTES + 5]u8 = undefined;
     const buf1 = buffer[0..];
 
-    var buffer2: [Syllable.MAXX_BYTES + 5]u8 = undefined;
+    var buffer2: [Syllable.MAX_BYTES + 5]u8 = undefined;
     const buf2 = buffer2[0..];
 
     var i: Syllable.UniqueId = 0;
