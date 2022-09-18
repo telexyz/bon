@@ -49,12 +49,13 @@ test "cu_qu" {
         // std.debug.print("`{s}` ", .{am_tiet});
         var syll = parseSyllable(am_tiet);
 
-        try std.testing.expect(syll.can_be_vietnamese);
+        try std.testing.expect(!syll.can_be_vietnamese);
 
         const str = syll.printBuffUtf8(buff);
         try std.testing.expectEqual(str[0], 'q');
         try std.testing.expectEqualStrings(str[1..], am_tiet[1..]);
 
+        syll.normalized = true; // force so that syll.toId() works
         const syll_id = syll.toId();
         var reverted = sds.Syllable.newFromId(syll_id);
         try std.testing.expectEqualStrings(reverted.printBuffUtf8(buff), str);

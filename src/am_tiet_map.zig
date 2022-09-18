@@ -41,16 +41,6 @@ const TokenToSyll = struct {
             const n: usize = if (self.lolb > 8) 9 else self.lolb;
             return buf[0..n];
         }
-        // pub inline fn keyStr(self: Entry, buf: *Syllable.BytesBuf) []const u8 {
-        //     var n: usize = if (self.lolb > 8) 8 else self.lolb;
-        //     const ss = self.hash *% 0x2040003d780970bd;
-
-        //     std.mem.copy(u8, buf, std.mem.asBytes(&ss)[0..n]);
-        //     buf[8] = self.lolb;
-
-        //     n = if (self.lolb > 8) 9 else self.lolb;
-        //     return buf[0..n];
-        // }
     };
 
     const capacity: usize = Syllable.MAXX_ID;
@@ -93,9 +83,13 @@ const TokenToSyll = struct {
             if (entry.hash > it.hash) {
                 break;
             }
-            if (entry.hash == it.hash and (entry.lolb == len or entry.lolb == key[8])) {
-                std.debug.print("\nsyll {d} and {d} map to same token '{s}'", .{ syll, entry.syll, key[0..len] });
-                // unreachable;
+            if (entry.hash == it.hash and (entry.lolb == len or entry.lolb == key[8]) and
+                syll != entry.syll)
+            {
+                var buf: Syllable.BytesBuf = undefined;
+                std.debug.print("\n>> {d} => '{s}' and {d} => '{s}' map to the same token\n", .{ syll, key[0..len], entry.syll, entry.keyStr(&buf) });
+                std.debug.print("\n{any}\n\n{any}\n\n", .{ Syllable.newFromId(syll), Syllable.newFromId(entry.syll) });
+                unreachable;
             }
         }
 
@@ -170,36 +164,23 @@ const TokenToSyll = struct {
     }
 };
 
-pub fn main() !void {
+pub fn initToken2syll(allocator: std.mem.Allocator) !TokenToSyll {
     var token2syll: TokenToSyll = undefined;
-    defer token2syll.deinit();
-    try token2syll.init(std.heap.page_allocator);
+    try token2syll.init(allocator);
 
     var syll: Syllable.UniqueId = 0;
     var buf0: Syllable.BytesBuf = undefined;
-    var buf1: Syllable.BytesBuf = undefined;
-
-    const syll0 = 924;
-    const syll1 = 672;
-    var am_tiet0 = Syllable.newFromId(syll0);
-    var am_tiet1 = Syllable.newFromId(syll1);
-
-    const token0 = am_tiet0.printBuffUtf8(buf0[0..]);
-    const token1 = am_tiet1.printBuffUtf8(buf1[0..]);
-
-    std.debug.print("\n>> {d}:{s}:{d} {d}:{s}:{d}\n", .{ syll0, token0, _hash(&buf0, token0.len), syll1, token1, _hash(&buf1, token1.len) });
 
     while (syll < Syllable.MAXX_ID) : (syll += 1) {
         var am_tiet = Syllable.newFromId(syll);
-        if (am_tiet.am_giua == .ah or am_tiet.am_giua == .oah) continue; // bỏ qua 2 âm hỗ trợ
+        if (am_tiet.invalid()) continue;
+
         const token = am_tiet.printBuffUtf8(buf0[0..]);
+        am_tiet.normalize();
+        if (!am_tiet.can_be_vietnamese) continue;
 
-        if (token.len > 8) {
-            std.debug.print("\n{d}:{s}", .{ token.len, token });
-            if (token.len > 9) unreachable; // ko có token nào có quá 9 bytes
-        }
-
-        token2syll.put(&buf0, token.len, syll);
+        const true_id = am_tiet.toId();
+        token2syll.put(&buf0, token.len, true_id);
     }
 
     if (!token2syll.validate()) {
@@ -207,30 +188,45 @@ pub fn main() !void {
         unreachable;
     }
 
-    syll = 0;
+    return token2syll;
+}
+
+test "initToken2syll" {
+    var token2syll = try initToken2syll(std.heap.page_allocator);
+    defer token2syll.deinit();
+
+    var syll: Syllable.UniqueId = 0;
+    var buf0: Syllable.BytesBuf = undefined;
+    var buf1: Syllable.BytesBuf = undefined;
+
     while (syll < Syllable.MAXX_ID) : (syll += 1) {
         var am_tiet = Syllable.newFromId(syll);
-        if (am_tiet.am_giua == .ah or am_tiet.am_giua == .oah) continue; // bỏ qua 2 âm hỗ trợ
+        if (am_tiet.invalid()) continue;
 
         const token = am_tiet.printBuffUtf8(buf0[0..]);
+        am_tiet.normalize();
+        if (!am_tiet.can_be_vietnamese) continue;
+
+        const true_id = am_tiet.toId();
         const entry = token2syll.get(&buf0, token.len);
 
         if (entry == null) {
             std.debug.print("{s} null; ", .{token});
             unreachable;
-        } else {
-            const value = entry.?.syll;
-            const key = entry.?.keyStr(&buf1);
+        }
 
-            if (syll != value) {
-                std.debug.print("{s} {d} {d}; ", .{ token, syll, value });
-                // unreachable;
-            }
+        const value = entry.?.syll;
+        const key = entry.?.keyStr(&buf1);
 
-            if (!std.mem.eql(u8, token, key)) {
-                std.debug.print("{s}|{s}; ", .{ token, key });
-                unreachable;
-            }
+        if (true_id != value) {
+            std.debug.print("{s} {d} {d}; ", .{ token, syll, value });
+            std.debug.print("\n{any}\n{any}\n", .{ am_tiet, Syllable.newFromId(value) });
+            unreachable;
+        }
+
+        if (!std.mem.eql(u8, token, key)) {
+            std.debug.print("{s}|{s}; ", .{ token, key });
+            unreachable;
         }
     }
 }

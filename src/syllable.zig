@@ -324,16 +324,35 @@ pub const Syllable = struct {
         return self.hasMark() or self.hasTone();
     }
 
+    pub fn invalid(self: Syllable) bool {
+        if (self.am_giua == .ah or self.am_giua == .oah) return true; // bỏ qua 2 âm hỗ trợ
+        if (self.am_giua == .uoz and self.am_cuoi == ._none) return true;
+        return false;
+    }
     pub fn normalize(self: *Syllable) void {
         // std.debug.print("\n!!!! normalizing !!!!\n", .{});
         if (self.normalized) return;
 
+        if (self.am_dau == .gi and self.am_giua == .i and self.am_cuoi != ._none) {
+            self.can_be_vietnamese = false;
+            return;
+        }
+
+        // if (self.am_giua == .iez and self.am_cuoi == ._none) {
+        //     self.can_be_vietnamese = false;
+        //     return;
+        // }
+
         switch (self.am_giua) {
-            .ui => if (self.am_dau != .q) {
+            .ui, .ue => if (self.am_dau != .q) {
                 self.can_be_vietnamese = false;
                 return;
             },
-            .ue => if (self.am_dau != .q) {
+            .uy, .uez, .uyez, .uaz => if (self.am_dau == .c) {
+                self.can_be_vietnamese = false;
+                return;
+            },
+            .iez => if (self.am_dau == .gi) {
                 self.can_be_vietnamese = false;
                 return;
             },
@@ -590,7 +609,6 @@ pub const Syllable = struct {
         self.tone = ._none;
         self.can_be_vietnamese = false;
     }
-
     pub fn printBuffUtf8(self: *Syllable, buff: []u8) []const u8 {
         const blank = "";
         const dau = switch (self.am_dau) {
