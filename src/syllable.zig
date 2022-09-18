@@ -338,11 +338,6 @@ pub const Syllable = struct {
             return;
         }
 
-        // if (self.am_giua == .iez and self.am_cuoi == ._none) {
-        //     self.can_be_vietnamese = false;
-        //     return;
-        // }
-
         switch (self.am_giua) {
             .ui, .ue => if (self.am_dau != .q) {
                 self.can_be_vietnamese = false;
