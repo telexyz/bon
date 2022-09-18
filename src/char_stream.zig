@@ -150,6 +150,7 @@ inline fn processNonAlphabetTokens(str: []const u8) void {
         if (show_info) std.debug.print(" `{s}`", .{tkn});
     }
 }
+
 inline fn processToken(token: []const u8) void {
     var syll = parseSyllable(token);
     if (syll.can_be_vietnamese)
@@ -161,9 +162,30 @@ inline fn processToken(token: []const u8) void {
         std.debug.print("\n{s}:\t\t", .{token});
         cmn.printSyllParts(syll);
     }
+    // mapToken2Syll(token);
 }
 
+inline fn mapToken2Syll(token: []const u8) void {
+    var buf: Syllable.BytesBuf = undefined;
+    if (token.len > 9) {
+        type_counters.put(token);
+        return;
+    }
+    std.mem.copy(u8, buf[0..], token);
+    var entry = token2syll.get(&buf, token.len);
+    if (entry != null)
+        syll_counters.put(entry.?.syll)
+    else
+        type_counters.put(token);
+}
+const atm = @import("am_tiet_map.zig");
+const Syllable = @import("syllable.zig").Syllable;
+var token2syll: atm.TokenToSyll = undefined;
+
 pub fn main() !void {
+    defer token2syll.deinit();
+    token2syll = try atm.initToken2Syll(std.heap.page_allocator);
+
     var tknz_time_spent: i64 = undefined;
     const total_start_time = std.time.milliTimestamp();
 
@@ -224,12 +246,13 @@ pub fn main() !void {
             syll_counters.deinit();
 
             tknz_time_spent = @divTrunc(std.time.milliTimestamp() - start_time, 1000);
+            std.debug.print("\n\n[ TOKENIZATION {d}s ]\n", .{tknz_time_spent});
         },
     }
 
     switch (builtin.mode) {
-        // .Debug => {
-        .Debug, .ReleaseFast => {
+        .Debug => {
+            // .Debug, .ReleaseFast => {
             var bpe: BPE = undefined;
             defer bpe.deinit();
             const start_time = std.time.milliTimestamp();

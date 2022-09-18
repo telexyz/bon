@@ -23,7 +23,7 @@ inline fn _hash(key: *Syllable.BytesBuf, len: usize) TokenToSyll.HashType {
     return value *% 0x517cc1b727220a95;
 }
 
-const TokenToSyll = struct {
+pub const TokenToSyll = struct {
     const KeyType = []const u8;
     const IndexType = u24;
     const HashType = u64;
@@ -164,7 +164,7 @@ const TokenToSyll = struct {
     }
 };
 
-pub fn initToken2syll(allocator: std.mem.Allocator) !TokenToSyll {
+pub fn initToken2Syll(allocator: std.mem.Allocator) !TokenToSyll {
     var token2syll: TokenToSyll = undefined;
     try token2syll.init(allocator);
 
@@ -191,13 +191,14 @@ pub fn initToken2syll(allocator: std.mem.Allocator) !TokenToSyll {
     return token2syll;
 }
 
-test "initToken2syll" {
-    var token2syll = try initToken2syll(std.heap.page_allocator);
+pub fn main() !void {
+    var token2syll = try initToken2Syll(std.heap.page_allocator);
     defer token2syll.deinit();
 
     var syll: Syllable.UniqueId = 0;
     var buf0: Syllable.BytesBuf = undefined;
     var buf1: Syllable.BytesBuf = undefined;
+    var count: usize = 0;
 
     while (syll < Syllable.MAXX_ID) : (syll += 1) {
         var am_tiet = Syllable.newFromId(syll);
@@ -206,6 +207,11 @@ test "initToken2syll" {
         const token = am_tiet.printBuffUtf8(buf0[0..]);
         am_tiet.normalize();
         if (!am_tiet.can_be_vietnamese) continue;
+
+        if (token.len > 8) {
+            count += 1;
+            std.debug.print("{s} ", .{token});
+        }
 
         const true_id = am_tiet.toId();
         const entry = token2syll.get(&buf0, token.len);
@@ -229,4 +235,9 @@ test "initToken2syll" {
             unreachable;
         }
     }
+    std.debug.print("\nTổng số âm tiết có len == 9 là {d}", .{count});
+}
+
+test "initToken2Syll" {
+    main();
 }
