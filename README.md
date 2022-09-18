@@ -84,8 +84,9 @@ https://github.com/telexyz/turbo/issues
 
 ## [ DONE ]
 
-- BPE Learn v5; chia vocabs làm 64 khoảng và đánh dấu từng pair candidate thuộc và ko thuộc khoảng nào
-  và chỉ scan vocabs trong khoảng mà selected candidate thuộc vào. Tăng tốc `1.7x` so với v4.
+- Phát hiện thú vị: các âm tiết TV hợp lệ có `bytes' len <= 9`. Nếu `== 9` thì ký tự cuối (`am_tiet[8]`) luôn là `g`, `G` hoặc `h`, `H` và số lượng các âm tiết có `len == 9` chỉ khoảng vài chục. Vì 8-bytes chứa vừa trong một 64-bit register nên phát hiện này sẽ giúp tăng tốc việc parse âm tiết TV từ string lên rất nhiều, vì có thể quy các thao tác trên âm tiết string về thao tác trên một thanh ghi, hầu như chỉ mất 1 chu kỳ CPU.
+
+- BPE Learn v5; chia vocabs làm 64 khoảng và đánh dấu từng pair candidate thuộc và ko thuộc khoảng nào và chỉ scan vocabs trong khoảng mà selected candidate thuộc vào. Tăng tốc `1.7x` so với v4.
 
 - BPE Learn v3, v4; better candidates selection, multi-threading + SIMD, tăng hơn `10x` so với v2.
 
