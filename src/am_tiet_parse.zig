@@ -80,8 +80,6 @@ pub fn main() void {
     // }
 }
 
-const MAX_SYLL_BYTES_LEN = 12;
-
 pub inline fn parseSyllable(bytes: []const u8) sds.Syllable {
     var syll = _parseSyllable(bytes);
 
@@ -103,7 +101,7 @@ pub fn _parseSyllable(bytes: []const u8) sds.Syllable {
 
     var syll = sds.Syllable.new();
     // chuỗi rỗng hoặc lớn hơn 12 bytes không phải âm tiết utf8
-    if (bytes.len == 0 or bytes.len > MAX_SYLL_BYTES_LEN) return syll; // NOT SYLLABLE
+    if (bytes.len == 0 or bytes.len > sds.Syllable.MAX_BYTES) return syll; // NOT SYLLABLE
 
     const bytes_len = bytes.len;
     var c0: Char = undefined;
