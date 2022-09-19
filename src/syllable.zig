@@ -420,7 +420,8 @@ pub const Syllable = struct {
             // uaz y => uaz i
             .y => {
                 am_cuoi = .i;
-                if (am_giua == .a) am_giua = .aw else if (am_giua == .oa) am_giua = .oaw;
+                if (am_giua == .a) am_giua = .aw;
+                if (am_giua == .oa) am_giua = .oaw;
             },
             //  a o =>  aw u
             //  e o =>  e  u
@@ -439,7 +440,8 @@ pub const Syllable = struct {
             // oa  nh => oah ng
             .nh => {
                 am_cuoi = .ng;
-                if (am_giua == .a) am_giua = .ah else if (am_giua == .oa) am_giua = .oah;
+                if (am_giua == .a) am_giua = .ah;
+                if (am_giua == .oa) am_giua = .oah;
             },
             //  ez ch =>  ez c
             //  i  ch =>  i  c
@@ -449,7 +451,8 @@ pub const Syllable = struct {
             // oa  ch => oah c
             .ch => {
                 am_cuoi = .c;
-                if (am_giua == .a) am_giua = .ah else if (am_giua == .oa) am_giua = .oah;
+                if (am_giua == .a) am_giua = .ah;
+                if (am_giua == .oa) am_giua = .oah;
             },
             else => {},
         }
