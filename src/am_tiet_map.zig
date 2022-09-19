@@ -7,18 +7,18 @@ const Syllable = @import("syllable.zig").Syllable;
 
 // Công thức dùng để đảo người hash và keyStr:
 // x == (x *% 0x517cc1b727220a95) *% 0x2040003d780970bd // *%: wrapping_mul
-// inline fn _hash(key: *Syllable.BytesBuf, len: usize) TokenToSyll.HashType {
+// inline fn _hash(key: *Syllable.BytesBuf, len: usize) u64 {
 //     std.mem.set(u8, key[len..], 0);
-//     const value = @ptrCast(*align(1) const TokenToSyll.HashType, &key).*;
+//     const value = @ptrCast(*align(1) const u64, &key).*;
 //     return value *% 0x517cc1b727220a95;
 // }
-inline fn _hash(key: *Syllable.BytesBuf, len: usize) TokenToSyll.HashType {
-    var value: TokenToSyll.HashType = 0;
-    var i: u6 = 0;
+inline fn _hash(key: *Syllable.BytesBuf, len: usize) u64 {
     const n: usize = if (len > 8) 8 else len;
-    while (i < n) : (i += 1) {
-        const shift = i * 8;
-        value += @intCast(TokenToSyll.HashType, key[i]) << shift;
+    var value: u64 = key[n - 1];
+    var i: usize = 2;
+    while (i <= n) : (i += 1) {
+        value <<= 8;
+        value |= key[n - i];
     }
     return value *% 0x517cc1b727220a95;
 }
