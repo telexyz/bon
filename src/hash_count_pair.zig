@@ -27,7 +27,7 @@ pub const Entry = packed struct {
 pub const MAX_CHUNKS = 64;
 const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS);
 
-pub fn HashCount(capacity: IndexType) type {
+pub fn HashCount(comptime capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
     const shift = 63 - bits;
     const size = (@as(usize, 2) << bits) + (capacity / 8);
