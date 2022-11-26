@@ -3,7 +3,6 @@
 zig build -Drelease-fast=true
 hyperfine --runs 1 --show-output 'zig-out/bin/char_stream'
 
-
 # Gen assembly code
 # zig build-lib -O ReleaseFast -femit-asm=main.asm --strip src/main.zig
 #
@@ -17,6 +16,8 @@ hyperfine --runs 1 --show-output 'zig-out/bin/char_stream'
 # --show-leak-kinds=all --num-callers=15 \
 # --log-file=leak.txt ./zig-out/bin/char_stream
 
+# wget https://github.com/sharkdp/hyperfine/releases/download/v1.15.0/hyperfine_1.15.0_amd64.deb
+# sudo dpkg -i hyperfine_1.15.0_amd64.deb
 
 # You Token To Me, the fatest BPE out-there
 # - - - - - - - - - - - - - - - - - - - - -
@@ -27,7 +28,7 @@ hyperfine --runs 1 --show-output 'zig-out/bin/char_stream'
 
 # input: ../data/all.tx
 # model: ../data/youtokentome
-# vocab_size: 23500
+# vocab_size: 23500q
 # n_threads: 4
 # ...
 # model saved to: ../data/youtokentome

@@ -44,7 +44,7 @@ pub inline fn getFinal(x: u8, y: u8) AmCuoi {
     const a = (@intCast(u16, x) << 8) + y;
     const input = u16x16{ a, a, a, a, a, a, a, a, a, a, a, a, a, a, a, a };
     const match = @ptrCast(*const u16, &(input == lookup)).*;
-    const pos = if (match > 0) @ctz(u16, match) else 12;
+    const pos = if (match > 0) @ctz(match) else 12;
     return finals[pos];
 }
 

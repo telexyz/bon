@@ -68,7 +68,7 @@ pub inline fn getInitial(f: u8, s: u8) AmDau {
 
     var pos: usize = 32;
     if (phu_am_doi_match > 0) {
-        pos = 31 - @clz(u32, phu_am_doi_match);
+        pos = 31 - @clz(phu_am_doi_match);
 
         // const c: []const u8 = &.{ f, s };
         // std.debug.print("\n\n'{s}'{x}:{x}", .{ c, f, s });
@@ -80,7 +80,7 @@ pub inline fn getInitial(f: u8, s: u8) AmDau {
         // để lọc ra phụ âm đơn 1-byte
         const phu_am_don_match = match & phu_am_don_mask;
         if (phu_am_don_match > 0) {
-            pos = 31 - @clz(u32, phu_am_don_match);
+            pos = 31 - @clz(phu_am_don_match);
         }
     }
 

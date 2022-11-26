@@ -92,7 +92,7 @@ fn scanFile(file_name: []const u8, wg: *WaitGroup) void {
 
         if (show_info) std.debug.print("\n\nbuf[{d}]: \"{s}\"", .{ count, curr_bytes[0..len] });
         const sp_bits = getIsNonAlphabetAsciiBits(curr_bytes.*);
-        var next_sp_idx: usize = @ctz(BitType, sp_bits);
+        var next_sp_idx: usize = @ctz(sp_bits);
         if (next_sp_idx > len) next_sp_idx = len; // normalized
 
         const non_alpha_tokens_between_buffers = (sp_idx == MAX_READ_BYTES);
@@ -240,6 +240,25 @@ pub fn main() !void {
 
             wait_group.start();
             try thread_pool.spawn(scanFile, .{ "../data/combined_ad", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ae", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_af", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ag", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ah", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_ai", &wait_group });
+
+            wait_group.start();
+            try thread_pool.spawn(scanFile, .{ "../data/combined_aj", &wait_group });
+
             wait_group.wait();
 
             syll_counters.list(20);
@@ -251,8 +270,8 @@ pub fn main() !void {
     }
 
     switch (builtin.mode) {
-        .Debug => {
-            // .Debug, .ReleaseFast => {
+        // .Debug => {
+        .Debug, .ReleaseFast => {
             var bpe: BPE = undefined;
             defer bpe.deinit();
             const start_time = std.time.milliTimestamp();

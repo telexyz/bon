@@ -474,10 +474,10 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_16.*;
                     const right_match_bin = @ptrCast(*const u16, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    const match_begin = @ctz(u16, match_bin);
+                    const match_begin = @ctz(match_bin);
 
                     if (match_begin < key_len) { // match happened inside the key
-                        const match_end = @clz(u16, match_bin);
+                        const match_end = @clz(match_bin);
                         if (key_len > match_end) key_len = match_end + 1;
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
@@ -492,10 +492,10 @@ pub const BPE = struct {
                     const right_match_vec = input == right_lookup_32.*;
                     const right_match_bin = @ptrCast(*const u32, &(right_match_vec)).*;
                     const match_bin = left_match_bin & (right_match_bin >> 1);
-                    const match_begin = @ctz(u32, match_bin);
+                    const match_begin = @ctz(match_bin);
 
                     if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
-                        const match_end = @clz(u32, match_bin);
+                        const match_end = @clz(match_bin);
                         if (key_len > match_end) key_len = match_end + 1;
 
                         self.mergeMatching(match_begin, key_len, match_bin, //
