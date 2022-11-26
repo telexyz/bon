@@ -296,6 +296,9 @@ pub const BPE = struct {
             const left_lookup_32 = @splat(32, left);
             const right_lookup_32 = @splat(32, right);
 
+            const left_lookup_64 = @splat(64, left);
+            const right_lookup_64 = @splat(64, right);
+
             wait_group.reset();
             var c: u8 = 0;
             while (c < MAX_CHUNKS) : (c += 1) {
@@ -308,6 +311,8 @@ pub const BPE = struct {
                         &right_lookup_16,
                         &left_lookup_32,
                         &right_lookup_32,
+                        &left_lookup_64,
+                        &right_lookup_64,
                         last_symbol_idx,
                         c,
                     });
@@ -436,6 +441,8 @@ pub const BPE = struct {
         right_lookup_16: *const std.meta.Vector(16, SymbolType),
         left_lookup_32: *const std.meta.Vector(32, SymbolType),
         right_lookup_32: *const std.meta.Vector(32, SymbolType),
+        left_lookup_64: *const std.meta.Vector(64, SymbolType),
+        right_lookup_64: *const std.meta.Vector(64, SymbolType),
         last_symbol_idx: SymbolType,
         curr_chunk: u8,
     ) void {
@@ -495,6 +502,24 @@ pub const BPE = struct {
                     const match_begin = @ctz(match_bin);
 
                     if (match_begin < 32 and match_begin < key_len) { // match happened inside the key
+                        const match_end = @clz(match_bin);
+                        if (key_len > match_end) key_len = match_end + 1;
+
+                        self.mergeMatching(match_begin, key_len, match_bin, //
+                            first_char_idx, last_char_idx, key_len_ptr, //
+                            last_symbol_idx, count, left, right, curr_chunk);
+                    }
+                },
+                33...64 => {
+                    const input: std.meta.Vector(64, SymbolType) = self.vocabs[first_char_idx..][0..64].*;
+                    const left_match_vec = input == left_lookup_64.*; // Zig Vector `==` op
+                    const left_match_bin = @ptrCast(*const u64, &(left_match_vec)).*;
+                    const right_match_vec = input == right_lookup_64.*;
+                    const right_match_bin = @ptrCast(*const u64, &(right_match_vec)).*;
+                    const match_bin = left_match_bin & (right_match_bin >> 1);
+                    const match_begin = @ctz(match_bin);
+
+                    if (match_begin < 64 and match_begin < key_len) { // match happened inside the key
                         const match_end = @clz(match_bin);
                         if (key_len > match_end) key_len = match_end + 1;
 
