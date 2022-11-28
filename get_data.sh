@@ -28,4 +28,5 @@ cat combined.txt.7z.a* > combined.txt.7z
 rm combined.txt.7z.a*
 7z x combined.txt.7z
 
-split -l 1500000 combined.txt combined_
+cat combined.txt | shuf > combined
+split -l 1450000 combined combined_
