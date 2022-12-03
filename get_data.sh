@@ -1,4 +1,4 @@
-# sudo apt-get install p7zip-full
+sudo apt-get install p7zip-full
 
 mkdir -p ../data
 cd ../data
