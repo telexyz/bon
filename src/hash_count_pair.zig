@@ -24,8 +24,8 @@ pub const Entry = struct {
     }
 };
 
-pub const MAX_CHUNKS = 64;
-const InChunksType = std.bit_set.ArrayBitSet(u64, MAX_CHUNKS);
+pub const MAX_CHUNKS = 16;
+const InChunksType = std.bit_set.ArrayBitSet(u16, MAX_CHUNKS);
 // const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS); // TODO: Enable later
 
 pub fn HashCount(comptime capacity: IndexType) type {
