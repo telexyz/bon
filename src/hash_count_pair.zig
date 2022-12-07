@@ -13,7 +13,7 @@ pub const MAXX_HASH = std.math.maxInt(HashType);
 pub const MAXX_INDEX = std.math.maxInt(IndexType);
 pub const MAXX_SYMBOL = std.math.maxInt(SymbolType);
 
-pub const Entry = packed struct {
+pub const Entry = struct {
     hash: HashType, //           u64
     count: CountType, //         u32
     in_chunks: InChunksType, //  u64 => 8+4+8 = 20-bytes
@@ -25,7 +25,8 @@ pub const Entry = packed struct {
 };
 
 pub const MAX_CHUNKS = 64;
-const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS);
+const InChunksType = std.bit_set.ArrayBitSet(u64, MAX_CHUNKS);
+// const InChunksType = std.bit_set.IntegerBitSet(MAX_CHUNKS); // TODO: Enable later
 
 pub fn HashCount(comptime capacity: IndexType) type {
     const bits = std.math.log2_int(HashType, capacity);
@@ -71,7 +72,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
             std.mem.set(Entry, self.entries, .{
                 .hash = MAXX_HASH,
                 .count = 0,
-                .in_chunks = .{ .mask = 0 },
+                .in_chunks = InChunksType.initEmpty(),
             });
         }
 
@@ -92,7 +93,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
             return @intCast(HashType, key) *% 0x517cc1b727220a95;
         }
 
-        pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: u8) *Entry {
+        pub fn putCount(self: *Self, key: KeyType, count: CountType, curr_chunk: usize) *Entry {
             std.debug.assert(curr_chunk < MAX_CHUNKS);
 
             if (self.len == capacity) {
@@ -103,7 +104,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
             var it: Entry = .{
                 .hash = _hash(key),
                 .count = count,
-                .in_chunks = .{ .mask = 0 },
+                .in_chunks = InChunksType.initEmpty(),
             };
             var i: IndexType = @intCast(IndexType, it.hash >> shift);
             // var i = prime.mod(it.hash);
@@ -142,7 +143,7 @@ pub fn HashCount(comptime capacity: IndexType) type {
                 const tmp = self.entries[i];
                 self.entries[i] = it;
 
-                if (tmp.hash == MAXX_HASH and tmp.in_chunks.mask == 0) { // ô rỗng,
+                if (tmp.hash == MAXX_HASH and tmp.in_chunks.count() == 0) { // ô rỗng,
                     self.len += 1; // thêm 1 phần tử mới vào HashCount
                     // self.recordStats(i - _i);
                     self.entries[i].in_chunks.set(curr_chunk);

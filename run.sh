@@ -1,7 +1,8 @@
 # zig build -Drelease-safe=true
 # zig build -Drelease-fast=true -Dztracy-enable=true
 zig build -Drelease-fast=true
-hyperfine --runs 1 --show-output 'zig-out/bin/char_stream'
+./zig-out/bin/char_stream
+# hyperfine --runs 1 --show-output 'zig-out/bin/char_stream'
 
 # Gen assembly code
 # zig build-lib -O ReleaseFast -femit-asm=main.asm --strip src/main.zig
