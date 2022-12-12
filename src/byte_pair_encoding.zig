@@ -48,6 +48,13 @@ const MAXX_SYMBOL = phc.MAXX_SYMBOL;
 const MAX_KEY_LEN = shc.MAX_KEY_LEN;
 const MAX_CHUNKS = phc.MAX_CHUNKS;
 
+var prng = std.rand.DefaultPrng.init(0);
+const random = prng.random();
+inline fn dropout() bool {
+    return random.int(u16) < 40; // dropout rate ~= 0.06% (40 / 65536)
+}
+
+
 // Bộ từ vụng cho keys của char và pair; và hàm pairDecode() để lấy utf8 string tương ứng với pair key
 // - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - - -
 inline fn makeCharKey(byte: u8) PairType { // Cách làm đơn giản nhất là coi chars là byte
@@ -155,8 +162,6 @@ pub const BPE = struct {
 
     chunks: [MAX_CHUNKS + 1]usize,
     shinks: usize = 0,
-
-    // random: std.rand.Random,
 
     const Self = @This();
 
@@ -334,11 +339,6 @@ pub const BPE = struct {
         std.debug.print("\n* BPE Learn ({d: >3}%)  total_candis {d: >5}  new_candis {d: >5}", .{ progress, self.total_candidates, _new_candidates });
     }
 
-    inline fn dropout(self: Self) bool {
-        _ = self;
-        return false;
-        // return self.random.int(u16) < 40; // dropout rate ~= 0.06% (40 / 65536)
-    }
     fn finalizeCandidatesGetMaxCountIdx(self: *Self) usize {
         var min_count: CountType = std.math.maxInt(CountType);
         var min_idx: usize = undefined;
@@ -347,7 +347,7 @@ pub const BPE = struct {
         // Update giá trị mảng candidates_count vì sau 1 lần scan vocabs là count đã thay đổi
         while (x < self.total_candidates) {
             // BPE-Dropout
-            if (self.dropout()) {
+            if (dropout()) {
                 self.removeCandidateAt(x);
                 continue;
             }
@@ -606,7 +606,6 @@ pub const BPE = struct {
         self.allocator = allocator;
         self.total_types = totals_entries;
         self.keys_bytes = keys_bytes;
-        // self.random = std.rand.Pcg.init(21091981).random();
 
         self.total_selected = TOTAL_CHARS; // 256 phần tử đầu dùng để định danh char
         self.selected_symbols = try self.allocator.alloc(PairType, MAX_SELECTED_SYMBOLS);
