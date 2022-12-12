@@ -26,6 +26,7 @@ zig build -Drelease-fast=true
 # cat ../data/*.txt > all.tx # 2.3 GB
 # pip3 install Cython youtokentome
 # hyperfine --runs 1 --show-output 'yttm bpe --data ../data/all.tx --model ../data/youtokentome --vocab_size 22896'
+time ~/.local/bin/yttm bpe --data ../data/combined --model ../data/youtokentome --vocab_size 22896
 
 # input: ../data/all.tx
 # model: ../data/youtokentome

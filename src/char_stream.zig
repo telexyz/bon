@@ -9,7 +9,7 @@ const WaitGroup = @import("WaitGroup.zig");
 
 const SyllableCount = @import("syllable_count.zig").SyllableCount;
 // Init HashCount để count các tokens ko phải âm tiết tiếng Việt
-pub const NotSyllHashCount = shc.HashCount(1_000_000);
+pub const NotSyllHashCount = shc.HashCount(1_500_000);
 
 var type_counters: NotSyllHashCount = undefined; // dùng chung cho nhiều threads
 var syll_counters: SyllableCount = undefined;
