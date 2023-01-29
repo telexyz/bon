@@ -6,7 +6,7 @@
 
 * Dùng từ điển (và có thể RNN) làm token-repair và nhóm âm tiết thành từ.
 
-_NOTE: `turbo` bắt đầu như một thử nghiệm để tối ưu hóa các thuật toán đã triển khai, dần dần trở thành bản viết lại đơn giản nhưng hiệu quả hơn của [`engine`](https://github.com/telexyz/engine)_
+_NOTE: `bon` bắt đầu như một thử nghiệm để tối ưu hóa các thuật toán đã triển khai, dần dần trở thành bản viết lại đơn giản nhưng hiệu quả hơn của [`engine`](https://github.com/telexyz/engine)_
 
 - - - 
 
